@@ -1,0 +1,97 @@
+# Sprint 2 — Geospatial Core: PostGIS y Directorio
+**Semanas:** 5–6  
+**Estado:** ⏳ PENDIENTE
+
+---
+
+## Objetivo
+Implementar el motor de búsqueda geoespacial con PostGIS y construir el
+directorio de médicos con vista mapa y lista. Al finalizar, una paciente
+debe poder encontrar ginecobstetras cercanas a su ubicación.
+
+---
+
+## Tareas
+
+| ID | Tarea | Entregable Verificable | Estado |
+|----|-------|----------------------|--------|
+| S2.1 | Columna `location` GEOGRAPHY(POINT) en clinic_branches + índice GIST | Índice GIST creado y verificado | ⏳ |
+| S2.2 | Función RPC `get_nearby_doctors(lat, lng, radius_m, specialty_id, limit)` | Función retorna doctores con clínica y distancia | ⏳ |
+| S2.3 | Endpoint `GET /api/v1/doctors/nearby` con specialty_id dinámico | API retorna JSON filtrado por especialidad | ⏳ |
+| S2.4 | Sistema de disponibilidad (tabla `schedules` + `slots`) | CRUD de horarios para médicos | ⏳ |
+| S2.5 | Pantalla RN: Mapa con marcadores + dark map style | Marcadores dinámicos + mapa oscuro en dark mode | ⏳ |
+| S2.6 | Pantalla RN: Lista de médicos con filtros | Filtros sin opción de rating | ⏳ |
+| S2.7 | Pantalla RN: Perfil del médico con info clínica + experiencias + botón agendar | Perfil sin estrellas | ⏳ |
+
+---
+
+## Query PostGIS Principal
+
+```sql
+SELECT d.id, u.full_name, s.name AS specialty_name,
+  c.name AS clinic_name, c.logo_url,
+  ST_Distance(
+    cb.location::geography,
+    ST_MakePoint($lng, $lat)::geography
+  ) AS distance_m,
+  d.is_available, d.next_available_slot, d.consultation_fee
+FROM doctor_profiles d
+JOIN users u ON u.id = d.user_id
+JOIN specialties s ON s.id = d.specialty_id
+JOIN clinic_doctors cd ON cd.doctor_id = d.id AND cd.is_active = true
+JOIN clinics c ON c.id = cd.clinic_id AND c.is_active = true
+JOIN clinic_branches cb ON cb.clinic_id = c.id
+WHERE d.is_verified = true AND d.is_active = true
+  AND s.id = $specialty_id
+  AND ST_DWithin(
+    cb.location::geography,
+    ST_MakePoint($lng, $lat)::geography,
+    $radius_m
+  )
+ORDER BY d.is_available DESC, distance_m ASC
+LIMIT 20;
+```
+
+---
+
+## Migraciones a Ejecutar
+
+1. `s2_create_schedules` — Horarios de médicos por sede y día
+2. `s2_create_slots` — Slots individuales de disponibilidad
+3. `s2_rpc_get_nearby_doctors` — Función PostgreSQL para búsqueda geoespacial
+4. `s2_gist_index_branches` — Índice GIST en clinic_branches.location
+
+---
+
+## Prioridades de Resultados (UI)
+
+- 🟢 **Verde:** Disponible + próximo slot en < 48h
+- 🟡 **Amarillo:** Dentro del radio pero sin slot inmediato
+- ⚫ **Gris:** Fuera del radio pero referenciado por confianza
+
+---
+
+## Dark Map Style
+
+```typescript
+// src/shared/theme/darkMapStyle.ts
+export const darkMapStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#1E293B' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#94A3B8' }] },
+  { featureType: 'road', elementType: 'geometry',
+    stylers: [{ color: '#334155' }] },
+  { featureType: 'water', elementType: 'geometry',
+    stylers: [{ color: '#0F172A' }] },
+];
+```
+
+---
+
+## Entregable Final del Sprint
+
+- [ ] Función RPC `get_nearby_doctors` retorna resultados en < 500ms con seed data
+- [ ] Endpoint `/api/v1/doctors/nearby?lat=X&lng=Y&radius=5000&specialty_id=UUID` funcional
+- [ ] Vista Mapa con marcadores que cambian color según disponibilidad
+- [ ] Vista Lista con filtros (distancia, disponibilidad, clínica)
+- [ ] Perfil de médico sin ninguna mención a "estrellas" o "rating"
+- [ ] Dark map style aplicado cuando el tema es oscuro
