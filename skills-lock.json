@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "laravel-patterns": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "computedHash": "2e6eef44bf27bc5c8070e3454d10b586d60ecd71808a5bc756f3d7c50f3473a3"
+    },
+    "laravel-specialist": {
+      "source": "jeffallan/claude-skills",
+      "sourceType": "github",
+      "computedHash": "3fb2841e7b0e05d64484970fdbb03063327d904c270b2e46b9217b18863132ca"
+    }
+  }
+}

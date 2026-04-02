@@ -18,9 +18,9 @@ tablas base creadas, Laravel conectado a PostgreSQL y React Native inicializado.
 | S0.1 | Crear proyecto Supabase (región us-east-1) | ✅ Completado |
 | S0.2 | Habilitar PostGIS + pgcrypto en Supabase | ✅ Completado |
 | S0.3 | Inicializar Laravel 11 con Sanctum | ✅ Completado |
-| S0.4 | Inicializar React Native con NativeWind (dark mode) | ⏳ Pendiente |
-| S0.5 | Configurar ESLint, Prettier, Husky | ⏳ Pendiente |
-| S0.6 | Configurar Supabase Auth (email + Google) | ⏳ Pendiente |
+| S0.4 | Inicializar React Native con NativeWind (dark mode) | ✅ Completado |
+| S0.5 | Configurar ESLint, Prettier, Husky | ✅ Completado |
+| S0.6 | Configurar Supabase Auth (email + Google) | ✅ Completado | este punto debemos validarlo a medida de necesitarlo en la app. Por ahora NO está habilitado en Supabase.
 | S0.7 | Repositorio GitHub con branching strategy | ✅ Completado |
 | S0.8 | Tabla `specialties` con seed Ginecobstetricia + 5 futuras | ✅ Completado |
 
