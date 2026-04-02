@@ -1,48 +1,71 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\ThemePreference;
+use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+final class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasApiTokens;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
         'password',
+        'cedula',
+        'role',
+        'phone',
+        'avatar_url',
+        'theme_preference',
+        'is_active',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
+            'role' => UserRole::class,
+            'theme_preference' => ThemePreference::class,
         ];
+    }
+
+    public function doctorProfile(): HasOne
+    {
+        return $this->hasOne(DoctorProfile::class);
+    }
+
+    public function patientProfile(): HasOne
+    {
+        return $this->hasOne(PatientProfile::class);
+    }
+
+    public function isDoctor(): bool
+    {
+        return $this->role === UserRole::DOCTOR;
+    }
+
+    public function isPatient(): bool
+    {
+        return $this->role === UserRole::PATIENT;
+    }
+
+    public function isClinicAdmin(): bool
+    {
+        return $this->role === UserRole::CLINIC_ADMIN;
     }
 }
