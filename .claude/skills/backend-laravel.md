@@ -66,6 +66,14 @@ Route::prefix('v1')->group(function () {
             Route::get('/medical-records',      [MedicalRecordController::class, 'index']);
         });
 
+            // Médicos autenticados (verificados o no)
+        Route::middleware('role:doctor')->group(function () {
+            // Verificación OTP — disponible antes de is_verified
+            Route::post('/doctor/verification/request-code', [VerificationController::class, 'requestCode']);
+            Route::post('/doctor/verification/verify-code',  [VerificationController::class, 'verifyCode']);
+            Route::get('/doctor/verification/status',        [VerificationController::class, 'status']);
+        });
+
         // Solo médicos verificados
         Route::middleware(['role:doctor', 'doctor.verified'])->group(function () {
             Route::get('/agenda',               [AgendaController::class, 'index']);
@@ -149,6 +157,16 @@ enum ExperienceStatus: string
     case Reported  = 'reported';
     case Hidden    = 'hidden';
 }
+
+// app/Enums/VerificationStatus.php — [Δ-5] OTP de médicos
+enum VerificationStatus: string
+{
+    case Pending  = 'pending';
+    case CodeSent = 'code_sent';
+    case Verified = 'verified';
+    case Failed   = 'failed';
+    case Expired  = 'expired';
+}
 ```
 
 ---
@@ -222,6 +240,53 @@ FCM_SERVER_KEY=
 
 # Cifrado AES-256 para chat
 CHAT_ENCRYPTION_KEY=    # 32 bytes, generado con: openssl rand -hex 32
+```
+
+---
+
+## Flujo de Verificación de Médicos (Δ-5)
+
+El registro unificado crea al médico con `is_verified = false`. La verificación
+se completa en un paso separado via OTP:
+
+```php
+// ❌ INCORRECTO — al registrar, is_verified NO puede ser true
+DoctorProfile::create(['user_id' => $user->id, 'is_verified' => true]);
+
+// ✅ CORRECTO — siempre false al registro; solo DoctorVerificationService puede activarlo
+DoctorProfile::create(['user_id' => $user->id, 'is_verified' => false]);
+
+// ❌ INCORRECTO — enviar OTP al email del usuario registrado
+Mail::to($user->email)->send(new OtpMail($code));
+
+// ✅ CORRECTO — enviar al canal oficial de verified_doctors
+$verifiedDoctor = VerifiedDoctor::where('cedula', $user->cedula)->first();
+Mail::to($verifiedDoctor->email)->send(new OtpMail($code));
+
+// ❌ INCORRECTO — guardar OTP en plaintext
+DoctorVerificationCode::create(['code' => $otp]);
+
+// ✅ CORRECTO — siempre hash bcrypt
+DoctorVerificationCode::create(['code' => Hash::make($otp)]);
+
+// ❌ INCORRECTO — una clínica no puede verificar médicos
+$doctorProfile->update(['is_verified' => true]); // desde ClinicController = MAL
+
+// ✅ CORRECTO — solo DoctorVerificationService puede cambiar is_verified
+$this->verificationService->verifyCode($user, $inputCode);
+```
+
+**`DoctorVerificationService` — métodos clave:**
+
+```php
+// Solicitar OTP (rate-limited: max 5/día, cooldown 60s)
+public function requestCode(User $user): array
+// Retorna: ['channel' => 'email', 'destination' => 'j***@gm***.com']
+
+// Verificar OTP ingresado por el médico
+public function verifyCode(User $user, string $code): bool
+// Si válido: doctor_profiles.is_verified = true, doctor_verification_codes.status = 'verified'
+// Si inválido: incrementa attempts; si >= max_attempts → status = 'failed'
 ```
 
 ---
