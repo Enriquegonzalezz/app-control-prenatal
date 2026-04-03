@@ -1,17 +1,12 @@
-import './global.css';
-import { StatusBar } from 'expo-status-bar';
-import { Text, View } from 'react-native';
-
+import "./global.css"
+import { Text, View } from "react-native";
+ 
 export default function App() {
   return (
-    <View className="flex-1 bg-white dark:bg-slate-900 items-center justify-center">
-      <Text className="text-2xl font-bold text-gray-900 dark:text-white">
-        Control Prenatal App
+    <View className="flex-1 items-center justify-center bg-white">
+      <Text className="text-xl font-bold text-blue-500">
+        Welcome to Nativewind!
       </Text>
-      <Text className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-        NativeWind v4 + Dark Mode Enabled
-      </Text>
-      <StatusBar style="auto" />
     </View>
   );
 }
