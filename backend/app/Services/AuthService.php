@@ -47,13 +47,14 @@ final class AuthService
 
     protected function createDoctorProfile(User $user, VerifiedDoctor $verifiedDoctor): void
     {
+        // is_verified = false: la verificación se completa en un paso separado via OTP (Δ-5)
         DoctorProfile::create([
-            'user_id' => $user->id,
-            'specialty_id' => $verifiedDoctor->specialty_id,
-            'license_number' => $verifiedDoctor->license_number,
-            'university' => $verifiedDoctor->university,
-            'is_verified' => true,
-            'is_available' => true,
+            'user_id'          => $user->id,
+            'specialty_id'     => $verifiedDoctor->specialty_id,
+            'license_number'   => $verifiedDoctor->license_number,
+            'university'       => $verifiedDoctor->university,
+            'is_verified'      => false,
+            'is_available'     => true,
             'experience_count' => 0,
         ]);
     }

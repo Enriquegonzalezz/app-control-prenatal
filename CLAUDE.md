@@ -13,9 +13,11 @@ Autores: Samuel Molina Pacheco & Enrique González Castelli.
 - **Región:** us-east-1
 
 ## Modelo de Negocio
-B2B: las clínicas son el cliente principal (tenant). Cada clínica registra
-y verifica a sus propios médicos. Las pacientes acceden al directorio de
-especialistas verificados por esas clínicas.
+B2B: las clínicas son el cliente principal (tenant). Los médicos se
+**auto-registran de forma independiente** y se verifican via **OTP** contra
+la tabla maestra `verified_doctors`. Las clínicas **NO verifican médicos**;
+solo vinculan médicos que ya estén verificados en la plataforma.
+Las pacientes acceden al directorio de especialistas verificados.
 
 ## Principios Arquitectónicos Clave
 1. **Multi-especialidad desde el día 1:** Ningún campo hace referencia
@@ -27,12 +29,13 @@ especialistas verificados por esas clínicas.
 
 ## Estado Actual del Proyecto
 - ✅ Sprint 0 completado (Supabase configurado: PostGIS, ENUMs, specialties)
-- 🔄 Sprint 1 en curso: Auth diferenciada + Modelo Clínica
+- 🔄 Sprint 1 en curso: Auth diferenciada + Modelo Clínica + Verificación OTP (Δ-5 ✅)
 
 ## Migraciones ya ejecutadas en Supabase
 - s0_enable_extensions (PostGIS 3.3, pgcrypto 1.3, uuid-ossp)
 - s0_create_specialties (6 especialidades, Ginecobstetricia activa)
 - s0_create_enums (user_role, theme_preference, appointment_status, etc.)
+- s1_5_create_verification_codes (tabla doctor_verification_codes + ENUM verification_status) — **Δ-5**
 
 ## Estructura de Carpetas
 
@@ -110,3 +113,7 @@ Nunca modificar una migración ya ejecutada. Crear siempre una nueva.
 - ❌ URLs públicas para archivos médicos — siempre Signed URLs (15 min)
 - ❌ Lógica de negocio en Controllers — va en Services
 - ❌ Exponer `service_role` key en el frontend
+- ❌ Que una clínica verifique médicos — las clínicas solo VINCULAN médicos ya verificados (Δ-5)
+- ❌ Asignar `is_verified = true` al registrar un médico — la verificación es via OTP posterior (Δ-5)
+- ❌ Enviar el OTP al email de registro del usuario — siempre al email/teléfono de `verified_doctors` (Δ-5)
+- ❌ Guardar el código OTP en plaintext — siempre hash bcrypt en `doctor_verification_codes` (Δ-5)
