@@ -63,18 +63,63 @@ ALTER TABLE public.nombre_tabla ENABLE ROW LEVEL SECURITY;
 
 ---
 
-## ENUMs Disponibles (ya creados en Sprint 0)
+## ENUMs Disponibles (ya creados en Sprint 0 y S1.5)
 
 ```sql
-user_role:           patient | doctor | clinic_admin | superadmin
-theme_preference:    light | dark | system
-appointment_status:  pending | confirmed | in_progress | completed | cancelled | no_show
-relationship_status: pending | active | completed | terminated
-record_type:         lab_result | ultrasound | prescription | consultation_note | imaging | vaccine | other
-experience_status:   pending | published | reported | hidden
-message_type:        text | image | file | system
-day_of_week:         monday | tuesday | wednesday | thursday | friday | saturday | sunday
+user_role:            patient | doctor | clinic_admin | superadmin
+theme_preference:     light | dark | system
+appointment_status:   pending | confirmed | in_progress | completed | cancelled | no_show
+relationship_status:  pending | active | completed | terminated
+record_type:          lab_result | ultrasound | prescription | consultation_note | imaging | vaccine | other
+experience_status:    pending | published | reported | hidden
+message_type:         text | image | file | system
+day_of_week:          monday | tuesday | wednesday | thursday | friday | saturday | sunday
+-- Creado en s1_5 (Δ-5):
+verification_status:  pending | code_sent | verified | failed | expired
 ```
+
+---
+
+## Tabla `doctor_verification_codes` (Δ-5 — Sprint 1)
+
+Almacena códigos OTP para verificación independiente de médicos. Solo accesible
+vía `service_role` (backend). **El campo `code` guarda el bcrypt hash, nunca plaintext.**
+
+```sql
+-- Migración: s1_5_create_verification_codes
+id                 UUID PK DEFAULT gen_random_uuid()
+user_id            UUID NOT NULL FK → users.id ON DELETE CASCADE
+verified_doctor_id UUID NOT NULL FK → verified_doctors.id
+code               VARCHAR(255) NOT NULL    -- bcrypt hash del OTP
+channel            VARCHAR(10) NOT NULL     -- 'email' | 'sms'
+destination        VARCHAR(255) NOT NULL    -- canal enmascarado: "j***@gm***.com"
+status             verification_status NOT NULL DEFAULT 'pending'
+attempts           INTEGER NOT NULL DEFAULT 0
+max_attempts       INTEGER NOT NULL DEFAULT 3
+expires_at         TIMESTAMPTZ NOT NULL     -- 15 minutos desde creación
+verified_at        TIMESTAMPTZ
+ip_address         VARCHAR(45)              -- auditoría
+user_agent         TEXT                     -- auditoría
+created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+```
+
+**Reglas de negocio:**
+- Máximo 3 intentos por código; si `attempts >= max_attempts` → `status = 'failed'`
+- Código expira a los 15 minutos (`expires_at < NOW()` → `status = 'expired'`)
+- Rate limiting: máximo 5 solicitudes/día por usuario (controlado en Laravel)
+- Cooldown de 60 segundos entre solicitudes
+- El OTP se envía al `email`/`phone` de `verified_doctors`, NUNCA al del registro
+
+**RLS:** Solo `service_role`. Sin políticas públicas.
+
+```sql
+ALTER TABLE public.doctor_verification_codes ENABLE ROW LEVEL SECURITY;
+-- Sin políticas: toda operación pasa por el backend
+```
+
+**Nota sobre `clinic_doctors` (Δ-5):** Esta tabla es **solo para vinculación**.
+Una clínica solo puede vincular médicos que ya tengan `doctor_profiles.is_verified = true`.
+La clínica nunca puede establecer `is_verified`; eso solo lo hace `DoctorVerificationService`.
 
 ---
 
@@ -201,6 +246,15 @@ $$;
 CREATE TABLE ratings (...);
 -- ✅ CORRECTO
 CREATE TABLE experiences (...);  -- [Δ-2]
+
+-- ❌ NUNCA — una clínica no puede verificar médicos [Δ-5]
+UPDATE doctor_profiles SET is_verified = true WHERE ...;  -- desde contexto de clínica
+-- ✅ CORRECTO — solo DoctorVerificationService (tras OTP exitoso) puede hacer esto
+
+-- ❌ NUNCA — guardar OTP en plaintext
+INSERT INTO doctor_verification_codes (code) VALUES ('123456');
+-- ✅ CORRECTO
+INSERT INTO doctor_verification_codes (code) VALUES (bcrypt('123456'));  -- [Δ-5]
 
 -- ❌ NUNCA — URLs públicas para archivos médicos
 -- Los buckets de medical-files deben ser PRIVADOS siempre
