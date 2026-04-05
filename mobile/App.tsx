@@ -1,12 +1,5 @@
-import "./global.css"
-import { Text, View } from "react-native";
- 
+// App.tsx is not used when main is "expo-router/entry"
+// See app/_layout.tsx for the root layout
 export default function App() {
-  return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <Text className="text-xl font-bold text-blue-500">
-        Welcome to Nativewind!
-      </Text>
-    </View>
-  );
+  return null;
 }
