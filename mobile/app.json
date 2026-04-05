@@ -1,39 +1,50 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Control Prenatal",
+    "slug": "control-prenatal",
     "version": "1.0.0",
-
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "bundler": "metro"
-    },
-
-    "experiments": {
-      "tsconfigPaths": true
-    },
-
-    "plugins": [],
-
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-
-    "userInterfaceStyle": "light",
-
+    "userInterfaceStyle": "automatic",
+    "scheme": "control-prenatal",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#E8467C"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.controlprenatal.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
-    }
+        "backgroundColor": "#E8467C"
+      },
+      "package": "com.controlprenatal.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "experiments": {
+      "tsconfigPaths": true
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#E8467C",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "dark": {
+            "image": "./assets/images/splash-icon-dark.png",
+            "backgroundColor": "#202020"
+          }
+        }
+      ]
+    ]
   }
 }
