@@ -21,8 +21,3 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
-/package.json
-/package-lock.json
-/postcss.config.js
-/tailwind.config.js
-/vite.config.js
