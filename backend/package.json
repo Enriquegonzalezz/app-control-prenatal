@@ -2,8 +2,9 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
-        "dev": "vite"
+        "build": "composer install --no-dev --optimize-autoloader && npm install && vite build",
+        "dev": "vite",
+        "start": "php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"
     },
     "devDependencies": {
         "autoprefixer": "^10.4.20",
