@@ -1,0 +1,14 @@
+[phases.build]
+cmds = [
+  "composer install --no-dev --optimize-autoloader",
+  "npm install",
+  "npm run build"
+]
+
+[phases.start]
+cmds = ["php-fpm"]
+
+[variables]
+PORT = "8080"
+APP_ENV = "production"
+APP_DEBUG = "false"
