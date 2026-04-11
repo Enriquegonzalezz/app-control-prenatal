@@ -1,7 +1,26 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { authApi } from '@/lib/api';
+
+// Use localStorage for web, AsyncStorage for native
+const storage = Platform.OS === 'web' 
+  ? {
+      getItem: (name: string) => {
+        const value = localStorage.getItem(name);
+        return Promise.resolve(value);
+      },
+      setItem: (name: string, value: string) => {
+        localStorage.setItem(name, value);
+        return Promise.resolve();
+      },
+      removeItem: (name: string) => {
+        localStorage.removeItem(name);
+        return Promise.resolve();
+      },
+    }
+  : AsyncStorage;
 
 interface User {
   id: number;
@@ -93,7 +112,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => storage),
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.isLoading = false;
