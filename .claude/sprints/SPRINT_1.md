@@ -6,10 +6,12 @@
 
 ## Objetivo
 Crear toda la estructura de autenticación diferenciada por rol con verificación
-centralizada de médicos mediante tabla maestra (verified_doctors). Al finalizar
-este sprint, los dos tipos de usuario (paciente, médico) deben poder auto-registrarse.
-El rol se determina automáticamente: si la cédula existe en verified_doctors → doctor,
-si no existe → paciente. Las clínicas pueden vincular médicos ya registrados.
+independiente de médicos via OTP (Δ-5). Al finalizar este sprint:
+- Pacientes y médicos se auto-registran con un único formulario.
+- El rol se determina automáticamente: cédula en `verified_doctors` → doctor (no verificado), si no → paciente.
+- Los médicos completan la verificación en un segundo paso: solicitan OTP enviado al canal
+  oficial de `verified_doctors` (no al email de registro) y lo ingresan en la app.
+- Las clínicas solo vinculan médicos que ya tengan `is_verified = true`.
 
 ---
 
@@ -21,7 +23,8 @@ si no existe → paciente. Las clínicas pueden vincular médicos ya registrados
 | S1.2 | Tabla clinic_doctors (junction N:M clínica-médico solo para vinculación) | Relación N:M funcional | ✅ |
 | S1.3 | Flujo registro unificado: cédula → verified_doctors → role automático | Auto-registro con detección de rol | ✅ |
 | S1.4 | Middleware Laravel: EnsureIsDoctor, EnsureIsPatient, EnsureIsClinicAdmin, EnsureDoctorVerified | Rutas protegidas por rol | ✅ |
-| S1.5 | Panel clínica: vincular médicos ya registrados (clinic_doctors) | Vinculación funcional | ⏳ |
+| S1.5a | Panel clínica: vincular médicos ya verificados (clinic_doctors) | Vinculación funcional | ⏳ |
+| S1.5b | Verificación OTP de médicos: `doctor_verification_codes`, `DoctorVerificationService`, endpoints request/verify | Médico pasa de `is_verified=false` a `true` via OTP | ✅ |
 | S1.6 | RLS en todas las tablas con clinic scope | Tests de acceso no autorizado fallando | ✅ |
 | S1.7 | Pantallas RN: Login, Registro Unificado, Onboarding diferenciado | Navegación completa de auth | ⏳ |
 | S1.8 | Sistema de temas dark/light con tokens semánticos en NativeWind | Toggle funcional + respeta OS | ⏳ |
@@ -46,8 +49,23 @@ si no existe → paciente. Las clínicas pueden vincular médicos ya registrados
 - [x] EXTRA - 6 comandos Artisan
 - [x] EXTRA - Telescope + Pulse
 
+### ✅ Verificación OTP Médicos — Δ-5 (Completo y probado end-to-end)
+- [x] S1.5b - Migración `s1_5_create_verification_codes` (ENUM + tabla) — ejecutada en Supabase
+- [x] S1.5b - Migración `telescope_entries` — ejecutada vía `php artisan migrate`
+- [x] S1.5b - `App\Enums\VerificationStatus`
+- [x] S1.5b - `App\Models\DoctorVerificationCode`
+- [x] S1.5b - `App\Services\DoctorVerificationService` (requestCode + verifyCode + getStatus)
+- [x] S1.5b - `App\Http\Controllers\Doctor\VerificationController`
+- [x] S1.5b - `App\Jobs\SendVerificationCodeJob` (Gmail SMTP funcional)
+- [x] S1.5b - Endpoints registrados y funcionando en api.php
+- [x] S1.5b - `AuthService`: corrección `is_verified=false` al registrar (bug fix Δ-5)
+- [x] S1.5b - `User` model: agregado `HasUuids` (bug fix — users.id es UUID en Supabase)
+- [x] S1.5b - Prueba MAIL_MAILER=log — OTP visible en laravel.log
+- [x] S1.5b - Prueba Gmail SMTP — email llegó a samuelmolina664@gmail.com ✅
+- [x] S1.5b - Verificación con código real (882512) → `is_verified=true` ✅
+
 ### ⏳ Panel Clínica (Pendiente)
-- [ ] S1.5 - Vincular médicos a clínicas (backend + frontend admin)
+- [ ] S1.5a - Vincular médicos verificados a clínicas (backend + frontend admin)
 
 ### ⏳ Frontend Mobile (Pendiente)
 - [ ] S1.7 - Pantallas de autenticación (Login, Register, Onboarding)
@@ -58,7 +76,7 @@ si no existe → paciente. Las clínicas pueden vincular médicos ya registrados
 ## Migraciones Ejecutadas (Supabase) ✅
 
 ### Orden de ejecución (respetando FK)
-1. ✅ `verified_doctors` — Tabla maestra con cédulas de médicos verificados por super-admin
+1. ✅ `verified_doctors` — Tabla maestra con cédulas; email/phone son los canales oficiales del OTP (Δ-5)
 2. ✅ `users` (extensión) — Agregado: cedula, role, phone, avatar_url, theme_preference
 3. ✅ `clinics` — Tabla clinics (tenant principal)
 4. ✅ `clinic_branches` — Sedes con PostGIS POINT
@@ -66,7 +84,8 @@ si no existe → paciente. Las clínicas pueden vincular médicos ya registrados
 6. ✅ `doctor_profiles` — Perfil médico con specialty_id FK
 7. ✅ `patient_profiles` — Perfil base del paciente
 8. ✅ `specialty_profiles` — Datos JSONB por especialidad
-9. ✅ `clinic_doctors` — Junction N:M clínica-médico (solo vinculación)
+9. ✅ `clinic_doctors` — Junction N:M clínica-médico (solo vinculación; clínica no puede verificar) (Δ-5)
+10b. ⏳ `doctor_verification_codes` — Códigos OTP temporales con bcrypt hash + rate limiting (Δ-5)
 10. ✅ `RLS policies` — Todas las políticas RLS del sprint
 11. ✅ `telescope_entries` — Tabla de logs para debugging
 12. ✅ `pulse_*` — Tablas de métricas de monitoreo
@@ -127,24 +146,36 @@ PRIMARY KEY (clinic_id, doctor_id)
 
 ---
 
-## Lógica de Auto-Registro con Verificación Centralizada
+## Lógica de Auto-Registro con Verificación OTP (Δ-5)
 
-### Flujo de Registro Unificado:
+### Paso 1 — Registro Unificado:
 1. Usuario ingresa: email, password, **cédula**, nombre, teléfono
 2. Backend consulta `verified_doctors` por cédula:
-   - **Si existe** → `role = 'doctor'`, crear `doctor_profile` con `is_verified = TRUE`
+   - **Si existe** → `role = 'doctor'`, crear `doctor_profile` con `is_verified = FALSE`
    - **Si NO existe** → `role = 'patient'`, crear `patient_profile`
 3. Se crea el `user` con el rol correspondiente
-4. Se envía email de confirmación
-5. Retorna token Sanctum + datos del usuario
+4. Retorna token Sanctum + datos del usuario
+
+### Paso 2 — Verificación OTP (solo médicos, `is_verified = false`):
+1. Médico solicita `POST /api/v1/doctor/verification/request-code`
+2. Backend localiza `verified_doctors` por cédula del user
+3. Genera OTP de 6 dígitos, lo hashea con bcrypt, guarda en `doctor_verification_codes`
+4. Envía el código al **email/teléfono de `verified_doctors`** (canal oficial, NO el de registro)
+5. Retorna canal enmascarado: `{ channel: 'email', destination: 'j***@gm***.com' }`
+6. Médico ingresa código → `POST /api/v1/doctor/verification/verify-code`
+7. Si válido: `doctor_profiles.is_verified = true`; se desbloquean todas las funcionalidades
+8. Si inválido: `attempts++`; si `>= max_attempts` → `status = 'failed'`
+
+**Rate limits:** máx 5 solicitudes/día, cooldown 60s, código expira en 15 min, máx 3 intentos.
 
 ### Vinculación de Médicos a Clínicas:
-- Un `clinic_admin` puede vincular médicos ya registrados a su clínica
+- Un `clinic_admin` puede vincular **solo médicos con `is_verified = true`** a su clínica
 - Se crea registro en `clinic_doctors` con `branch_id` y `is_active = true`
 - El médico puede estar vinculado a múltiples clínicas (N:M)
+- **La clínica nunca puede cambiar `is_verified`**
 
 **Importante:** Solo el super-admin puede agregar cédulas a `verified_doctors`.
-Los médicos SÍ se auto-registran, pero su rol se valida contra la tabla maestra.
+Los médicos se auto-registran, pero su rol y verificación se validan contra la tabla maestra.
 
 ---
 
@@ -180,14 +211,17 @@ backend/
 │   │
 │   ├── Enums/
 │   │   ├── UserRole.php                         ✅ PATIENT, DOCTOR, CLINIC_ADMIN
-│   │   └── ThemePreference.php                  ✅ LIGHT, DARK, SYSTEM
+│   │   ├── ThemePreference.php                  ✅ LIGHT, DARK, SYSTEM
+│   │   └── VerificationStatus.php               ⏳ PENDING, CODE_SENT, VERIFIED, FAILED, EXPIRED [Δ-5]
 │   │
 │   ├── Http/
 │   │   ├── Controllers/
 │   │   │   ├── Auth/
-│   │   │   │   ├── RegisterController.php       ✅ Registro unificado
+│   │   │   │   ├── RegisterController.php       ✅ Registro unificado (is_verified=false para médicos)
 │   │   │   │   ├── LoginController.php          ✅ Login con Sanctum
 │   │   │   │   └── LogoutController.php         ✅ Logout
+│   │   │   ├── Doctor/
+│   │   │   │   └── VerificationController.php   ⏳ requestCode / verifyCode / status [Δ-5]
 │   │   │   └── ProfileController.php            ✅ Perfiles por rol
 │   │   │
 │   │   ├── Middleware/
@@ -199,6 +233,9 @@ backend/
 │   │   ├── Requests/Auth/
 │   │   │   ├── RegisterRequest.php              ✅
 │   │   │   └── LoginRequest.php                 ✅
+│   │   ├── Requests/Doctor/
+│   │   │   ├── RequestVerificationCodeRequest.php ⏳ [Δ-5]
+│   │   │   └── VerifyCodeRequest.php              ⏳ [Δ-5]
 │   │   │
 │   │   └── Resources/
 │   │       ├── UserResource.php                 ✅
@@ -214,11 +251,16 @@ backend/
 │   │   ├── ClinicBranch.php                     ✅
 │   │   ├── DoctorProfile.php                    ✅
 │   │   ├── PatientProfile.php                   ✅
-│   │   └── SpecialtyProfile.php                 ✅
+│   │   ├── SpecialtyProfile.php                 ✅
+│   │   └── DoctorVerificationCode.php           ✅ OTP model (bcrypt hash, expiry, attempts)
+│   │
+│   ├── Jobs/
+│   │   └── SendVerificationCodeJob.php          ✅ Queue para email/SMS (Gmail SMTP funcional)
 │   │
 │   └── Services/
-│       ├── AuthService.php                      ✅ Lógica de registro/login
-│       └── VerificationService.php              ✅ Consulta verified_doctors
+│       ├── AuthService.php                      ✅ Lógica de registro/login (is_verified=false)
+│       ├── VerificationService.php              ✅ Consulta verified_doctors
+│       └── DoctorVerificationService.php        ✅ requestCode + verifyCode + rate limiting
 │
 ├── config/
 │   ├── telescope.php                            ✅ Debugging config
@@ -246,7 +288,10 @@ GET  /api/v1/user             - Perfil del usuario autenticado
 
 ### Doctores (Protegido - middleware: doctor)
 ```
-GET  /api/v1/doctor/profile   - Perfil completo de doctor + specialty
+GET  /api/v1/doctor/profile                         - Perfil completo de doctor + specialty
+POST /api/v1/doctor/verification/request-code       - Solicitar OTP (rate-limited) [Δ-5] ⏳
+POST /api/v1/doctor/verification/verify-code        - Verificar OTP ingresado [Δ-5] ⏳
+GET  /api/v1/doctor/verification/status             - Estado de verificación [Δ-5] ⏳
 ```
 
 ### Pacientes (Protegido - middleware: patient)
@@ -410,7 +455,7 @@ export const semanticColors = {
 ### ✅ Backend Completados
 - [x] `GET /api/v1/health` retorna 200
 - [x] Usuario con cédula NO en verified_doctors → registra como paciente
-- [x] Usuario con cédula SÍ en verified_doctors → registra como doctor (is_verified=true)
+- [x] Usuario con cédula SÍ en verified_doctors → registra como doctor (is_verified=**false**, pendiente OTP) [Δ-5] ✅ probado
 - [x] API de login con tokens Sanctum
 - [x] API de perfil por rol (doctor/patient)
 - [x] Middleware protección por rol
@@ -419,8 +464,9 @@ export const semanticColors = {
 - [x] Telescope + Pulse configurados
 
 ### ⏳ Pendientes
-- [ ] S1.5: Panel clínica para vincular médicos (backend + frontend admin)
-- [ ] S1.7: Pantallas RN de autenticación (Login, Register, Onboarding)
+- [ ] S1.5b: Verificación OTP de médicos (migración + service + controller + job) [Δ-5]
+- [ ] S1.5a: Panel clínica para vincular médicos ya verificados (backend + frontend admin)
+- [ ] S1.7: Pantallas RN de autenticación (Login, Register, OTP Verification, Onboarding)
 - [ ] S1.8: Dark mode toggle funcional en mobile
 - [ ] Tests de integración (opcional)
 
@@ -428,28 +474,39 @@ export const semanticColors = {
 
 ## Próximos Pasos
 
-### Opción A: Completar Panel Clínica (S1.5)
+### Opción A: Verificación OTP Médicos (S1.5b) ⭐ RECOMENDADO [Δ-5]
+1. Ejecutar migración `s1_5_create_verification_codes` en Supabase
+2. Crear `App\Enums\VerificationStatus`
+3. Crear `App\Models\DoctorVerificationCode`
+4. Crear `App\Services\DoctorVerificationService` (requestCode + verifyCode)
+5. Crear `App\Http\Controllers\Doctor\VerificationController`
+6. Crear `App\Jobs\SendVerificationCodeJob`
+7. Registrar rutas en `routes/api.php`
+8. Actualizar `AuthService` para que `is_verified = false` al registrar
+
+### Opción B: Panel Clínica (S1.5a)
 1. Crear `ClinicDoctorController` con endpoints:
-   - `POST /api/v1/clinic/doctors/link` - Vincular doctor
+   - `POST /api/v1/clinic/doctors/link` - Vincular doctor (solo si `is_verified = true`)
    - `DELETE /api/v1/clinic/doctors/{id}/unlink` - Desvincular
    - `GET /api/v1/clinic/doctors` - Listar vinculados
 2. Crear pantallas admin en mobile (opcional para ahora)
 
-### Opción B: Frontend Mobile (S1.7 + S1.8) ⭐ RECOMENDADO
+### Opción C: Frontend Mobile (S1.7 + S1.8)
 1. Configurar React Navigation
 2. Crear LoginScreen + RegisterScreen
-3. Integrar con API backend
-4. Implementar ThemeProvider (dark/light)
-5. Crear OnboardingScreen diferenciado por rol
+3. Crear OtpVerificationScreen (para médicos no verificados) [Δ-5]
+4. Integrar con API backend
+5. Implementar ThemeProvider (dark/light)
+6. Crear OnboardingScreen diferenciado por rol
 
-### Opción C: Testing
+### Opción D: Testing
 1. Feature tests para registro/login
 2. Unit tests para Services
 3. API tests con Pest/PHPUnit
 
 ---
 
-**Estado Actual:** Backend 100% funcional y production-ready.
+**Estado Actual:** Backend 100% funcional y production-ready. Sistema OTP Δ-5 completado y probado end-to-end con Gmail SMTP real.
 Frontend React Native listo para comenzar (Expo + NativeWind configurados).
 
 **Última actualización:** Abril 2026

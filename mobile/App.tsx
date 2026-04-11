@@ -1,17 +1,5 @@
-import './global.css';
-import { StatusBar } from 'expo-status-bar';
-import { Text, View } from 'react-native';
-
+// App.tsx is not used when main is "expo-router/entry"
+// See app/_layout.tsx for the root layout
 export default function App() {
-  return (
-    <View className="flex-1 bg-white dark:bg-slate-900 items-center justify-center">
-      <Text className="text-2xl font-bold text-gray-900 dark:text-white">
-        Control Prenatal App
-      </Text>
-      <Text className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-        NativeWind v4 + Dark Mode Enabled
-      </Text>
-      <StatusBar style="auto" />
-    </View>
-  );
+  return null;
 }

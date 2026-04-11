@@ -3,17 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "description": "Aplicación Asistida para el Control Prenatal - Monorepo",
-  "workspaces": [
-    "mobile",
-    "backend"
-  ],
   "scripts": {
     "mobile": "cd mobile && npm start",
-    "backend": "cd backend && php artisan serve",
-    "lint": "npm run lint --workspaces",
-    "format": "npm run format --workspaces"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "backend": "cd backend && php artisan serve"
   }
 }
