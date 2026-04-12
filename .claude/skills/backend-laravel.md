@@ -192,9 +192,10 @@ public function handle(Request $request, Closure $next): Response
 
 ## Interacción con Supabase
 
-Laravel interactúa con Supabase **únicamente vía PDO/Eloquent** (conexión
-PostgreSQL estándar). Para operaciones que requieren las APIs de Supabase
-(Storage, Auth, Realtime), usar el cliente HTTP de Laravel:
+Laravel interactúa con Supabase de dos formas:
+
+1. **PDO/Eloquent** — para queries SQL directos a la base de datos.
+2. **HTTP con `SUPABASE_KEY`** — para llamar APIs REST de Supabase: Storage, Auth, Realtime y **Edge Functions**.
 
 ```php
 // app/Services/StorageService.php
@@ -216,6 +217,65 @@ public function generateSignedUrl(string $path): string
     return $response->json('signedURL');
 }
 ```
+
+---
+
+## Llamar Edge Functions de Supabase desde Laravel
+
+Las Edge Functions se invocan via HTTP con el `SUPABASE_KEY` (service_role) como
+Bearer token. La función valida el JWT (`verify_jwt: true`) y ejecuta la lógica
+Deno/TypeScript.
+
+```php
+// Patrón general — llamar una Edge Function
+$response = Http::withToken(env('SUPABASE_KEY'))
+    ->post(env('SUPABASE_URL') . '/functions/v1/{function-name}', [
+        'param1' => $value1,
+        'param2' => $value2,
+    ]);
+
+if (! $response->successful()) {
+    throw new \RuntimeException("Edge Function error: HTTP {$response->status()}");
+}
+
+$data = $response->json();
+```
+
+### Edge Function: `resend-email`
+
+Envía emails transaccionales via **Resend API**. Requiere el secret
+`RESEND_API_KEY` configurado en Supabase. URL: `{SUPABASE_URL}/functions/v1/resend-email`
+
+```php
+// Cómo enviar un email desde un Job/Service de Laravel
+$response = Http::withToken(env('SUPABASE_KEY'))
+    ->post(env('SUPABASE_URL') . '/functions/v1/resend-email', [
+        'to'      => $emailAddress,
+        'subject' => 'Asunto del correo',
+        'html'    => '<p>Contenido HTML</p>',
+        'text'    => 'Contenido texto plano (fallback)',
+    ]);
+```
+
+**Payload de la Edge Function `resend-email`:**
+
+| Campo     | Tipo              | Requerido | Descripción                        |
+|-----------|-------------------|-----------|------------------------------------|
+| `to`      | `string\|string[]`| ✅        | Destinatario(s)                    |
+| `subject` | `string`          | ✅        | Asunto del correo                  |
+| `html`    | `string`          | ⚠️ uno   | Cuerpo HTML                        |
+| `text`    | `string`          | ⚠️ uno   | Cuerpo texto plano (al menos uno)  |
+
+**Respuesta exitosa:** `{ "success": true, "id": "resend-message-id" }`
+
+**Configurar el secret en Supabase (una sola vez):**
+```bash
+supabase secrets set RESEND_API_KEY=re_xxxxxxxxxxxxxxxx
+supabase secrets set RESEND_FROM_ADDRESS="Control Prenatal <noreply@tudominio.com>"
+```
+
+> El dominio del `FROM` debe estar **verificado en resend.com**. Para desarrollo
+> se puede usar `onboarding@resend.dev` (solo permite enviar al email del owner).
 
 ---
 
@@ -256,12 +316,12 @@ DoctorProfile::create(['user_id' => $user->id, 'is_verified' => true]);
 // ✅ CORRECTO — siempre false al registro; solo DoctorVerificationService puede activarlo
 DoctorProfile::create(['user_id' => $user->id, 'is_verified' => false]);
 
-// ❌ INCORRECTO — enviar OTP al email del usuario registrado
+// ❌ INCORRECTO — enviar OTP al email del usuario registrado, y via SMTP directo
 Mail::to($user->email)->send(new OtpMail($code));
 
-// ✅ CORRECTO — enviar al canal oficial de verified_doctors
+// ✅ CORRECTO — enviar al canal oficial de verified_doctors via Edge Function Resend
 $verifiedDoctor = VerifiedDoctor::where('cedula', $user->cedula)->first();
-Mail::to($verifiedDoctor->email)->send(new OtpMail($code));
+// (ver SendVerificationCodeJob::sendEmail() — usa Http::withToken() a resend-email)
 
 // ❌ INCORRECTO — guardar OTP en plaintext
 DoctorVerificationCode::create(['code' => $otp]);
