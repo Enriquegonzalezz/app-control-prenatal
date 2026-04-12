@@ -1,6 +1,5 @@
-FROM php:8.2-fpm
+FROM php:8.2-fpm-bookworm
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -11,44 +10,53 @@ RUN apt-get update && apt-get install -y \
     unzip \
     libpq-dev \
     nginx \
+    gettext-base \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
 RUN docker-php-ext-install pdo pdo_pgsql mbstring exif pcntl bcmath gd
 
-# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
 WORKDIR /var/www
 
-# Copy application
 COPY . /var/www
 
-# Install dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts \
+    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache \
+    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
-
-# Copy nginx config
-RUN echo 'server {\n\
-    listen 8080;\n\
-    server_name _;\n\
-    root /var/www/public;\n\
-    index index.php;\n\
-    location / {\n\
-        try_files $uri $uri/ /index.php?$query_string;\n\
+RUN printf 'daemon off;\n\
+worker_processes auto;\n\
+pid /run/nginx.pid;\n\
+events { worker_connections 1024; }\n\
+http {\n\
+    include /etc/nginx/mime.types;\n\
+    default_type application/octet-stream;\n\
+    sendfile on;\n\
+    keepalive_timeout 65;\n\
+    server {\n\
+        listen ${PORT};\n\
+        server_name _;\n\
+        root /var/www/public;\n\
+        index index.php;\n\
+        client_max_body_size 20M;\n\
+        location / {\n\
+            try_files $uri $uri/ /index.php?$query_string;\n\
+        }\n\
+        location ~ \\.php$ {\n\
+            fastcgi_pass 127.0.0.1:9000;\n\
+            fastcgi_index index.php;\n\
+            fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;\n\
+            include fastcgi_params;\n\
+        }\n\
+        location ~ /\\.ht { deny all; }\n\
     }\n\
-    location ~ \.php$ {\n\
-        fastcgi_pass 127.0.0.1:9000;\n\
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;\n\
-        include fastcgi_params;\n\
-    }\n\
-}' > /etc/nginx/sites-available/default
+}\n' > /etc/nginx/nginx.conf.template
 
-# Expose port
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 EXPOSE 8080
 
-# Start services
-CMD service nginx start && php-fpm
+CMD ["/usr/local/bin/docker-entrypoint.sh"]
