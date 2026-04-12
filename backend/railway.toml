@@ -1,4 +1,4 @@
-v[build]
+[build]
 builder = "DOCKERFILE"
 
 [deploy]
