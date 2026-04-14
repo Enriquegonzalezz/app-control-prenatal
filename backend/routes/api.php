@@ -9,6 +9,9 @@ use App\Http\Controllers\Directory\DirectoryController;
 use App\Http\Controllers\Doctor\ScheduleController;
 use App\Http\Controllers\Doctor\SlotController;
 use App\Http\Controllers\Doctor\VerificationController;
+use App\Http\Controllers\MedicalRecord\MedicalFileController;
+use App\Http\Controllers\MedicalRecord\MedicalRecordController;
+use App\Http\Controllers\MedicalRecord\VitalSignController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -87,6 +90,24 @@ Route::prefix('v1')->group(function (): void {
 
         Route::middleware('clinic_admin')->prefix('clinic')->group(function (): void {
             // Clinic admin routes will be added here
+        });
+
+        // ── Historial médico (Sprint 4) ───────────────────────────
+        // Acceso: paciente ve el suyo; médico ve los de sus pacientes activos.
+        Route::prefix('medical-records')->group(function (): void {
+            Route::get('/',                                          [MedicalRecordController::class, 'index'])->name('medical-records.index');
+            Route::post('/',                                         [MedicalRecordController::class, 'store'])->name('medical-records.store');
+            Route::get('/{medicalRecord}',                           [MedicalRecordController::class, 'show'])->name('medical-records.show');
+            Route::patch('/{medicalRecord}',                         [MedicalRecordController::class, 'update'])->name('medical-records.update');
+
+            // Signos vitales
+            Route::get('/{medicalRecord}/vital-signs',               [VitalSignController::class, 'index'])->name('medical-records.vital-signs.index');
+            Route::post('/{medicalRecord}/vital-signs',              [VitalSignController::class, 'store'])->name('medical-records.vital-signs.store');
+
+            // Archivos (upload + signed URL)
+            Route::get('/{medicalRecord}/files',                     [MedicalFileController::class, 'index'])->name('medical-records.files.index');
+            Route::post('/{medicalRecord}/files',                    [MedicalFileController::class, 'store'])->name('medical-records.files.store');
+            Route::get('/{medicalRecord}/files/{file}/signed-url',   [MedicalFileController::class, 'signedUrl'])->name('medical-records.files.signed-url');
         });
     });
 });
