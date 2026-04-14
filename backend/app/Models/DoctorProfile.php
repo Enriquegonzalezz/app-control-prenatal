@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class DoctorProfile extends Model
 {
@@ -57,5 +58,15 @@ final class DoctorProfile extends Model
         return $this->belongsToMany(Clinic::class, 'clinic_doctors', 'doctor_id', 'clinic_id')
             ->withPivot(['branch_id', 'is_active', 'joined_at'])
             ->withTimestamps();
+    }
+
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(Schedule::class, 'doctor_id');
+    }
+
+    public function slots(): HasMany
+    {
+        return $this->hasMany(Slot::class, 'doctor_id');
     }
 }
