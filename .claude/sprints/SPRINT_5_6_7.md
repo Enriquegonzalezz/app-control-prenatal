@@ -1,6 +1,6 @@
 # Sprint 5 — Chat + Experiencias + Referenciados
 **Semanas:** 11–12  
-**Estado:** ⏳ PENDIENTE
+**Estado:** ✅ Backend completado — pendiente UI (RN, S5.8–S5.10)
 
 ---
 
@@ -14,13 +14,13 @@ narrativas (que reemplaza ratings) y el módulo de referenciados entre pacientes
 
 | ID | Tarea | Entregable | Estado |
 |----|-------|-----------|--------|
-| S5.1 | Tabla `messages` con content_encrypted | Mensajes almacenados cifrados | ⏳ |
-| S5.2 | Supabase Realtime channel por relationship_uuid | Mensajes en tiempo real bidireccionales | ⏳ |
-| S5.3 | Cifrado AES-256 de mensajes | Contenido ilegible en DB directa | ⏳ |
-| S5.4 | Tabla `experiences` (reemplaza `ratings`) | Nunca crear tabla ratings | ⏳ |
-| S5.5 | Tabla `experience_tags` (catálogo de etiquetas) | Catálogo extensible | ⏳ |
-| S5.6 | Endpoints CRUD experiencias con validación de elegibilidad | Solo cita completada permite publicar | ⏳ |
-| S5.7 | Tabla `referrals` + endpoints (trust_score basado en experiencias) | Sistema actualizado sin estrellas | ⏳ |
+| S5.1 | Tabla `messages` con content_encrypted | Mensajes almacenados cifrados | ✅ |
+| S5.2 | Supabase Realtime channel por relationship_uuid | Mensajes en tiempo real bidireccionales | ✅ |
+| S5.3 | Cifrado AES-256 de mensajes | Contenido ilegible en DB directa | ✅ |
+| S5.4 | Tabla `experiences` (reemplaza `ratings`) | Nunca crear tabla ratings | ✅ |
+| S5.5 | Tabla `experience_tags` (catálogo de etiquetas) | Catálogo extensible | ✅ |
+| S5.6 | Endpoints CRUD experiencias con validación de elegibilidad | Solo cita completada permite publicar | ✅ |
+| S5.7 | Tabla `referrals` + endpoints (trust_score basado en experiencias) | Sistema actualizado sin estrellas | ✅ |
 | S5.8 | Pantalla Chat con dark mode | UX fluida tema dual | ⏳ |
 | S5.9 | Pantalla: Escribir Experiencia post-consulta | Formulario narrativo con tags | ⏳ |
 | S5.10 | Visualización de experiencias en perfil del médico | Badges + testimonios renderizados | ⏳ |

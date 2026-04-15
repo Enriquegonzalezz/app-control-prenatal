@@ -9,6 +9,9 @@ use App\Http\Controllers\Directory\DirectoryController;
 use App\Http\Controllers\Doctor\ScheduleController;
 use App\Http\Controllers\Doctor\SlotController;
 use App\Http\Controllers\Doctor\VerificationController;
+use App\Http\Controllers\Chat\ChatController;
+use App\Http\Controllers\Experience\ExperienceController;
+use App\Http\Controllers\Experience\ReferralController;
 use App\Http\Controllers\MedicalRecord\MedicalFileController;
 use App\Http\Controllers\MedicalRecord\MedicalRecordController;
 use App\Http\Controllers\MedicalRecord\VitalSignController;
@@ -30,6 +33,11 @@ Route::prefix('v1')->group(function (): void {
     // Directorio geoespacial público: pacientes y visitantes pueden explorar
     // médicos verificados sin autenticarse.
     Route::get('/doctors/nearby', [DirectoryController::class, 'nearby'])->name('doctors.nearby');
+
+    // Experiencias públicas — no requieren autenticación (perfil médico visible para todos)
+    Route::get('/experience-tags',    [ExperienceController::class, 'tags'])->name('experience-tags.index');
+    Route::get('/experience-badges',  [ExperienceController::class, 'badges'])->name('experience-badges');
+    Route::get('/experiences',        [ExperienceController::class, 'index'])->name('experiences.index');
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/auth/logout', LogoutController::class)->name('auth.logout');
@@ -91,6 +99,22 @@ Route::prefix('v1')->group(function (): void {
         Route::middleware('clinic_admin')->prefix('clinic')->group(function (): void {
             // Clinic admin routes will be added here
         });
+
+        // ── Chat cifrado (Sprint 5) ───────────────────────────────
+        Route::prefix('chat')->group(function (): void {
+            Route::get('/',                                             [ChatController::class, 'conversations'])->name('chat.conversations');
+            Route::get('/{relationship}/messages',                      [ChatController::class, 'messages'])->name('chat.messages');
+            Route::post('/{relationship}/messages',                     [ChatController::class, 'send'])->name('chat.send');
+            Route::post('/{relationship}/read',                         [ChatController::class, 'markRead'])->name('chat.read');
+        });
+
+        // ── Experiencias (Sprint 5) — acciones autenticadas ──────
+        Route::post('/experiences',                                     [ExperienceController::class, 'store'])->name('experiences.store');
+        Route::patch('/experiences/{experience}',                       [ExperienceController::class, 'update'])->name('experiences.update');
+
+        // ── Referidos (Sprint 5) ──────────────────────────────────
+        Route::get('/referrals',                                        [ReferralController::class, 'index'])->name('referrals.index');
+        Route::post('/referrals',                                       [ReferralController::class, 'store'])->name('referrals.store');
 
         // ── Historial médico (Sprint 4) ───────────────────────────
         // Acceso: paciente ve el suyo; médico ve los de sus pacientes activos.
