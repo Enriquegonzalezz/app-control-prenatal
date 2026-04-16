@@ -1,6 +1,6 @@
 # Sprint 3 — Agendamiento y Relación Médico-Paciente
 **Semanas:** 7–8  
-**Estado:** ⏳ PENDIENTE
+**Estado:** ✅ Backend completado — pendiente UI (RN, S3.5–S3.6)
 
 ---
 
@@ -14,10 +14,10 @@ y la relación médico-paciente que habilita acceso al historial y chat.
 
 | ID | Tarea | Entregable | Estado |
 |----|-------|-----------|--------|
-| S3.1 | Tabla `appointments` (patient_id, doctor_id, clinic_id, slot_id, status, notes) | CRUD completo con clinic_id | ⏳ |
-| S3.2 | Tabla `doctor_patient_relationships` con estados | Relación activa al confirmar primera cita | ⏳ |
-| S3.3 | Endpoint agendamiento con validación de conflictos de horario | Imposible agendar slots ocupados | ⏳ |
-| S3.4 | Notificaciones push FCM para confirmación/cancelación | Notificación en dispositivo físico | ⏳ |
+| S3.1 | Tabla `appointments` (patient_id, doctor_id, clinic_id, slot_id, status, notes) | CRUD completo con clinic_id | ✅ |
+| S3.2 | Tabla `doctor_patient_relationships` con estados | Relación activa al confirmar primera cita | ✅ |
+| S3.3 | Endpoint agendamiento con validación de conflictos de horario | Imposible agendar slots ocupados | ✅ |
+| S3.4 | Notificaciones push FCM para confirmación/cancelación | Notificación en dispositivo físico | ✅ |
 | S3.5 | Pantalla Paciente: Mis Citas (próximas + historial) | Lista con estados visuales | ⏳ |
 | S3.6 | Pantalla Médico: Agenda del día + gestión de slots | Calendario interactivo | ⏳ |
 

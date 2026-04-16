@@ -1,6 +1,6 @@
 # Sprint 4 — Historial Médico y Storage
 **Semanas:** 9–10  
-**Estado:** ⏳ PENDIENTE
+**Estado:** ✅ Backend completado — pendiente UI (RN, S4.5–S4.7)
 
 ---
 
@@ -15,10 +15,10 @@ RLS + Signed URLs de 15 minutos.
 
 | ID | Tarea | Entregable | Estado |
 |----|-------|-----------|--------|
-| S4.1 | Tabla `medical_records` con `specialty_context` JSONB | Migración con RLS activo | ⏳ |
-| S4.2 | Tabla `vital_signs` con campos genéricos + `specialty_data` JSONB | CRUD con extensibilidad | ⏳ |
-| S4.3 | Bucket privado en Supabase Storage con políticas de acceso | Upload/download solo para autorizados | ⏳ |
-| S4.4 | Endpoint upload con validación MIME + tamaño + Signed URL 15min | Archivo accesible vía URL temporal | ⏳ |
+| S4.1 | Tabla `medical_records` con `specialty_context` JSONB | Migración con RLS activo | ✅ |
+| S4.2 | Tabla `vital_signs` con campos genéricos + `specialty_data` JSONB | CRUD con extensibilidad | ✅ |
+| S4.3 | Bucket privado en Supabase Storage con políticas de acceso | Upload/download solo para autorizados | ✅ |
+| S4.4 | Endpoint upload con validación MIME + tamaño + Signed URL 15min | Archivo accesible vía URL temporal | ✅ |
 | S4.5 | Pantalla Paciente: Mi Historial (tabs dinámicas por especialidad) | Tabs genéricas desde specialty schema | ⏳ |
 | S4.6 | Pantalla Médico: Historial de Paciente (lectura + notas) | Médico puede agregar diagnósticos | ⏳ |
 | S4.7 | Gráficas de constantes vitales (peso, presión por semana gestacional) | Gráfica con victory-native | ⏳ |
@@ -89,8 +89,8 @@ private const MAX_SIZE_MB = 10;
 
 ## Entregable Final del Sprint
 
-- [ ] Paciente puede subir PDF/imagen y acceder solo con URL temporal
-- [ ] Médico solo puede ver historial de sus pacientes activos (RLS verificado)
-- [ ] Tabs del historial se renderizan según el specialty schema (dinámico)
-- [ ] Gráfica de evolución de peso con semana gestacional en eje X
-- [ ] Ningún archivo accesible sin autenticación
+- [x] Paciente puede subir PDF/imagen y acceder solo con URL temporal
+- [x] Médico solo puede ver historial de sus pacientes activos (RLS verificado)
+- [ ] Tabs del historial se renderizan según el specialty schema (dinámico) — RN pendiente
+- [ ] Gráfica de evolución de peso con semana gestacional en eje X — RN pendiente
+- [x] Ningún archivo accesible sin autenticación

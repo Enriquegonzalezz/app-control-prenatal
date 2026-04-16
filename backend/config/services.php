@@ -35,4 +35,18 @@ return [
         ],
     ],
 
+    // Supabase — usado para llamar a Edge Functions desde Laravel
+    'supabase' => [
+        'url' => env('SUPABASE_URL'),
+        'key' => env('SUPABASE_KEY'), // service_role key
+    ],
+
+    // Firebase / FCM v1 HTTP API
+    // Las credenciales viven como Supabase Secret (FIREBASE_CREDENTIALS_JSON).
+    // Laravel NO necesita esta clave; solo se configura en Supabase Dashboard:
+    //   supabase secrets set FIREBASE_CREDENTIALS_JSON='{"type":"service_account",...}'
+    'firebase' => [
+        'credentials_json' => env('FIREBASE_CREDENTIALS_JSON'), // solo para fallback local
+    ],
+
 ];

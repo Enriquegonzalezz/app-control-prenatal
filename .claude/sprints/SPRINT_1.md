@@ -56,12 +56,13 @@ independiente de médicos via OTP (Δ-5). Al finalizar este sprint:
 - [x] S1.5b - `App\Models\DoctorVerificationCode`
 - [x] S1.5b - `App\Services\DoctorVerificationService` (requestCode + verifyCode + getStatus)
 - [x] S1.5b - `App\Http\Controllers\Doctor\VerificationController`
-- [x] S1.5b - `App\Jobs\SendVerificationCodeJob` (Gmail SMTP funcional)
+- [x] S1.5b - `App\Jobs\SendVerificationCodeJob` (Edge Function Resend — migrado de Gmail SMTP)
 - [x] S1.5b - Endpoints registrados y funcionando en api.php
 - [x] S1.5b - `AuthService`: corrección `is_verified=false` al registrar (bug fix Δ-5)
 - [x] S1.5b - `User` model: agregado `HasUuids` (bug fix — users.id es UUID en Supabase)
-- [x] S1.5b - Prueba MAIL_MAILER=log — OTP visible en laravel.log
-- [x] S1.5b - Prueba Gmail SMTP — email llegó a samuelmolina664@gmail.com ✅
+- [x] S1.5b - Prueba QUEUE_CONNECTION=log — OTP visible en laravel.log
+- [x] S1.5b - Prueba Gmail SMTP (legacy) — email llegó a samuelmolina664@gmail.com ✅
+- [x] S1.5b - Migración a Edge Function `resend-email` + Resend API (v4 activa en Supabase)
 - [x] S1.5b - Verificación con código real (882512) → `is_verified=true` ✅
 
 ### ⏳ Panel Clínica (Pendiente)
@@ -255,7 +256,7 @@ backend/
 │   │   └── DoctorVerificationCode.php           ✅ OTP model (bcrypt hash, expiry, attempts)
 │   │
 │   ├── Jobs/
-│   │   └── SendVerificationCodeJob.php          ✅ Queue para email/SMS (Gmail SMTP funcional)
+│   │   └── SendVerificationCodeJob.php          ✅ Queue para email/SMS (Edge Function Resend)
 │   │
 │   └── Services/
 │       ├── AuthService.php                      ✅ Lógica de registro/login (is_verified=false)
@@ -506,7 +507,7 @@ export const semanticColors = {
 
 ---
 
-**Estado Actual:** Backend 100% funcional y production-ready. Sistema OTP Δ-5 completado y probado end-to-end con Gmail SMTP real.
+**Estado Actual:** Backend 100% funcional y production-ready. Sistema OTP Δ-5 completado y probado end-to-end. Emails enviados via Supabase Edge Function `resend-email` + Resend API (migrado de Gmail SMTP).
 Frontend React Native listo para comenzar (Expo + NativeWind configurados).
 
 **Última actualización:** Abril 2026

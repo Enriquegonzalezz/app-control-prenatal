@@ -1,6 +1,6 @@
 # Sprint 2 — Geospatial Core: PostGIS y Directorio
 **Semanas:** 5–6  
-**Estado:** ⏳ PENDIENTE
+**Estado:** 🔄 Backend completado — pendiente UI (RN)
 
 ---
 
@@ -15,10 +15,10 @@ debe poder encontrar ginecobstetras cercanas a su ubicación.
 
 | ID | Tarea | Entregable Verificable | Estado |
 |----|-------|----------------------|--------|
-| S2.1 | Columna `location` GEOGRAPHY(POINT) en clinic_branches + índice GIST | Índice GIST creado y verificado | ⏳ |
-| S2.2 | Función RPC `get_nearby_doctors(lat, lng, radius_m, specialty_id, limit)` | Función retorna doctores con clínica y distancia | ⏳ |
-| S2.3 | Endpoint `GET /api/v1/doctors/nearby` con specialty_id dinámico | API retorna JSON filtrado por especialidad | ⏳ |
-| S2.4 | Sistema de disponibilidad (tabla `schedules` + `slots`) | CRUD de horarios para médicos | ⏳ |
+| S2.1 | Columna `location` GEOGRAPHY(POINT) en clinic_branches + índice GIST | Índice GIST creado y verificado | ✅ |
+| S2.2 | Función RPC `get_nearby_doctors(lat, lng, radius_m, specialty_id, limit)` | Función retorna doctores con clínica y distancia | ✅ |
+| S2.3 | Endpoint `GET /api/v1/doctors/nearby` con specialty_id dinámico | API retorna JSON filtrado por especialidad | ✅ |
+| S2.4 | Sistema de disponibilidad (tabla `schedules` + `slots`) | CRUD de horarios para médicos | ✅ |
 | S2.5 | Pantalla RN: Mapa con marcadores + dark map style | Marcadores dinámicos + mapa oscuro en dark mode | ⏳ |
 | S2.6 | Pantalla RN: Lista de médicos con filtros | Filtros sin opción de rating | ⏳ |
 | S2.7 | Pantalla RN: Perfil del médico con info clínica + experiencias + botón agendar | Perfil sin estrellas | ⏳ |

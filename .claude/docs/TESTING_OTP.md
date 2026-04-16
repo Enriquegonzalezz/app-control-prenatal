@@ -9,9 +9,9 @@
 ```
 [Registro] → role=doctor, is_verified=false
     ↓
-[POST /request-code] → genera OTP, envía a email de verified_doctors
+[POST /request-code] → genera OTP, Job HTTP → Edge Function resend-email → Resend API
     ↓
-[Revisa bandeja de samuelmolina66@gmail.com]
+[Revisa bandeja de samuelmolina664@gmail.com]
     ↓
 [POST /verify-code] → is_verified=true, médico desbloqueado
     ↓
@@ -31,40 +31,40 @@ Editar `.env` — esto hace que los Jobs se ejecuten inmediatamente sin necesita
 QUEUE_CONNECTION=sync
 ```
 
-### 2. Configurar Correo
+### 2. Configurar Envío de Correo
 
-#### Opción A — Solo Log (prueba rápida de lógica, sin email real)
+Los emails se envían via **Supabase Edge Function `resend-email` + Resend API**.
+No se usa SMTP. El Job hace HTTP a `{SUPABASE_URL}/functions/v1/resend-email`
+usando `SUPABASE_KEY` como Bearer token.
 
-```env
-MAIL_MAILER=log
-```
+#### Opción A — Solo Log (prueba rápida sin Resend)
 
-El código OTP aparecerá en `storage/logs/laravel.log`. Buscar:
+Cambiar `QUEUE_CONNECTION=log` en `.env`. El OTP aparece en el log sin hacer
+ninguna llamada HTTP. Buscar en `storage/logs/laravel.log`:
 ```
 Subject: Código de verificación médica — Control Prenatal
 ```
 
-#### Opción B — Gmail SMTP (email real a samuelmolina66@gmail.com) ⭐
+#### Opción B — Edge Function Resend (email real) ⭐ PRODUCCIÓN
 
-**Paso previo: Obtener App Password de Google**
-1. Ir a [https://myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
-2. Seleccionar "Otra (nombre personalizado)" → escribir "Control Prenatal"
-3. Copiar la contraseña de 16 caracteres generada (ej: `abcd efgh ijkl mnop`)
+**Requisitos previos:**
+1. Tener una cuenta en [resend.com](https://resend.com) con API Key generada.
+2. Verificar el dominio de envío en Resend (o usar `onboarding@resend.dev` solo para dev).
+3. Configurar los secrets en Supabase:
 
-```env
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_SCHEME=tls
-MAIL_USERNAME=tu-cuenta@gmail.com        ← Gmail que envía (cualquiera con App Password)
-MAIL_PASSWORD=abcdefghijklmnop           ← App Password sin espacios
-MAIL_FROM_ADDRESS="noreply@control-prenatal.app"
-MAIL_FROM_NAME="Control Prenatal"
+```bash
+# Desde la CLI de Supabase (o Dashboard → Settings → Edge Functions → Secrets)
+supabase secrets set RESEND_API_KEY=re_xxxxxxxxxxxxxxxx
+supabase secrets set RESEND_FROM_ADDRESS="Control Prenatal <noreply@tudominio.com>"
 ```
 
-> **Importante:** Si tu cuenta Gmail no tiene 2FA activado, primero actívalo en
-> [https://myaccount.google.com/security](https://myaccount.google.com/security).
-> Las App Passwords solo funcionan con 2FA habilitado.
+4. Asegurar que `.env` tenga los datos de Supabase correctos (ya deberían estar):
+
+```env
+SUPABASE_URL=https://sdcvmigvumhtorhzobjj.supabase.co
+SUPABASE_KEY=eyJ...   ← service_role key
+QUEUE_CONNECTION=sync
+```
 
 Después de editar `.env`:
 
@@ -244,7 +244,7 @@ curl -s -X POST http://localhost:8000/api/v1/doctor/verification/request-code \
 }
 ```
 
-#### Si MAIL_MAILER=log — Buscar el código en el log:
+#### Si QUEUE_CONNECTION=log — Buscar el código en el log:
 
 ```bash
 # Windows PowerShell
@@ -264,10 +264,14 @@ Tu código de verificación es:
 ...
 ```
 
-#### Si MAIL_MAILER=smtp — Revisar bandeja de samuelmolina66@gmail.com
+#### Si Edge Function Resend activa — Revisar bandeja del email en verified_doctors
 
-El correo llega en ~30 segundos con asunto:
-**"Código de verificación médica — Control Prenatal"**
+El correo llega en segundos con asunto **"Código de verificación médica — Control Prenatal"**
+y un template HTML con el código en grande. Verificar también el log:
+```bash
+# El Job loguea confirmación con el Resend message ID
+Select-String -Path "backend\storage\logs\laravel.log" -Pattern "resend_id" -Context 0,1
+```
 
 ---
 
@@ -419,12 +423,13 @@ exit
 
 | Síntoma | Causa probable | Solución |
 |---------|---------------|---------|
-| `Connection refused` al enviar email | SMTP no configurado o firewall | Verificar credenciales y App Password |
-| `Could not authenticate` | App Password incorrecto | Regenerar en Google Account |
+| `Edge Function error: HTTP 401` | `SUPABASE_KEY` incorrecto o vacío | Verificar `.env` SUPABASE_KEY = service_role key |
+| `Edge Function error: HTTP 500` con `RESEND_API_KEY not configured` | Secret no configurado en Supabase | `supabase secrets set RESEND_API_KEY=re_xxx` |
+| `Edge Function error: HTTP 422` de Resend | Dominio FROM no verificado en Resend | Verificar dominio o usar `onboarding@resend.dev` |
 | OTP no llega pero respuesta es `success` | `QUEUE_CONNECTION=database` sin worker | Cambiar a `sync` o ejecutar `queue:work` |
 | `No se encontró información de verificación` | `verified_doctors` sin ese cedula | Repetir el tinker del Paso 1 |
 | `No hay un código activo` | Código expirado o status ≠ code_sent | Solicitar nuevo código |
-| Job falla silenciosamente | Error en SMTP capturado por queue | Ver `storage/logs/laravel.log` o tabla `failed_jobs` |
+| Job falla silenciosamente | Error HTTP capturado por queue | Ver `storage/logs/laravel.log` o tabla `failed_jobs` |
 
 ### Ver jobs fallidos
 
@@ -444,25 +449,8 @@ Get-Content backend\storage\logs\laravel.log -Wait -Tail 30
 
 ## Bugs encontrados y corregidos durante las pruebas
 
-### Bug 4 — MAIL_SCHEME=tls no soportado en Laravel 11
-**Síntoma:** `The "tls" scheme is not supported; supported schemes for mailer "smtp" are: "smtp", "smtps"`
-**Causa:** Laravel 11 usa Symfony Mailer que tiene esquemas diferentes a versiones anteriores.
-**Fix:** Dejar `MAIL_SCHEME=` vacío para puerto 587 (STARTTLS automático). Usar `smtps` solo para puerto 465.
-
-```env
-# ✅ CORRECTO para Gmail puerto 587
-MAIL_SCHEME=
-MAIL_PORT=587
-
-# ✅ Alternativa para Gmail puerto 465
-MAIL_SCHEME=smtps
-MAIL_PORT=465
-
-# ❌ NO válido en Laravel 11
-MAIL_SCHEME=tls
-```
-
----
+> **Nota:** Se migró de Gmail SMTP a Supabase Edge Function + Resend API.
+> El Bug 4 (MAIL_SCHEME) ya no aplica; el sistema no usa SMTP.
 
 ### Bug 1 — User model sin HasUuids
 **Síntoma:** `user_id = 0` en el INSERT de doctor_profiles
@@ -491,9 +479,10 @@ php artisan migrate
 
 ## Checklist de Pruebas Completadas
 
-- [x] `MAIL_MAILER=log` → OTP visible en laravel.log ✅
-- [x] `MAIL_MAILER=log` → OTP visible en laravel.log ✅
-- [x] `MAIL_MAILER=smtp` (Gmail) → Email llegó a samuelmolina664@gmail.com ✅
+- [x] `QUEUE_CONNECTION=log` → OTP visible en laravel.log ✅
+- [x] `MAIL_MAILER=smtp` (Gmail SMTP, reemplazado) → Email llegó a samuelmolina664@gmail.com ✅
+- [x] Edge Function `resend-email` desplegada en Supabase (v4) ✅
+- [ ] Edge Function + Resend → Email llegó via Resend API ⏳ (pendiente prueba con RESEND_API_KEY)
 - [x] `is_verified=false` al registrar (corrección Δ-5) ✅
 - [x] `is_verified=true` tras OTP exitoso (código 882512 verificado en producción) ✅
 - [x] Código incorrecto incrementa `attempts` + mensaje con intentos restantes ✅
