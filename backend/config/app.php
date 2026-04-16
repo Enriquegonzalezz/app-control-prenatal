@@ -99,6 +99,9 @@ return [
 
     'key' => env('APP_KEY'),
 
+    // Clave AES-256 para cifrado de mensajes de chat — debe ser exactamente 32 caracteres
+    'chat_key' => env('CHAT_ENCRYPTION_KEY'),
+
     'previous_keys' => [
         ...array_filter(
             explode(',', env('APP_PREVIOUS_KEYS', ''))

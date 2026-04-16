@@ -93,7 +93,7 @@ src/store/                        ← authStore, themeStore, chatStore
 ### Backend (.env)
 ```
 SUPABASE_URL=https://sdcvmigvumhtorhzobjj.supabase.co
-SUPABASE_KEY=          ← service_role key (nunca exponer)
+SUPABASE_KEY=          ← service_role key (nunca exponer) — también autentica llamadas a Edge Functions
 SUPABASE_ANON_KEY=     ← anon key
 APP_KEY=               ← generar con artisan
 ```
@@ -102,6 +102,13 @@ APP_KEY=               ← generar con artisan
 EXPO_PUBLIC_SUPABASE_URL=https://sdcvmigvumhtorhzobjj.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=   ← anon key únicamente
 ```
+### Supabase Secrets (Edge Functions)
+```
+RESEND_API_KEY=re_xxx           ← API key de resend.com (configurar via Dashboard o CLI)
+RESEND_FROM_ADDRESS=...         ← Dirección FROM verificada en Resend
+```
+> Emails transaccionales (OTP) se envían via Edge Function `resend-email` + Resend API.
+> No se usa SMTP directo.
 
 ## Referencia de Tablas (Sprint 1 en adelante)
 Las migraciones nuevas SIEMPRE van numeradas: `s1_`, `s2_`, etc.
@@ -117,3 +124,4 @@ Nunca modificar una migración ya ejecutada. Crear siempre una nueva.
 - ❌ Asignar `is_verified = true` al registrar un médico — la verificación es via OTP posterior (Δ-5)
 - ❌ Enviar el OTP al email de registro del usuario — siempre al email/teléfono de `verified_doctors` (Δ-5)
 - ❌ Guardar el código OTP en plaintext — siempre hash bcrypt en `doctor_verification_codes` (Δ-5)
+- ❌ Usar `Mail::` facade o SMTP directo para emails — siempre via Edge Function `resend-email`
