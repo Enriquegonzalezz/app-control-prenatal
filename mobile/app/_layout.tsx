@@ -40,7 +40,12 @@ export default function RootLayout() {
     );
   }, [theme]);
 
-  // Navigation logic is handled in app/index.tsx
+  useEffect(() => {
+    if (!appReady) return;
+    if (!isAuthenticated) {
+      router.replace('/(auth)/login');
+    }
+  }, [appReady, isAuthenticated]);
 
   if (!appReady) {
     return (

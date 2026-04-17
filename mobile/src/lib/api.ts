@@ -8,8 +8,9 @@ export interface NearbyDoctor {
   specialty: { id: string; name: string; slug: string };
   clinic: { id: string; name: string; logo_url: string | null };
   branch: { id: string; name: string; address: string; phone: string };
-  distance_m: number;
+  distance_m: number | null;
   is_available: boolean;
+  is_verified?: boolean;
   next_available_slot: string | null;
   consultation_fee: number | null;
   years_experience: number;
@@ -237,6 +238,25 @@ export const appointmentApi = {
       body: JSON.stringify({ reason: reason ?? null }),
     });
   },
+  async confirm(token: string, id: string) {
+    return request<{ status: string; data: Appointment }>(`/appointments/${id}/confirm`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+  async complete(token: string, id: string, notes?: string) {
+    return request<{ status: string; data: Appointment }>(`/appointments/${id}/complete`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ notes: notes ?? null }),
+    });
+  },
+  async noShow(token: string, id: string) {
+    return request<{ status: string; data: Appointment }>(`/appointments/${id}/no-show`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
 };
 
 export const chatApi = {
@@ -269,6 +289,17 @@ export const chatApi = {
 };
 
 export const directoryApi = {
+  async listDoctors(params?: { search?: string; specialty_id?: string; limit?: number }) {
+    const query = new URLSearchParams();
+    if (params?.search) query.set('search', params.search);
+    if (params?.specialty_id) query.set('specialty_id', params.specialty_id);
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return request<{
+      status: string;
+      data: { doctors: NearbyDoctor[]; meta: { count: number } };
+    }>(`/doctors${qs ? `?${qs}` : ''}`);
+  },
   async nearbyDoctors(params: {
     lat: number;
     lng: number;
