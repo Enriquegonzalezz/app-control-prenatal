@@ -54,6 +54,55 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Herramientas del médico */}
+        {user?.role === 'doctor' && (
+          <View className="px-6 mb-6">
+            <Text className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-4">
+              Mi Práctica
+            </Text>
+
+            <Pressable
+              onPress={() => router.push('/appointments')}
+              className="bg-card-light dark:bg-card-dark rounded-xl p-4 mb-3 active:opacity-70"
+              accessibilityRole="button"
+              accessibilityLabel="Ver agenda de citas"
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center">
+                  <View className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 items-center justify-center mr-3">
+                    <Ionicons name="calendar" size={20} color="#3B82F6" />
+                  </View>
+                  <View>
+                    <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Agenda de Citas</Text>
+                    <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Ver, confirmar y completar</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              </View>
+            </Pressable>
+
+            <Pressable
+              onPress={() => router.push('/(tabs)/messages')}
+              className="bg-card-light dark:bg-card-dark rounded-xl p-4 mb-3 active:opacity-70"
+              accessibilityRole="button"
+              accessibilityLabel="Mensajes con pacientes"
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center">
+                  <View className="w-10 h-10 rounded-xl bg-pink-50 dark:bg-pink-900/20 items-center justify-center mr-3">
+                    <Ionicons name="chatbubbles" size={20} color="#E8467C" />
+                  </View>
+                  <View>
+                    <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mensajes</Text>
+                    <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Conversaciones con pacientes</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              </View>
+            </Pressable>
+          </View>
+        )}
+
         {/* Historial Médico — solo pacientes */}
         {user?.role === 'patient' && (
           <View className="px-6 mb-6">

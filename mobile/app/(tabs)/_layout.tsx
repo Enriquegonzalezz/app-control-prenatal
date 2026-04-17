@@ -2,10 +2,14 @@ import { Tabs } from 'expo-router';
 import { Platform, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffectiveTheme } from '@/store/themeStore';
+import { useAuthStore } from '@/store/authStore';
 
 export default function TabsLayout() {
   const theme = useEffectiveTheme();
   const isDark = theme === 'dark';
+  const role = useAuthStore((s) => s.user?.role);
+  const isDoctor = role === 'doctor';
+  const tabHomeTitle = isDoctor ? 'Agenda' : 'Inicio';
 
   const TabBarButton = (props: any) => {
     const focused = props.accessibilityState?.selected;
@@ -67,11 +71,11 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Inicio',
+          title: tabHomeTitle,
           tabBarButton: (props) => <TabBarButton {...props} focused={props.accessibilityState?.selected} />,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
-              name={focused ? 'home' : 'home-outline'} 
+              name={focused ? (isDoctor ? 'calendar' : 'home') : (isDoctor ? 'calendar-outline' : 'home-outline')} 
               size={24} 
               color={color} 
             />
@@ -81,11 +85,11 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="doctors"
         options={{
-          title: 'Médicos',
+          title: isDoctor ? 'Directorio' : 'Médicos',
           tabBarButton: (props) => <TabBarButton {...props} focused={props.accessibilityState?.selected} />,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
-              name={focused ? 'medical' : 'medical-outline'} 
+              name={focused ? (isDoctor ? 'people' : 'medical') : (isDoctor ? 'people-outline' : 'medical-outline')} 
               size={24} 
               color={color} 
             />
