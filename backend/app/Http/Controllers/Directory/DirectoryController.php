@@ -8,12 +8,31 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Directory\NearbyDoctorsRequest;
 use App\Services\DirectoryService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 final class DirectoryController extends Controller
 {
     public function __construct(
         private readonly DirectoryService $directoryService
     ) {}
+
+    public function index(Request $request): JsonResponse
+    {
+        $result = $this->directoryService->listAllDoctors(
+            perPage: (int) $request->input('per_page', DirectoryService::DEFAULT_LIMIT),
+            search: $request->input('search'),
+            specialtyId: $request->input('specialty_id'),
+        );
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Directorio obtenido correctamente.',
+            'data'    => [
+                'doctors'    => $result['data'],
+                'pagination' => $result['pagination'],
+            ],
+        ], 200);
+    }
 
     public function nearby(NearbyDoctorsRequest $request): JsonResponse
     {
