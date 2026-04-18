@@ -130,18 +130,25 @@ export default function DoctorsScreen() {
   const [doctors, setDoctors] = useState<NearbyDoctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [hasGps, setHasGps] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  // 1️⃣ Intentar GPS primero; si falla o se demora, cargar lista completa como fallback
+  // 1️⃣ Cargar primera página o refrescar
   const loadAll = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setApiError(null);
     try {
-      const res = await directoryApi.listDoctors({ limit: 50 });
+      const res = await directoryApi.listDoctors({ per_page: 20, page: 1 });
       setDoctors(res.data?.doctors ?? []);
+      setCurrentPage(res.data?.pagination.current_page ?? 1);
+      setLastPage(res.data?.pagination.last_page ?? 1);
+      setTotal(res.data?.pagination.total ?? 0);
     } catch {
       setApiError('No se pudo conectar al servidor. Verifica tu red.');
     } finally {
@@ -150,7 +157,23 @@ export default function DoctorsScreen() {
     }
   }, []);
 
-  // 2️⃣ GPS como mejora: enriquece distancias y reordena por cercanía
+  // 2️⃣ Cargar siguiente página (infinite scroll)
+  const loadMore = useCallback(async () => {
+    if (loadingMore || currentPage >= lastPage) return;
+    setLoadingMore(true);
+    try {
+      const res = await directoryApi.listDoctors({ per_page: 20, page: currentPage + 1 });
+      setDoctors((prev) => [...prev, ...(res.data?.doctors ?? [])]);
+      setCurrentPage(res.data?.pagination.current_page ?? currentPage);
+      setLastPage(res.data?.pagination.last_page ?? lastPage);
+    } catch {
+      // Silenciar errores en loadMore para no interrumpir UX
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [currentPage, lastPage, loadingMore]);
+
+  // 3️⃣ GPS como mejora: enriquece distancias y reordena por cercanía
   const enrichWithGps = useCallback(async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -170,7 +193,6 @@ export default function DoctorsScreen() {
   }, []);
 
   useEffect(() => {
-    // Lanzar ambas en paralelo: lista completa inmediata + enriquecimiento GPS
     loadAll();
     enrichWithGps();
   }, [loadAll, enrichWithGps]);
@@ -275,6 +297,8 @@ export default function DoctorsScreen() {
           renderItem={({ item }) => <DoctorCard doctor={item} isDark={isDark} />}
           contentContainerStyle={{ paddingTop: 4, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -286,6 +310,24 @@ export default function DoctorsScreen() {
             loading ? (
               <View>
                 {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} isDark={isDark} />)}
+              </View>
+            ) : null
+          }
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#E8467C', opacity: 0.6 }} />
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#E8467C', opacity: 0.8 }} />
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#E8467C' }} />
+                </View>
+                <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 8 }}>Cargando más...</Text>
+              </View>
+            ) : currentPage >= lastPage && doctors.length > 0 ? (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <Text style={{ fontSize: 11, color: '#9CA3AF' }}>
+                  {total} médico{total !== 1 ? 's' : ''} en total
+                </Text>
               </View>
             ) : null
           }

@@ -289,15 +289,26 @@ export const chatApi = {
 };
 
 export const directoryApi = {
-  async listDoctors(params?: { search?: string; specialty_id?: string; limit?: number }) {
+  async listDoctors(params?: { search?: string; specialty_id?: string; per_page?: number; page?: number }) {
     const query = new URLSearchParams();
     if (params?.search) query.set('search', params.search);
     if (params?.specialty_id) query.set('specialty_id', params.specialty_id);
-    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.per_page) query.set('per_page', String(params.per_page));
+    if (params?.page) query.set('page', String(params.page));
     const qs = query.toString();
     return request<{
       status: string;
-      data: { doctors: NearbyDoctor[]; meta: { count: number } };
+      data: {
+        doctors: NearbyDoctor[];
+        pagination: {
+          current_page: number;
+          per_page: number;
+          total: number;
+          last_page: number;
+          from: number | null;
+          to: number | null;
+        };
+      };
     }>(`/doctors${qs ? `?${qs}` : ''}`);
   },
   async nearbyDoctors(params: {
