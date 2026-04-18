@@ -38,8 +38,9 @@ final class DirectoryService
         $query = DB::table('doctor_profiles as dp')
             ->join('users as u', 'u.id', '=', 'dp.user_id')
             ->join('specialties as sp', 'sp.id', '=', 'dp.specialty_id')
-            ->leftJoin('clinics as c', 'c.id', '=', 'dp.clinic_id')
-            ->leftJoin('clinic_branches as cb', 'cb.id', '=', 'dp.branch_id')
+            ->leftJoin('clinic_doctors as cd', fn ($j) => $j->on('cd.doctor_id', '=', 'u.id')->where('cd.is_active', true))
+            ->leftJoin('clinics as c', 'c.id', '=', 'cd.clinic_id')
+            ->leftJoin('clinic_branches as cb', 'cb.id', '=', 'cd.branch_id')
             ->where('u.is_active', true)
             ->when($specialtyId, fn ($q) => $q->where('dp.specialty_id', $specialtyId))
             ->when($search, function ($q) use ($search) {
