@@ -329,35 +329,75 @@ function DoctorProfileSheet({
             </Pressable>
 
             {/* Secondary row */}
-            <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
               <Pressable
                 onPress={() => { onClose(); router.push('/appointments'); }}
                 style={({ pressed }) => ({
-                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  backgroundColor: isDark ? '#252525' : '#F9FAFB',
-                  borderRadius: 16, paddingVertical: 14,
-                  borderWidth: 1, borderColor: isDark ? '#333' : '#E5E7EB',
-                  opacity: pressed ? 0.7 : 1,
+                  flex: 1,
+                  backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
+                  borderRadius: 20,
+                  paddingVertical: 16,
+                  paddingHorizontal: 8,
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 8,
+                  borderWidth: 1.5,
+                  borderColor: isDark ? '#374151' : '#E2E8F0',
+                  opacity: pressed ? 0.85 : 1,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: isDark ? 0.3 : 0.08,
+                  shadowRadius: 8,
+                  elevation: 2,
                 })}
                 accessibilityRole="button" accessibilityLabel="Ver mis citas"
               >
-                <Ionicons name="list" size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#9CA3AF' : '#374151' }}>Mis citas</Text>
+                <View style={{
+                  width: 40, height: 40, borderRadius: 20,
+                  backgroundColor: isDark ? '#3B82F620' : '#DBEAFE',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Ionicons name="calendar-outline" size={18} color="#3B82F6" />
+                </View>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: isDark ? '#F3F4F6' : '#1F2937' }}>Mis Citas</Text>
+                  <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 1 }}>Próximas y pasadas</Text>
+                </View>
               </Pressable>
 
               <Pressable
                 onPress={() => { onClose(); router.push('/medical-history'); }}
                 style={({ pressed }) => ({
-                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  backgroundColor: isDark ? '#252525' : '#F9FAFB',
-                  borderRadius: 16, paddingVertical: 14,
-                  borderWidth: 1, borderColor: isDark ? '#333' : '#E5E7EB',
-                  opacity: pressed ? 0.7 : 1,
+                  flex: 1,
+                  backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
+                  borderRadius: 20,
+                  paddingVertical: 16,
+                  paddingHorizontal: 8,
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 8,
+                  borderWidth: 1.5,
+                  borderColor: isDark ? '#374151' : '#E2E8F0',
+                  opacity: pressed ? 0.85 : 1,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: isDark ? 0.3 : 0.08,
+                  shadowRadius: 8,
+                  elevation: 2,
                 })}
                 accessibilityRole="button" accessibilityLabel="Ver historial médico"
               >
-                <Ionicons name="document-text" size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#9CA3AF' : '#374151' }}>Historial</Text>
+                <View style={{
+                  width: 40, height: 40, borderRadius: 20,
+                  backgroundColor: isDark ? '#8B5CF620' : '#EDE9FE',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Ionicons name="document-text-outline" size={18} color="#8B5CF6" />
+                </View>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: isDark ? '#F3F4F6' : '#1F2937' }}>Historial</Text>
+                  <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 1 }}>Consultas y notas</Text>
+                </View>
               </Pressable>
             </View>
           </View>

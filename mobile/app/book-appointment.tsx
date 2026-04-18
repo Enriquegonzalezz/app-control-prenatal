@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Pressable,
   ScrollView,
@@ -105,6 +104,7 @@ export default function BookAppointmentScreen() {
   const [notes, setNotes] = useState('');
   const [booking, setBooking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bookingResult, setBookingResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Colours
   const bg       = isDark ? '#141414' : '#F5F5F5';
@@ -134,28 +134,23 @@ export default function BookAppointmentScreen() {
     if (!selectedSlot || !token) return;
 
     setBooking(true);
+    setBookingResult(null);
     try {
       await appointmentApi.book(token, {
         slot_id: selectedSlot.id,
         patient_notes: notes.trim() || undefined,
       });
 
-      Alert.alert(
-        '¡Cita reservada! 🎉',
-        `Tu cita con ${doctorName} ha sido agendada para el ${formatDateHeader(selectedSlot.starts_at)} a las ${formatTime(selectedSlot.starts_at)}.`,
-        [
-          {
-            text: 'Ver mis citas',
-            onPress: () => router.replace('/appointments'),
-          },
-        ]
-      );
+      setBookingResult({
+        success: true,
+        message: `¡Cita confirmada! ${doctorName} te espera el ${formatDateHeader(selectedSlot.starts_at)} a las ${formatTime(selectedSlot.starts_at)}`,
+      });
+      setTimeout(() => router.replace('/appointments'), 2000);
     } catch (err: any) {
-      Alert.alert(
-        'Error al reservar',
-        err?.message ?? 'El slot ya no está disponible. Por favor elige otro horario.',
-        [{ text: 'Entendido' }]
-      );
+      setBookingResult({
+        success: false,
+        message: err?.message ?? 'El horario ya no está disponible. Por favor elige otro.',
+      });
       await load();
       setSelectedSlot(null);
     } finally {
@@ -329,49 +324,179 @@ export default function BookAppointmentScreen() {
 
       </ScrollView>
 
-      {/* ── Sticky Confirm Button ────────────────────────────── */}
+      {/* ── Sticky Confirm Card ────────────────────────────── */}
       {selectedSlot && (
         <View style={{
           position: 'absolute', bottom: 0, left: 0, right: 0,
           backgroundColor: bg,
-          paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32,
+          paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32,
           borderTopWidth: 1, borderTopColor: border,
         }}>
-          {/* Selected slot preview */}
-          <View style={{ backgroundColor: '#E8467C12', borderRadius: 14, padding: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Ionicons name="time-outline" size={16} color="#E8467C" />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#E8467C' }}>
-                {formatDateHeader(selectedSlot.starts_at)} · {formatTime(selectedSlot.starts_at)} – {formatTime(selectedSlot.ends_at)}
-              </Text>
+          {/* Premium selected slot card */}
+          <View style={{
+            backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+            borderRadius: 20,
+            padding: 16,
+            marginBottom: 16,
+            borderWidth: 1.5,
+            borderColor: isDark ? '#374151' : '#E5E7EB',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: isDark ? 0.25 : 0.08,
+            shadowRadius: 12,
+            elevation: 4,
+          }}>
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{
+                  width: 36, height: 36, borderRadius: 18,
+                  backgroundColor: '#E8467C15',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Ionicons name="calendar-outline" size={18} color="#E8467C" />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: textColor }}>Horario seleccionado</Text>
+                  <Text style={{ fontSize: 11, color: subColor, marginTop: 1 }}>Confirma para agendar tu cita</Text>
+                </View>
+              </View>
+              <Pressable
+                onPress={() => setSelectedSlot(null)}
+                hitSlop={12}
+                style={{
+                  width: 32, height: 32, borderRadius: 16,
+                  backgroundColor: isDark ? '#374151' : '#F3F4F6',
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="close" size={16} color={subColor} />
+              </Pressable>
             </View>
-            <Pressable onPress={() => setSelectedSlot(null)} hitSlop={8}>
-              <Ionicons name="close-circle" size={18} color="#E8467C" />
-            </Pressable>
+            
+            {/* Date/time details */}
+            <View style={{
+              backgroundColor: isDark ? '#111827' : '#F9FAFB',
+              borderRadius: 12,
+              padding: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}>
+              <View style={{
+                width: 48, height: 48, borderRadius: 24,
+                backgroundColor: '#E8467C',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>
+                  {formatTime(selectedSlot.starts_at).slice(0, 2)}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: textColor }}>
+                  {formatDateHeader(selectedSlot.starts_at)}
+                </Text>
+                <Text style={{ fontSize: 13, color: '#E8467C', fontWeight: '600', marginTop: 1 }}>
+                  {formatTime(selectedSlot.starts_at)} – {formatTime(selectedSlot.ends_at)}
+                </Text>
+              </View>
+            </View>
           </View>
 
+          {/* Booking result message */}
+          {bookingResult && (
+            <View style={{
+              backgroundColor: bookingResult.success 
+                ? (isDark ? '#0D2E1F' : '#F0FDF4') 
+                : (isDark ? '#2D0A0A' : '#FEF2F2'),
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 12,
+              flexDirection: 'row',
+              gap: 10,
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: bookingResult.success 
+                ? (isDark ? '#14532D' : '#BBF7D0') 
+                : (isDark ? '#7F1D1D' : '#FECACA'),
+            }}>
+              <Ionicons 
+                name={bookingResult.success ? 'checkmark-circle' : 'alert-circle'} 
+                size={18} 
+                color={bookingResult.success ? '#10B981' : '#EF4444'} 
+              />
+              <Text style={{ 
+                flex: 1, 
+                fontSize: 12, 
+                fontWeight: '600', 
+                color: bookingResult.success 
+                  ? (isDark ? '#6EE7B7' : '#065F46') 
+                  : (isDark ? '#FCA5A5' : '#991B1B'),
+                lineHeight: 16 
+              }}>
+                {bookingResult.message}
+              </Text>
+            </View>
+          )}
+
+          {/* Confirm button with gradient effect */}
           <Pressable
             onPress={handleBook}
-            disabled={booking}
+            disabled={booking || bookingResult?.success === true}
             style={({ pressed }) => ({
-              backgroundColor: booking ? '#9CA3AF' : '#E8467C',
-              borderRadius: 18, paddingVertical: 17,
+              backgroundColor: booking || bookingResult?.success === true ? '#9CA3AF' : '#E8467C',
+              borderRadius: 22,
+              paddingVertical: 18,
+              paddingHorizontal: 24,
               alignItems: 'center', justifyContent: 'center',
-              flexDirection: 'row', gap: 8,
-              opacity: pressed ? 0.86 : 1,
-              shadowColor: '#E8467C', shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: booking ? 0 : 0.35, shadowRadius: 14, elevation: booking ? 0 : 8,
+              flexDirection: 'row',
+              gap: 10,
+              opacity: pressed ? 0.88 : 1,
+              shadowColor: (booking || bookingResult?.success === true) ? 'transparent' : '#E8467C',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: (booking || bookingResult?.success === true) ? 0 : 0.4,
+              shadowRadius: 20,
+              elevation: (booking || bookingResult?.success === true) ? 0 : 12,
             })}
             accessibilityRole="button"
             accessibilityLabel="Confirmar reserva de cita"
           >
-            {booking ? (
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>Reservando...</Text>
-            ) : (
-              <>
-                <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>Confirmar Cita</Text>
-              </>
+            {/* Left icon with subtle background */}
+            {!booking && (
+              <View style={{
+                width: 36, height: 36, borderRadius: 18,
+                backgroundColor: 'rgba(255,255,255,0.18)',
+                alignItems: 'center', justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.25)',
+              }}>
+                <Ionicons name="checkmark-circle" size={18} color="#fff" />
+              </View>
+            )}
+            
+            {/* Text content */}
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 }}>
+                {booking ? 'Reservando...' : 'Confirmar Cita'}
+              </Text>
+              {!booking && (
+                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 2 }}>
+                  {doctorName} · {specialtyName}
+                </Text>
+              )}
+            </View>
+            
+            {/* Right arrow */}
+            {!booking && (
+              <View style={{
+                width: 32, height: 32, borderRadius: 16,
+                backgroundColor: 'rgba(255,255,255,0.18)',
+                alignItems: 'center', justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.25)',
+              }}>
+                <Ionicons name="arrow-forward" size={14} color="#fff" />
+              </View>
             )}
           </Pressable>
         </View>
