@@ -19,6 +19,7 @@ final class Slot extends Model
     protected $fillable = [
         'doctor_id',
         'branch_id',
+        'office_id',
         'schedule_id',
         'starts_at',
         'ends_at',
@@ -42,6 +43,11 @@ final class Slot extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(ClinicBranch::class, 'branch_id');
+    }
+
+    public function office(): BelongsTo
+    {
+        return $this->belongsTo(DoctorOffice::class, 'office_id');
     }
 
     public function schedule(): BelongsTo

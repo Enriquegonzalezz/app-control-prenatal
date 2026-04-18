@@ -31,20 +31,24 @@ final class ScheduleService
     public function listForDoctor(DoctorProfile $doctor): Collection
     {
         return $doctor->schedules()
-            ->with('branch:id,name,clinic_id')
+            ->with([
+                'branch:id,name,clinic_id',
+                'office:id,name,type,address,city',
+            ])
             ->orderBy('day_of_week')
             ->orderBy('start_time')
             ->get();
     }
 
     /**
-     * @param  array{branch_id:string, day_of_week:string, start_time:string, end_time:string, slot_duration_minutes?:int}  $data
+     * @param  array{branch_id?:string|null, office_id?:string|null, day_of_week:string, start_time:string, end_time:string, slot_duration_minutes?:int}  $data
      */
     public function create(DoctorProfile $doctor, array $data): Schedule
     {
         return Schedule::create([
             'doctor_id'             => $doctor->id,
-            'branch_id'             => $data['branch_id'],
+            'branch_id'             => $data['branch_id'] ?? null,
+            'office_id'             => $data['office_id'] ?? null,
             'day_of_week'           => $data['day_of_week'],
             'start_time'            => $data['start_time'],
             'end_time'              => $data['end_time'],
@@ -103,6 +107,7 @@ final class ScheduleService
                     'id'          => (string) \Illuminate\Support\Str::uuid(),
                     'doctor_id'   => $schedule->doctor_id,
                     'branch_id'   => $schedule->branch_id,
+                    'office_id'   => $schedule->office_id,
                     'schedule_id' => $schedule->id,
                     'starts_at'   => $cursor->toIso8601String(),
                     'ends_at'     => $slotEnd->toIso8601String(),

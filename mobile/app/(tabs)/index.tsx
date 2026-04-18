@@ -268,9 +268,10 @@ function DoctorDashboard({ isDark }: { isDark: boolean }) {
           <View style={{ backgroundColor: isDark ? '#161616' : '#1E293B', paddingVertical: 14, paddingHorizontal: 16 }}>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {[
-                { label: 'Mensajes',   icon: 'chatbubbles'  as const, onPress: () => router.push('/(tabs)/messages'),  color: '#E8467C' },
-                { label: 'Directorio', icon: 'people'       as const, onPress: () => router.push('/(tabs)/doctors'),   color: '#3B82F6' },
-                { label: 'Citas hoy',  icon: 'list'         as const, onPress: () => router.push('/appointments'),     color: '#10B981' },
+                { label: 'Mensajes',   icon: 'chatbubbles'  as const, onPress: () => router.push('/(tabs)/messages'),    color: '#E8467C' },
+                { label: 'Directorio', icon: 'people'       as const, onPress: () => router.push('/(tabs)/doctors'),     color: '#3B82F6' },
+                { label: 'Citas hoy',  icon: 'list'         as const, onPress: () => router.push('/appointments'),       color: '#10B981' },
+                { label: 'Horarios',   icon: 'time'         as const, onPress: () => router.push('/doctor-schedule'),    color: '#8B5CF6' },
               ].map((btn) => (
                 <Pressable
                   key={btn.label}

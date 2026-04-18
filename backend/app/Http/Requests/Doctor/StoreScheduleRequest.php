@@ -20,7 +20,8 @@ final class StoreScheduleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'branch_id'             => ['required', 'uuid', Rule::exists('clinic_branches', 'id')->where('is_active', true)],
+            'branch_id'             => ['nullable', 'uuid', Rule::exists('clinic_branches', 'id')->where('is_active', true)],
+            'office_id'             => ['nullable', 'uuid', Rule::exists('doctor_offices', 'id')->where('is_active', true)],
             'day_of_week'           => ['required', new Enum(DayOfWeek::class)],
             'start_time'            => ['required', 'date_format:H:i'],
             'end_time'              => ['required', 'date_format:H:i', 'after:start_time'],

@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Appointment;
 
 use App\Enums\AppointmentStatus;
+use App\Enums\SlotStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Appointment\BookAppointmentRequest;
 use App\Http\Requests\Appointment\CancelAppointmentRequest;
 use App\Http\Requests\Appointment\CompleteAppointmentRequest;
 use App\Models\Appointment;
+use App\Models\DoctorProfile;
+use App\Models\Slot;
 use App\Services\AppointmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +24,40 @@ final class AppointmentController extends Controller
     public function __construct(
         private readonly AppointmentService $appointmentService
     ) {}
+
+    /**
+     * Devuelve los slots disponibles de un médico para que el paciente pueda reservar.
+     * GET /appointments/slots?doctor_profile_id=xxx&days=30
+     */
+    public function availableSlots(Request $request): JsonResponse
+    {
+        $doctorProfileId = $request->query('doctor_profile_id');
+
+        if (! $doctorProfileId) {
+            return response()->json(['status' => 'error', 'message' => 'doctor_profile_id requerido.', 'data' => null], 422);
+        }
+
+        $doctor = DoctorProfile::find($doctorProfileId);
+
+        if (! $doctor) {
+            return response()->json(['status' => 'error', 'message' => 'Médico no encontrado.', 'data' => null], 404);
+        }
+
+        $days = min((int) $request->query('days', 30), 60);
+
+        $slots = Slot::where('doctor_id', $doctor->id)
+            ->where('status', SlotStatus::AVAILABLE->value)
+            ->where('starts_at', '>=', now())
+            ->where('starts_at', '<=', now()->addDays($days))
+            ->orderBy('starts_at')
+            ->get(['id', 'starts_at', 'ends_at', 'status', 'branch_id']);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Slots disponibles obtenidos.',
+            'data'    => $slots,
+        ]);
+    }
 
     public function index(Request $request): JsonResponse
     {
