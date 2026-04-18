@@ -25,6 +25,7 @@ independiente de médicos via OTP (Δ-5). Al finalizar este sprint:
 | S1.4 | Middleware Laravel: EnsureIsDoctor, EnsureIsPatient, EnsureIsClinicAdmin, EnsureDoctorVerified | Rutas protegidas por rol | ✅ |
 | S1.5a | Panel clínica: vincular médicos ya verificados (clinic_doctors) | Vinculación funcional | ⏳ |
 | S1.5b | Verificación OTP de médicos: `doctor_verification_codes`, `DoctorVerificationService`, endpoints request/verify | Médico pasa de `is_verified=false` a `true` via OTP | ✅ |
+| S1.5c | Password Reset: endpoints forgot/reset con OTP, bypass en modo debug | Recuperación de contraseña funcional | ✅ |
 | S1.6 | RLS en todas las tablas con clinic scope | Tests de acceso no autorizado fallando | ✅ |
 | S1.7 | Pantallas RN: Login, Registro Unificado, Onboarding diferenciado | Navegación completa de auth | ⏳ |
 | S1.8 | Sistema de temas dark/light con tokens semánticos en NativeWind | Toggle funcional + respeta OS | ⏳ |
@@ -64,6 +65,16 @@ independiente de médicos via OTP (Δ-5). Al finalizar este sprint:
 - [x] S1.5b - Prueba Gmail SMTP (legacy) — email llegó a samuelmolina664@gmail.com ✅
 - [x] S1.5b - Migración a Edge Function `resend-email` + Resend API (v4 activa en Supabase)
 - [x] S1.5b - Verificación con código real (882512) → `is_verified=true` ✅
+
+### ✅ Password Reset — S1.5c (Completo)
+- [x] S1.5c - `App\Http\Controllers\Auth\PasswordResetController` (requestReset + resetPassword)
+- [x] S1.5c - Endpoints públicos `/password/forgot` y `/password/reset`
+- [x] S1.5c - OTP de 6 dígitos con expiración de 15 minutos
+- [x] S1.5c - Bypass de validación OTP en modo debug (APP_DEBUG=true)
+- [x] S1.5c - Pantalla `forgot-password.tsx` con formulario de email
+- [x] S1.5c - Pantalla `reset-password.tsx` con OTP + nueva contraseña
+- [x] S1.5c - Link "¿Olvidaste tu contraseña?" en `login.tsx`
+- [x] S1.5c - Funciona para cualquier usuario (verificado o no)
 
 ### ⏳ Panel Clínica (Pendiente)
 - [ ] S1.5a - Vincular médicos verificados a clínicas (backend + frontend admin)
@@ -220,7 +231,8 @@ backend/
 │   │   │   ├── Auth/
 │   │   │   │   ├── RegisterController.php       ✅ Registro unificado (is_verified=false para médicos)
 │   │   │   │   ├── LoginController.php          ✅ Login con Sanctum
-│   │   │   │   └── LogoutController.php         ✅ Logout
+│   │   │   │   ├── LogoutController.php         ✅ Logout
+│   │   │   │   └── PasswordResetController.php  ✅ Forgot/Reset password [S1.5c]
 │   │   │   ├── Doctor/
 │   │   │   │   └── VerificationController.php   ⏳ requestCode / verifyCode / status [Δ-5]
 │   │   │   └── ProfileController.php            ✅ Perfiles por rol
@@ -277,8 +289,10 @@ backend/
 
 ### Auth (Públicos)
 ```
-POST /api/v1/auth/register    - Registro unificado (detecta rol por cédula)
-POST /api/v1/auth/login       - Login con email + password
+POST /api/v1/auth/register       - Registro unificado (detecta rol por cédula)
+POST /api/v1/auth/login          - Login con email + password
+POST /api/v1/password/forgot     - Solicitar código OTP para reset [S1.5c] ✅
+POST /api/v1/password/reset      - Resetear contraseña con OTP [S1.5c] ✅
 ```
 
 ### Auth (Protegidos - Sanctum)
@@ -375,12 +389,13 @@ Lista últimos registros por rol
 ## Pantallas React Native a Crear (Pendiente)
 
 ```
-mobile/src/
-├── features/
-│   ├── auth/
-│   │   ├── LoginScreen.tsx                 ⏳ Email + Password
-│   │   ├── RegisterScreen.tsx              ⏳ Formulario con campo cédula
-│   │   └── OnboardingScreen.tsx            ⏳ Diferenciado por rol
+mobile/app/
+├── (auth)/
+│   ├── login.tsx                           ✅ Email + Password + link forgot password
+│   ├── register.tsx                        ✅ Formulario con campo cédula
+│   ├── forgot-password.tsx                 ✅ Solicitar código de recuperación [S1.5c]
+│   ├── reset-password.tsx                  ✅ Ingresar OTP + nueva contraseña [S1.5c]
+│   └── onboarding.tsx                      ⏳ Diferenciado por rol
 │   │
 │   ├── clinic-panel/
 │   │   ├── ClinicDashboardScreen.tsx       ⏳ Panel admin
@@ -463,11 +478,11 @@ export const semanticColors = {
 - [x] RLS policies implementadas
 - [x] Comandos Artisan para administración
 - [x] Telescope + Pulse configurados
+- [x] Password reset con OTP (bypass en modo debug) [S1.5c] 
 
-### ⏳ Pendientes
-- [ ] S1.5b: Verificación OTP de médicos (migración + service + controller + job) [Δ-5]
+### Pendientes
 - [ ] S1.5a: Panel clínica para vincular médicos ya verificados (backend + frontend admin)
-- [ ] S1.7: Pantallas RN de autenticación (Login, Register, OTP Verification, Onboarding)
+- [ ] S1.7: Pantallas RN de autenticación (Register, Onboarding) — Login completado 
 - [ ] S1.8: Dark mode toggle funcional en mobile
 - [ ] Tests de integración (opcional)
 
