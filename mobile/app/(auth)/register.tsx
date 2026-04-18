@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +33,25 @@ export default function RegisterScreen() {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(false);
+
+  // Animaciones
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleRegister = async () => {
     setError('');
@@ -63,6 +83,8 @@ export default function RegisterScreen() {
         password_confirmation: confirmPassword,
       });
       setAuth(res.data.user, res.data.token);
+      // La redirección se maneja automáticamente por el authStore y index.tsx
+      router.replace('/(tabs)');
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -86,16 +108,28 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
           className="px-6"
         >
-          <View className="items-center mt-8 mb-8">
+          <Animated.View 
+            className="items-center mt-8 mb-8"
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }}
+          >
             <Text className="text-3xl font-bold text-brand-500">
               Crear Cuenta
             </Text>
             <Text className="text-sm mt-2 text-neutral-500 dark:text-neutral-400 text-center">
               Tu rol se detecta automáticamente por tu cédula
             </Text>
-          </View>
+          </Animated.View>
 
-          <View className="bg-card-light dark:bg-card-dark rounded-2xl p-6 shadow-sm mb-6">
+          <Animated.View 
+            className="bg-card-light dark:bg-card-dark rounded-2xl p-6 shadow-sm mb-6"
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }}
+          >
             {error ? (
               <View className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-4">
                 <Text className="text-red-600 dark:text-red-400 text-sm text-center">
@@ -245,9 +279,12 @@ export default function RegisterScreen() {
                 </Text>
               )}
             </Pressable>
-          </View>
+          </Animated.View>
 
-          <View className="flex-row justify-center mb-8">
+          <Animated.View 
+            className="flex-row justify-center mb-8"
+            style={{ opacity: fadeAnim }}
+          >
             <Text className="text-neutral-500 dark:text-neutral-400 text-sm">
               ¿Ya tienes cuenta?{' '}
             </Text>
@@ -259,7 +296,7 @@ export default function RegisterScreen() {
                 Inicia Sesión
               </Text>
             </Pressable>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
