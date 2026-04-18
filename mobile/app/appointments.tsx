@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   FlatList,
   Pressable,
@@ -71,15 +70,18 @@ function SkeletonCard({ isDark }: { isDark: boolean }) {
 }
 
 function AppointmentCard({
-  appt, isDark, onCancel, cancelling,
+  appt, isDark, onCancel, cancelling, userRole,
 }: {
-  appt: Appointment; isDark: boolean; onCancel: (id: string) => void; cancelling: string | null;
+  appt: Appointment; isDark: boolean; onCancel: (id: string) => void; cancelling: string | null; userRole: 'patient' | 'doctor';
 }) {
   const sc = STATUS_CONFIG[appt.status];
   const canCancel = CANCELLABLE.has(appt.status);
   const isCancelling = cancelling === appt.id;
 
-  const initials = (appt.doctor?.name ?? 'D')
+  // Determinar quién mostrar y quién es el "otro"
+  const isPatientView = userRole === 'patient';
+  const shownPerson = isPatientView ? appt.doctor : appt.patient;
+  const initials = (shownPerson?.name ?? '?')
     .split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
 
   return (
@@ -99,7 +101,7 @@ function AppointmentCard({
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }} numberOfLines={1}>
-            {appt.doctor?.name ?? 'Médico'}
+            {shownPerson?.name ?? (isPatientView ? 'Médico' : 'Paciente')}
           </Text>
           <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>
             {appt.clinic?.name ?? '—'}
@@ -133,7 +135,7 @@ function AppointmentCard({
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="cash-outline" size={13} color="#E8467C" style={{ marginRight: 4 }} />
             <Text style={{ fontSize: 12, fontWeight: '600', color: '#E8467C' }}>
-              ${appt.consultation_fee.toFixed(0)}
+              ${Number(appt.consultation_fee).toFixed(0)}
             </Text>
           </View>
         ) : <View />}
@@ -174,6 +176,8 @@ export default function AppointmentsScreen() {
   const theme = useEffectiveTheme();
   const isDark = theme === 'dark';
   const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  const userRole: 'patient' | 'doctor' = user?.role === 'doctor' ? 'doctor' : 'patient';
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -181,6 +185,8 @@ export default function AppointmentsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>('active');
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [confirmingCancel, setConfirmingCancel] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!token) return;
@@ -200,29 +206,22 @@ export default function AppointmentsScreen() {
   useEffect(() => { load(); }, [load]);
 
   const handleCancel = (id: string) => {
-    Alert.alert(
-      'Cancelar cita',
-      '¿Seguro que deseas cancelar esta cita? Esta acción no se puede deshacer.',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Sí, cancelar',
-          style: 'destructive',
-          onPress: async () => {
-            if (!token) return;
-            setCancelling(id);
-            try {
-              await appointmentApi.cancel(token, id);
-              await load(true);
-            } catch {
-              Alert.alert('Error', 'No se pudo cancelar la cita. Inténtalo de nuevo.');
-            } finally {
-              setCancelling(null);
-            }
-          },
-        },
-      ]
-    );
+    setConfirmingCancel(id);
+    setCancelError(null);
+  };
+
+  const handleCancelConfirm = async (id: string) => {
+    if (!token) return;
+    setCancelling(id);
+    setConfirmingCancel(null);
+    try {
+      await appointmentApi.cancel(token, id);
+      await load(true);
+    } catch {
+      setCancelError('No se pudo cancelar la cita. Intenta de nuevo.');
+    } finally {
+      setCancelling(null);
+    }
   };
 
   const filtered = appointments.filter((a) => {
@@ -233,6 +232,7 @@ export default function AppointmentsScreen() {
 
   const bg = isDark ? '#141414' : '#F5F5F5';
   const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
+  const subColor = isDark ? '#9CA3AF' : '#64748B';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={['top']}>
@@ -247,7 +247,9 @@ export default function AppointmentsScreen() {
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 20, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }}>Mis Citas</Text>
-          <Text style={{ fontSize: 12, color: '#9CA3AF' }}>Gestiona tus consultas</Text>
+          <Text style={{ fontSize: 12, color: '#9CA3AF' }}>
+            {userRole === 'patient' ? 'Gestiona tus consultas' : 'Gestiona tus citas con pacientes'}
+          </Text>
         </View>
         {!loading && appointments.length > 0 && (
           <View style={{ backgroundColor: '#E8467C15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
@@ -300,7 +302,37 @@ export default function AppointmentsScreen() {
           data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <AppointmentCard appt={item} isDark={isDark} onCancel={handleCancel} cancelling={cancelling} />
+            <View>
+              <AppointmentCard 
+                appt={item} 
+                isDark={isDark} 
+                onCancel={handleCancel} 
+                cancelling={cancelling} 
+                userRole={userRole}
+              />
+              {/* Confirmación de cancelación inline */}
+              {confirmingCancel === item.id && (
+                <View style={{ marginHorizontal: 16, marginBottom: 10, backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 12, padding: 12, flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                  <Ionicons name="warning" size={18} color="#F59E0B" />
+                  <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#FCD34D' : '#92400E', lineHeight: 16 }}>
+                    ¿Cancelar esta cita? Esta acción no se puede deshacer.
+                  </Text>
+                  <Pressable onPress={() => setConfirmingCancel(null)} style={{ paddingHorizontal: 10, paddingVertical: 5, backgroundColor: isDark ? '#374151' : '#E5E7EB', borderRadius: 8 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: subColor }}>No</Text>
+                  </Pressable>
+                  <Pressable onPress={() => handleCancelConfirm(item.id)} style={{ paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#EF4444', borderRadius: 8 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#fff' }}>Sí, cancelar</Text>
+                  </Pressable>
+                </View>
+              )}
+              {/* Error de cancelación */}
+              {cancelError && confirmingCancel !== item.id && cancelling === item.id && (
+                <View style={{ marginHorizontal: 16, marginBottom: 8, backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 8, padding: 8, flexDirection: 'row', gap: 6 }}>
+                  <Ionicons name="alert-circle" size={14} color="#EF4444" />
+                  <Text style={{ flex: 1, fontSize: 11, color: isDark ? '#FCA5A5' : '#991B1B', lineHeight: 15 }}>{cancelError}</Text>
+                </View>
+              )}
+            </View>
           )}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor="#E8467C" />}
           contentContainerStyle={{ paddingTop: 4, paddingBottom: 48 }}

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Pressable,
   ScrollView,
@@ -142,6 +141,14 @@ export default function DoctorScheduleScreen() {
   const [newOfficeAddress, setNewOfficeAddress] = useState('');
   const [newOfficeCity, setNewOfficeCity]   = useState('');
   const [savingOffice, setSavingOffice]     = useState(false);
+  const [officeError, setOfficeError]       = useState<string | null>(null);
+  const [officeSaved, setOfficeSaved]       = useState(false);
+
+  // Inline feedback
+  const [loadError, setLoadError]           = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [deleteError, setDeleteError]           = useState<string | null>(null);
+  const [generateMsg, setGenerateMsg] = useState<{ id: string; count: number; isError?: boolean } | null>(null);
 
   // Animate form
   const formAnim = useRef(new Animated.Value(0)).current;
@@ -186,7 +193,7 @@ export default function DoctorScheduleScreen() {
         return '';
       });
     } catch {
-      Alert.alert('Error', 'No se pudieron cargar los datos. Verifica que tu cuenta esté activa.');
+      setLoadError('No se pudieron cargar los datos. Verifica tu conexión.');
     } finally {
       setLoading(false);
     }
@@ -208,9 +215,10 @@ export default function DoctorScheduleScreen() {
   const handleAddOffice = async () => {
     if (!token) return;
     if (!newOfficeName.trim()) {
-      Alert.alert('Campo requerido', 'Escribe un nombre para la ubicación antes de guardar.');
+      setOfficeError('Escribe un nombre para la ubicación.');
       return;
     }
+    setOfficeError(null);
     setSavingOffice(true);
     try {
       const res = await officeApi.create(token, {
@@ -227,10 +235,10 @@ export default function DoctorScheduleScreen() {
       setNewOfficeName('');
       setNewOfficeAddress('');
       setNewOfficeCity('');
-      setShowAddOffice(false);
-      Alert.alert('¡Guardado!', `"${created.name}" fue agregado como ubicación de atención y quedó seleccionado.`);
+      setOfficeSaved(true);
+      setTimeout(() => { setOfficeSaved(false); setShowAddOffice(false); }, 1500);
     } catch (err: any) {
-      Alert.alert('Error al guardar', err?.message ?? 'No se pudo guardar la ubicación. Revisa tu conexión e intenta nuevamente.');
+      setOfficeError(err?.message ?? 'No se pudo guardar. Revisa tu conexión.');
     } finally {
       setSavingOffice(false);
     }
@@ -269,27 +277,21 @@ export default function DoctorScheduleScreen() {
     }
   };
 
-  const handleDelete = (id: string, day: string) => {
-    Alert.alert(
-      'Eliminar horario',
-      `¿Eliminar el horario del ${dayLabel(day)}? No se eliminarán los slots ya generados.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            if (!token) return;
-            try {
-              await scheduleApi.remove(token, id);
-              await load();
-            } catch {
-              Alert.alert('Error', 'No se pudo eliminar el horario.');
-            }
-          },
-        },
-      ]
-    );
+  const handleDelete = (id: string) => {
+    setDeleteError(null);
+    setConfirmingDelete(id);
+  };
+
+  const handleDeleteConfirm = async (id: string) => {
+    if (!token) return;
+    try {
+      await scheduleApi.remove(token, id);
+      setConfirmingDelete(null);
+      await load();
+    } catch {
+      setDeleteError(id);
+      setConfirmingDelete(null);
+    }
   };
 
   const handleGenerate = async (schedule: Schedule) => {
@@ -300,15 +302,12 @@ export default function DoctorScheduleScreen() {
     try {
       const res = await scheduleApi.generateSlots(token, schedule.id, from, until);
       const count = res.data?.generated ?? 0;
-      Alert.alert(
-        count > 0 ? '¡Slots generados!' : 'Sin cambios',
-        count > 0
-          ? `Se crearon ${count} horarios disponibles para el ${dayLabel(schedule.day_of_week)} en las próximas ${genWeeks} semanas.`
-          : 'Ya existen slots para ese período.',
-      );
+      setGenerateMsg({ id: schedule.id, count });
+      setTimeout(() => setGenerateMsg(null), 4000);
       await load();
-    } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'No se pudieron generar los slots.');
+    } catch {
+      setGenerateMsg({ id: schedule.id, count: -1, isError: true });
+      setTimeout(() => setGenerateMsg(null), 4000);
     } finally {
       setGenerating(null);
     }
@@ -450,19 +449,36 @@ export default function DoctorScheduleScreen() {
             shadowColor: '#E8467C', shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.12, shadowRadius: 16, elevation: 6,
           }}>
-            {/* Form header */}
-            <View style={{ backgroundColor: '#E8467C', paddingHorizontal: 20, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="calendar" size={18} color="#fff" />
-              </View>
+            {/* Header */}
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', gap: 12,
+              paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8,
+              backgroundColor: '#E8467C',
+            }}>
+              <Pressable
+                onPress={() => router.back()}
+                style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}
+                accessibilityRole="button" accessibilityLabel="Volver"
+              >
+                <Ionicons name="arrow-back" size={20} color="#fff" />
+              </Pressable>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>Nuevo horario semanal</Text>
-                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>
-                  Se repetirá cada semana que generes
-                </Text>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: '#fff' }}>Mis Horarios</Text>
+                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>Gestiona tus horarios de atención</Text>
               </View>
+              <View style={{ width: 40 }} />
             </View>
 
+            {/* Error de carga */}
+            {loadError && (
+              <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#FCA5A5' : '#991B1B' }}>{loadError}</Text>
+                <Pressable onPress={() => { setLoadError(null); load(); }} style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#EF4444', borderRadius: 12 }}>
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>Reintentar</Text>
+                </Pressable>
+              </View>
+            )}
             <View style={{ padding: 20, gap: 20 }}>
 
               {/* ── Selector de ubicación unificado ── */}
@@ -544,6 +560,20 @@ export default function DoctorScheduleScreen() {
                       onChangeText={setNewOfficeCity}
                       style={{ backgroundColor: isDark ? '#1E1E1E' : '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: textColor, borderWidth: 1, borderColor: isDark ? '#333' : '#E5E7EB' }}
                     />
+
+                    {/* Error/éxito inline */}
+                    {officeError && (
+                      <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 8, padding: 8, flexDirection: 'row', gap: 6, marginTop: 2 }}>
+                        <Ionicons name="alert-circle" size={14} color="#EF4444" />
+                        <Text style={{ flex: 1, fontSize: 11, color: isDark ? '#FCA5A5' : '#991B1B', lineHeight: 15 }}>{officeError}</Text>
+                      </View>
+                    )}
+                    {officeSaved && (
+                      <View style={{ backgroundColor: isDark ? '#0D2E1F' : '#F0FDF4', borderRadius: 8, padding: 8, flexDirection: 'row', gap: 6, marginTop: 2 }}>
+                        <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                        <Text style={{ flex: 1, fontSize: 11, color: isDark ? '#6EE7B7' : '#065F46', lineHeight: 15 }}>Ubicación guardada y seleccionada</Text>
+                      </View>
+                    )}
 
                     <Pressable
                       onPress={handleAddOffice}
@@ -811,7 +841,7 @@ export default function DoctorScheduleScreen() {
                       </Text>
                     </View>
                     <Pressable
-                      onPress={() => handleDelete(sched.id, sched.day_of_week)}
+                      onPress={() => handleDelete(sched.id)}
                       hitSlop={12}
                       style={({ pressed }) => ({
                         width: 34, height: 34, borderRadius: 17,
@@ -850,6 +880,45 @@ export default function DoctorScheduleScreen() {
                       </View>
                     )}
                   </View>
+
+                  {/* Mensaje de generación */}
+                  {generateMsg?.id === sched.id && (
+                    <View style={{
+                      backgroundColor: generateMsg.isError ? (isDark ? '#2D0A0A' : '#FEF2F2') : (isDark ? '#0D2E1F' : '#F0FDF4'),
+                      borderRadius: 12, padding: 10, flexDirection: 'row', gap: 8, alignItems: 'center',
+                      borderWidth: 1, borderColor: generateMsg.isError ? (isDark ? '#7F1D1D' : '#FECACA') : (isDark ? '#14532D' : '#BBF7D0'),
+                      marginBottom: 10,
+                    }}>
+                      <Ionicons name={generateMsg.isError ? 'alert-circle' : 'checkmark-circle'} size={16} color={generateMsg.isError ? '#EF4444' : '#10B981'} />
+                      <Text style={{ flex: 1, fontSize: 12, color: generateMsg.isError ? (isDark ? '#FCA5A5' : '#991B1B') : (isDark ? '#6EE7B7' : '#065F46'), lineHeight: 16 }}>
+                        {generateMsg.count === -1 ? 'Error al generar slots.' : generateMsg.count === 0 ? 'Ya existen slots para ese período.' : `Se crearon ${generateMsg.count} slots disponibles.`}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Confirmación de eliminación */}
+                  {confirmingDelete === sched.id && (
+                    <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 12, padding: 12, marginBottom: 10, flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                      <Ionicons name="warning" size={18} color="#F59E0B" />
+                      <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#FCD34D' : '#92400E', lineHeight: 16 }}>
+                        ¿Eliminar horario del {dayLabel(sched.day_of_week)}? No se borrarán slots ya generados.
+                      </Text>
+                      <Pressable onPress={() => setConfirmingDelete(null)} style={{ paddingHorizontal: 10, paddingVertical: 5, backgroundColor: isDark ? '#374151' : '#E5E7EB', borderRadius: 8 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: subColor }}>Cancelar</Text>
+                      </Pressable>
+                      <Pressable onPress={() => handleDeleteConfirm(sched.id)} style={{ paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#EF4444', borderRadius: 8 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#fff' }}>Eliminar</Text>
+                      </Pressable>
+                    </View>
+                  )}
+
+                  {/* Error de eliminación */}
+                  {deleteError === sched.id && (
+                    <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 8, padding: 8, flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+                      <Ionicons name="alert-circle" size={14} color="#EF4444" />
+                      <Text style={{ flex: 1, fontSize: 11, color: isDark ? '#FCA5A5' : '#991B1B', lineHeight: 15 }}>No se pudo eliminar. Intenta de nuevo.</Text>
+                    </View>
+                  )}
 
                   {/* Generate button */}
                   <Pressable
