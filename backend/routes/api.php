@@ -4,6 +4,7 @@ use App\Http\Controllers\Appointment\AppointmentController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\User\FcmTokenController;
 use App\Http\Controllers\Auth\LogoutController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Directory\DirectoryController;
 use App\Http\Controllers\Doctor\ScheduleController;
@@ -29,6 +30,10 @@ Route::prefix('v1')->group(function (): void {
 
     Route::post('/auth/register', RegisterController::class)->name('auth.register');
     Route::post('/auth/login', LoginController::class)->name('auth.login');
+    
+    // Password reset — público, no requiere autenticación
+    Route::post('/password/forgot', [PasswordResetController::class, 'requestReset'])->name('password.forgot');
+    Route::post('/password/reset',  [PasswordResetController::class, 'resetPassword'])->name('password.reset');
 
     // Directorio público: lista todos los médicos activos (sin geo)
     Route::get('/doctors', [DirectoryController::class, 'index'])->name('doctors.index');

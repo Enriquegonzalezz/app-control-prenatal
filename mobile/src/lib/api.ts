@@ -331,3 +331,24 @@ export const directoryApi = {
     }>(`/doctors/nearby?${query}`);
   },
 };
+
+export const passwordApi = {
+  async requestReset(email: string) {
+    return request<{ status: string; message: string; data?: { email: string; debug_code?: string } }>(
+      '/password/forgot',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }
+    );
+  },
+  async resetPassword(email: string, code: string, password: string, password_confirmation: string) {
+    return request<{ status: string; message: string }>(
+      '/password/reset',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, code, password, password_confirmation }),
+      }
+    );
+  },
+};
