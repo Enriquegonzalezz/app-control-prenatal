@@ -60,6 +60,11 @@ final class DoctorProfile extends Model
             ->withTimestamps();
     }
 
+    public function offices(): HasMany
+    {
+        return $this->hasMany(DoctorOffice::class, 'doctor_id');
+    }
+
     public function schedules(): HasMany
     {
         return $this->hasMany(Schedule::class, 'doctor_id');

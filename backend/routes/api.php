@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Directory\DirectoryController;
+use App\Http\Controllers\Doctor\DoctorOfficeController;
 use App\Http\Controllers\Doctor\ScheduleController;
 use App\Http\Controllers\Doctor\SlotController;
 use App\Http\Controllers\Doctor\VerificationController;
@@ -55,13 +56,21 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('/user/fcm-token', [FcmTokenController::class, 'destroy'])->name('user.fcm-token.destroy');
 
         Route::middleware('doctor')->prefix('doctor')->group(function (): void {
-            Route::get('/profile', [ProfileController::class, 'doctorProfile'])->name('doctor.profile');
+            Route::get('/profile',     [ProfileController::class, 'doctorProfile'])->name('doctor.profile');
+            Route::get('/clinic-info', [ProfileController::class, 'doctorClinicInfo'])->name('doctor.clinic-info');
 
             // Verificación OTP — disponible para médicos aún no verificados (Δ-5)
             Route::prefix('verification')->group(function (): void {
                 Route::post('/request-code', [VerificationController::class, 'requestCode'])->name('doctor.verification.request');
                 Route::post('/verify-code',  [VerificationController::class, 'verifyCode'])->name('doctor.verification.verify');
                 Route::get('/status',        [VerificationController::class, 'status'])->name('doctor.verification.status');
+            });
+
+            // Consultorios propios del médico — accesibles a médicos verificados
+            Route::middleware('doctor_verified')->group(function (): void {
+                Route::get('/offices',              [DoctorOfficeController::class, 'index'])->name('doctor.offices.index');
+                Route::post('/offices',             [DoctorOfficeController::class, 'store'])->name('doctor.offices.store');
+                Route::delete('/offices/{office}',  [DoctorOfficeController::class, 'destroy'])->name('doctor.offices.destroy');
             });
 
             // Horarios y slots — requieren médico verificado (Sprint 2)
@@ -85,6 +94,7 @@ Route::prefix('v1')->group(function (): void {
         // Citas — accesibles a pacientes, médicos (verificados) y clínicas.
         // Las acciones específicas se autorizan en el service/controller por rol.
         Route::prefix('appointments')->group(function (): void {
+            Route::get('/slots',                    [AppointmentController::class, 'availableSlots'])->name('appointments.slots');
             Route::get('/',                         [AppointmentController::class, 'index'])->name('appointments.index');
             Route::get('/{appointment}',            [AppointmentController::class, 'show'])->name('appointments.show');
 

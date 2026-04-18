@@ -224,7 +224,28 @@ export interface Conversation {
   unread_count: number;
 }
 
+export interface Slot {
+  id: string;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+  branch_id: string;
+}
+
 export const appointmentApi = {
+  async availableSlots(token: string, doctorProfileId: string, days = 30) {
+    return request<{ status: string; data: Slot[] }>(
+      `/appointments/slots?doctor_profile_id=${doctorProfileId}&days=${days}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+  },
+  async book(token: string, payload: { slot_id: string; patient_notes?: string }) {
+    return request<{ status: string; data: Appointment }>('/appointments', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+  },
   async list(token: string, status?: string) {
     const q = status ? `?status=${status}` : '';
     return request<{ status: string; data: Appointment[] }>(`/appointments${q}`, {
@@ -329,6 +350,120 @@ export const directoryApi = {
       status: string;
       data: { doctors: NearbyDoctor[]; meta: { count: number; lat: number; lng: number; radius_m: number } };
     }>(`/doctors/nearby?${query}`);
+  },
+};
+
+export interface DoctorClinicInfo {
+  clinic_id: string;
+  clinic_name: string;
+  branch_id: string;
+  branch_name: string;
+  address: string;
+}
+
+export interface DoctorOffice {
+  id: string;
+  doctor_id: string;
+  name: string;
+  type: 'office' | 'home';
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  phone: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Schedule {
+  id: string;
+  doctor_id: string;
+  branch_id: string | null;
+  office_id: string | null;
+  day_of_week: string;
+  start_time: string;
+  end_time: string;
+  slot_duration_minutes: number;
+  is_active: boolean;
+  created_at: string;
+  branch?: { id: string; name: string; clinic_id: string } | null;
+  office?: { id: string; name: string; type: string; address: string | null; city: string | null } | null;
+}
+
+export const officeApi = {
+  async list(token: string) {
+    return request<{ status: string; data: DoctorOffice[] }>('/doctor/offices', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+  async create(token: string, payload: {
+    name: string;
+    type: 'office' | 'home';
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    phone?: string;
+  }) {
+    return request<{ status: string; data: DoctorOffice }>('/doctor/offices', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+  },
+  async remove(token: string, officeId: string) {
+    return request<{ status: string; data: null }>(`/doctor/offices/${officeId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+};
+
+export const scheduleApi = {
+  async clinicInfo(token: string) {
+    return request<{ status: string; data: DoctorClinicInfo[] }>('/doctor/clinic-info', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+  async list(token: string) {
+    return request<{ status: string; data: Schedule[] }>('/doctor/schedules', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+  async create(token: string, payload: {
+    branch_id?: string | null;
+    office_id?: string | null;
+    day_of_week: string;
+    start_time: string;
+    end_time: string;
+    slot_duration_minutes?: number;
+  }) {
+    return request<{ status: string; data: Schedule }>('/doctor/schedules', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+  },
+  async remove(token: string, scheduleId: string) {
+    return request<{ status: string; data: null }>(`/doctor/schedules/${scheduleId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+  async generateSlots(token: string, scheduleId: string, from: string, until: string) {
+    return request<{ status: string; data: { generated: number } }>(
+      `/doctor/schedules/${scheduleId}/generate-slots`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ from, until }),
+      }
+    );
+  },
+  async listSlots(token: string) {
+    return request<{ status: string; data: Slot[] }>('/doctor/slots', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
   },
 };
 

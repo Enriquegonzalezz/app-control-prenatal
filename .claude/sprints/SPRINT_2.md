@@ -102,11 +102,23 @@ export const darkMapStyle = [
 ### ✅ Frontend Mobile Completado
 - [x] S2.6 - Pantalla `doctors.tsx` con infinite scroll
 - [x] Paginación optimizada (carga bajo demanda)
-- [x] Filtro toggle: "Solo disponibles" (default) vs "Ver todos"
+- [x] Filtro default cambiado a "Ver todos" (`showAll = true`)
+- [x] Tarjetas de médicos rediseñadas: badge verificado, pill disponibilidad, barra acento
 - [x] Enriquecimiento GPS opcional (muestra distancia si disponible)
 - [x] Badge "PENDIENTE" para médicos no verificados
 - [x] Ordenamiento: disponibles primero, luego por distancia GPS
 - [x] Estados de carga y error manejados
+- [x] Espaciado header corregido (`gap: 12` en contenedor, no `marginRight` en arrow)
+
+### ✅ Pantalla Horarios Médico (`doctor-schedule.tsx`) — Rediseño completo
+- [x] Header con fondo brand color `#E8467C`
+- [x] Selector de día con pills scrolleables (PillRow)
+- [x] Selector de hora en dos columnas (Inicia verde / Termina rojo)
+- [x] Preview en vivo del resumen antes de guardar
+- [x] Botón "Guardar Horario" siempre activo con error inline
+- [x] Tarjetas de horarios mejoradas con badge de ubicación (clínica / consultorio / domicilio)
+- [x] Selector de semanas para generar slots (2/4/6/8 semanas)
+- [x] Banner instructivo cuando no hay horarios aún
 
 ### ⏳ Pendiente
 - [ ] S2.5 - Vista Mapa con marcadores dinámicos
