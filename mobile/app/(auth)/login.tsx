@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,6 +30,32 @@ export default function LoginScreen() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(false);
 
+  // Animaciones
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(logoScale, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   const handleLogin = async () => {
     setError('');
     setFieldErrors({});
@@ -42,6 +69,8 @@ export default function LoginScreen() {
     try {
       const res = await authApi.login({ email: email.trim(), password });
       setAuth(res.data.user, res.data.token);
+      // La redirección se maneja automáticamente por el authStore y index.tsx
+      router.replace('/(tabs)');
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -65,7 +94,13 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           className="px-6"
         >
-          <View className="items-center mb-10">
+          <Animated.View 
+            className="items-center mb-10"
+            style={{
+              opacity: fadeAnim,
+              transform: [{ scale: logoScale }],
+            }}
+          >
             <View className="w-20 h-20 rounded-full bg-brand-500 items-center justify-center mb-4">
               <Text className="text-white text-3xl font-bold">CP</Text>
             </View>
@@ -75,9 +110,15 @@ export default function LoginScreen() {
             <Text className="text-base mt-2 text-neutral-500 dark:text-neutral-400">
               Bienvenida de vuelta
             </Text>
-          </View>
+          </Animated.View>
 
-          <View className="bg-card-light dark:bg-card-dark rounded-2xl p-6 shadow-sm">
+          <Animated.View 
+            className="bg-card-light dark:bg-card-dark rounded-2xl p-6 shadow-sm"
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }}
+          >
             {error ? (
               <View className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-4">
                 <Text className="text-red-600 dark:text-red-400 text-sm text-center">
@@ -158,9 +199,12 @@ export default function LoginScreen() {
                 </Text>
               )}
             </Pressable>
-          </View>
+          </Animated.View>
 
-          <View className="flex-row justify-center mt-6 mb-8">
+          <Animated.View 
+            className="flex-row justify-center mt-6 mb-8"
+            style={{ opacity: fadeAnim }}
+          >
             <Text className="text-neutral-500 dark:text-neutral-400 text-sm">
               ¿No tienes cuenta?{' '}
             </Text>
@@ -172,7 +216,7 @@ export default function LoginScreen() {
                 Regístrate
               </Text>
             </Pressable>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

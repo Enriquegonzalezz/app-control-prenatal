@@ -30,8 +30,9 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/auth/register', RegisterController::class)->name('auth.register');
     Route::post('/auth/login', LoginController::class)->name('auth.login');
 
-    // Directorio geoespacial público: pacientes y visitantes pueden explorar
-    // médicos verificados sin autenticarse.
+    // Directorio público: lista todos los médicos activos (sin geo)
+    Route::get('/doctors', [DirectoryController::class, 'index'])->name('doctors.index');
+    // Directorio geoespacial público: filtra por proximidad con coordenadas GPS
     Route::get('/doctors/nearby', [DirectoryController::class, 'nearby'])->name('doctors.nearby');
 
     // Experiencias públicas — no requieren autenticación (perfil médico visible para todos)
