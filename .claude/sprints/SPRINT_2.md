@@ -1,6 +1,6 @@
 # Sprint 2 — Geospatial Core: PostGIS y Directorio
 **Semanas:** 5–6  
-**Estado:** 🔄 Backend completado — pendiente UI (RN)
+**Estado:** ✅ Backend completado + Frontend con paginación e infinite scroll
 
 ---
 
@@ -18,9 +18,10 @@ debe poder encontrar ginecobstetras cercanas a su ubicación.
 | S2.1 | Columna `location` GEOGRAPHY(POINT) en clinic_branches + índice GIST | Índice GIST creado y verificado | ✅ |
 | S2.2 | Función RPC `get_nearby_doctors(lat, lng, radius_m, specialty_id, limit)` | Función retorna doctores con clínica y distancia | ✅ |
 | S2.3 | Endpoint `GET /api/v1/doctors/nearby` con specialty_id dinámico | API retorna JSON filtrado por especialidad | ✅ |
+| S2.3b | Endpoint `GET /api/v1/doctors` con paginación (sin GPS) | Lista todos los médicos con metadata de paginación | ✅ |
 | S2.4 | Sistema de disponibilidad (tabla `schedules` + `slots`) | CRUD de horarios para médicos | ✅ |
 | S2.5 | Pantalla RN: Mapa con marcadores + dark map style | Marcadores dinámicos + mapa oscuro en dark mode | ⏳ |
-| S2.6 | Pantalla RN: Lista de médicos con filtros | Filtros sin opción de rating | ⏳ |
+| S2.6 | Pantalla RN: Lista de médicos con filtros + infinite scroll | Filtros sin opción de rating, paginación optimizada | ✅ |
 | S2.7 | Pantalla RN: Perfil del médico con info clínica + experiencias + botón agendar | Perfil sin estrellas | ⏳ |
 
 ---
@@ -87,11 +88,39 @@ export const darkMapStyle = [
 
 ---
 
+## 🎯 Progreso del Sprint
+
+### ✅ Backend Completado
+- [x] S2.1 - Índice GIST en `clinic_branches.location`
+- [x] S2.2 - Función RPC `get_nearby_doctors` con PostGIS
+- [x] S2.3 - Endpoint `/api/v1/doctors/nearby` (GPS-based)
+- [x] S2.3b - Endpoint `/api/v1/doctors` con paginación (sin GPS)
+- [x] S2.4 - Sistema de disponibilidad (schedules + slots)
+- [x] `DirectoryService::listAllDoctors()` con `simplePaginate`
+- [x] `DirectoryController::index()` retorna metadata de paginación
+
+### ✅ Frontend Mobile Completado
+- [x] S2.6 - Pantalla `doctors.tsx` con infinite scroll
+- [x] Paginación optimizada (carga bajo demanda)
+- [x] Filtro toggle: "Solo disponibles" (default) vs "Ver todos"
+- [x] Enriquecimiento GPS opcional (muestra distancia si disponible)
+- [x] Badge "PENDIENTE" para médicos no verificados
+- [x] Ordenamiento: disponibles primero, luego por distancia GPS
+- [x] Estados de carga y error manejados
+
+### ⏳ Pendiente
+- [ ] S2.5 - Vista Mapa con marcadores dinámicos
+- [ ] S2.7 - Perfil detallado del médico
+- [ ] Dark map style para modo oscuro
+
+---
+
 ## Entregable Final del Sprint
 
-- [ ] Función RPC `get_nearby_doctors` retorna resultados en < 500ms con seed data
-- [ ] Endpoint `/api/v1/doctors/nearby?lat=X&lng=Y&radius=5000&specialty_id=UUID` funcional
+- [x] Función RPC `get_nearby_doctors` retorna resultados en < 500ms con seed data
+- [x] Endpoint `/api/v1/doctors/nearby?lat=X&lng=Y&radius=5000&specialty_id=UUID` funcional
+- [x] Endpoint `/api/v1/doctors?page=1&per_page=20` con paginación
 - [ ] Vista Mapa con marcadores que cambian color según disponibilidad
-- [ ] Vista Lista con filtros (distancia, disponibilidad, clínica)
+- [x] Vista Lista con filtros (distancia, disponibilidad, clínica) + infinite scroll
 - [ ] Perfil de médico sin ninguna mención a "estrellas" o "rating"
 - [ ] Dark map style aplicado cuando el tema es oscuro
