@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
+  Dimensions,
+  Image,
   Linking,
   Modal,
   Pressable,
@@ -110,43 +113,125 @@ function FileItem({ file, recordId, token, isDark }: { file: MedicalRecordFile; 
 }
 
 function DocumentFile({ record, token, isDark }: { record: MedicalRecord; token: string; isDark: boolean }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loadingUrl, setLoadingUrl] = useState(false);
   const [opening, setOpening] = useState(false);
-  const [openError, setOpenError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleOpen = async () => {
-    setOpening(true);
-    setOpenError(null);
-    try {
-      const res = await medicalApi.getDocumentSignedUrl(token, record.id);
-      const url = res.data?.url;
-      if (!url) {
-        setOpenError('No se pudo obtener la URL del archivo.');
-        return;
+  const isImage = record.file_type?.startsWith('image/');
+  const ext = record.file_type?.split('/')[1]?.toUpperCase() ?? 'Archivo';
+  const sizeLabel = record.file_size_kb ? `${record.file_size_kb} KB` : '';
+
+  // Fetch signed URL then download image bytes → base64 data URI (avoids RN Image redirect/header issues)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingUrl(true);
+      setError(null);
+      try {
+        const res = await medicalApi.getDocumentSignedUrl(token, record.id);
+        const signedUrl = res.data?.url ?? null;
+        console.log('[DocumentFile] signed URL:', signedUrl);
+
+        if (!signedUrl) {
+          if (!cancelled) setError('El servidor no devolvió una URL válida.');
+          return;
+        }
+
+        if (isImage) {
+          // Download bytes and convert to base64 data URI for reliable inline display
+          const imgRes = await fetch(signedUrl);
+          if (!imgRes.ok) {
+            if (!cancelled) setError(`Error HTTP ${imgRes.status} al descargar imagen.`);
+            return;
+          }
+          const buf = await imgRes.arrayBuffer();
+          const bytes = new Uint8Array(buf);
+          let binary = '';
+          const chunk = 8192;
+          for (let i = 0; i < bytes.length; i += chunk) {
+            binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+          }
+          const mimeType = record.file_type ?? 'image/jpeg';
+          const dataUri = `data:${mimeType};base64,${btoa(binary)}`;
+          if (!cancelled) setUrl(dataUri);
+        } else {
+          if (!cancelled) setUrl(signedUrl);
+        }
+      } catch (err: any) {
+        if (!cancelled) setError(err?.message ?? 'Error al obtener el archivo.');
+      } finally {
+        if (!cancelled) setLoadingUrl(false);
       }
+    })();
+    return () => { cancelled = true; };
+  }, [record.id, token]);
+
+  const handleOpenDoc = async () => {
+    if (!url) return;
+    setOpening(true);
+    setError(null);
+    try {
       await Linking.openURL(url);
     } catch (err: any) {
-      setOpenError(err?.message ?? 'No se pudo abrir el archivo.');
+      setError(err?.message ?? 'No se pudo abrir el archivo.');
     } finally {
       setOpening(false);
     }
   };
 
-  const ext = record.file_type?.split('/')[1]?.toUpperCase() ?? 'Archivo';
-  const sizeLabel = record.file_size_kb ? `${record.file_size_kb} KB` : '';
+  // ── Imágenes: mostrar inline ───────────────────────────────────────────────
+  const imgWidth = Dimensions.get('window').width - 64; // account for card padding (16 margin + 14 padding each side)
 
+  if (isImage) {
+    return (
+      <View style={{ marginTop: 10 }}>
+        {loadingUrl && (
+          <View style={{ height: 160, borderRadius: 12, backgroundColor: isDark ? '#252525' : '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color={ACCENT} />
+            <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>Cargando imagen…</Text>
+          </View>
+        )}
+        {url && !loadingUrl && (
+          <Image
+            source={{ uri: url }}
+            style={{ width: imgWidth, height: 220, borderRadius: 12, backgroundColor: isDark ? '#252525' : '#F0F0F0' }}
+            resizeMode="contain"
+            onError={(e) => setError(`Error al cargar imagen. URL: ${url?.substring(0, 80)}…`)}
+          />
+        )}
+        {!url && !loadingUrl && !error && (
+          <View style={{ height: 80, borderRadius: 12, backgroundColor: isDark ? '#252525' : '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="image-outline" size={22} color="#9CA3AF" />
+            <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>No se pudo cargar la imagen</Text>
+          </View>
+        )}
+        {error && (
+          <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginTop: 4 }}>
+            <Text style={{ fontSize: 11, color: '#EF4444' }}>{error}</Text>
+          </View>
+        )}
+        {sizeLabel ? <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{sizeLabel}</Text> : null}
+      </View>
+    );
+  }
+
+  // ── PDFs / otros archivos: botón para abrir externamente ─────────────────
   return (
     <>
       <Pressable
-        onPress={handleOpen}
-        disabled={opening}
-        style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: isDark ? '#252525' : '#FFF1F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, opacity: opening ? 0.7 : 1 }}
+        onPress={handleOpenDoc}
+        disabled={opening || loadingUrl}
+        style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: isDark ? '#252525' : '#FFF1F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, opacity: (opening || loadingUrl) ? 0.7 : 1 }}
       >
         <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-          <Ionicons name={record.file_type?.startsWith('image/') ? 'image-outline' : 'document-outline'} size={18} color={ACCENT} />
+          {loadingUrl
+            ? <ActivityIndicator size="small" color={ACCENT} />
+            : <Ionicons name="document-outline" size={18} color={ACCENT} />}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 13, fontWeight: '700', color: ACCENT }}>
-            {opening ? 'Abriendo…' : 'Ver archivo adjunto'}
+            {opening ? 'Abriendo…' : loadingUrl ? 'Preparando…' : 'Ver archivo adjunto'}
           </Text>
           {(sizeLabel || ext) && (
             <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>
@@ -156,9 +241,9 @@ function DocumentFile({ record, token, isDark }: { record: MedicalRecord; token:
         </View>
         <Ionicons name="open-outline" size={16} color={ACCENT} />
       </Pressable>
-      {openError && (
+      {error && (
         <View style={{ marginTop: 4, backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
-          <Text style={{ fontSize: 11, color: '#EF4444' }}>{openError}</Text>
+          <Text style={{ fontSize: 11, color: '#EF4444' }}>{error}</Text>
         </View>
       )}
     </>

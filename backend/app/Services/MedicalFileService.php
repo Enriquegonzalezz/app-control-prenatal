@@ -170,6 +170,11 @@ final class MedicalFileService
             return $signedPath;
         }
 
+        // Supabase sometimes omits /storage/v1 from the returned path.
+        if (str_starts_with($signedPath, '/object/')) {
+            $signedPath = '/storage/v1' . $signedPath;
+        }
+
         return $base . $signedPath;
     }
 
