@@ -128,14 +128,16 @@ final class MedicalFileService
             . self::BUCKET . '/'
             . $storagePath;
 
-        $response = Http::withToken(config('services.supabase.key'))
-            ->withHeaders(['Content-Type' => $file->getMimeType() ?? 'application/octet-stream'])
-            ->withBody($file->getContent(), $file->getMimeType() ?? 'application/octet-stream')
+        $mime = $file->getMimeType() ?? $file->getClientMimeType() ?? 'application/octet-stream';
+
+        $response = $this->supabaseHttp()
+            ->withHeaders(['Content-Type' => $mime])
+            ->withBody($file->getContent(), $mime)
             ->post($url);
 
         if ($response->failed()) {
             throw new RuntimeException(
-                'Error al subir el archivo: ' . $response->body()
+                'Error al subir el archivo [' . $response->status() . ']: ' . $response->body()
             );
         }
     }
@@ -150,11 +152,11 @@ final class MedicalFileService
             . self::BUCKET . '/'
             . $storagePath;
 
-        $response = Http::withToken(config('services.supabase.key'))
+        $response = $this->supabaseHttp()
             ->post($url, ['expiresIn' => self::SIGNED_URL_TTL]);
 
         if ($response->failed()) {
-            throw new RuntimeException('Error al generar la URL firmada.');
+            throw new RuntimeException('Error al generar la URL firmada [' . $response->status() . ']: ' . $response->body());
         }
 
         $signedPath = $response->json('signedURL');
@@ -165,5 +167,19 @@ final class MedicalFileService
 
         // signedURL ya incluye el path completo: /storage/v1/object/sign/...
         return config('services.supabase.url') . $signedPath;
+    }
+
+    private function supabaseHttp(): \Illuminate\Http\Client\PendingRequest
+    {
+        $key = config('services.supabase.key');
+
+        if (empty($key)) {
+            throw new RuntimeException(
+                'Supabase service_role key no configurada. Revisa SUPABASE_SERVICE_KEY en las variables de entorno.'
+            );
+        }
+
+        return Http::withToken($key)
+            ->withHeaders(['apikey' => $key]);
     }
 }
