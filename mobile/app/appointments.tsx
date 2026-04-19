@@ -107,7 +107,7 @@ function groupSlotsByDate(slots: Slot[]): { date: string; label: string; slots: 
 }
 
 function AppointmentCard({
-  appt, isDark, onCancel, cancelling, userRole, onChat, chatting, chatError, onReschedule,
+  appt, isDark, onCancel, cancelling, userRole, onChat, chatting, chatError, onReschedule, onAttachDocument,
 }: {
   appt: Appointment;
   isDark: boolean;
@@ -118,6 +118,7 @@ function AppointmentCard({
   chatting: string | null;
   chatError: { id: string; msg: string } | null;
   onReschedule: (appt: Appointment) => void;
+  onAttachDocument: (appt: Appointment) => void;
 }) {
   const sc = STATUS_CONFIG[appt.status];
   const canCancel = CANCELLABLE.has(appt.status);
@@ -256,6 +257,23 @@ function AppointmentCard({
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#10B981' }}>Reagendar</Text>
           </Pressable>
         )}
+
+        {/* Adjuntar documento — disponible en citas activas o completadas */}
+        {ACTIVE_STATUSES.has(appt.status) || appt.status === 'completed' ? (
+          <Pressable
+            onPress={() => onAttachDocument(appt)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              backgroundColor: isDark ? '#2D1A20' : '#FFF1F6',
+              borderRadius: 12, paddingVertical: 11,
+              borderWidth: 1, borderColor: isDark ? '#E8467C40' : '#FBCFE8',
+            }}
+            accessibilityRole="button" accessibilityLabel="Adjuntar documento"
+          >
+            <Ionicons name="attach" size={15} color="#E8467C" />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#E8467C' }}>Adjuntar documento</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {/* Inline chat error */}
@@ -381,7 +399,13 @@ export default function AppointmentsScreen() {
     }
   };
 
-  const handleCancelConfirm = async (id: string) => {
+  const handleAttachDocument = (appt: Appointment) => {
+    const params: Record<string, string> = { appointment_id: appt.id };
+    if (userRole === 'doctor' && appt.patient_id) params.patient_id = appt.patient_id;
+    router.push({ pathname: '/upload-document', params });
+  };
+
+    const handleCancelConfirm = async (id: string) => {
     if (!token) return;
     setCancelling(id);
     setConfirmingCancel(null);
@@ -484,6 +508,7 @@ export default function AppointmentsScreen() {
                 chatting={chatting}
                 chatError={chatError}
                 onReschedule={handleReschedule}
+                onAttachDocument={handleAttachDocument}
               />
               {/* Confirmación de cancelación inline */}
               {confirmingCancel === item.id && (

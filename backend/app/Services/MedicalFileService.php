@@ -20,9 +20,11 @@ final class MedicalFileService
         'image/jpeg',
         'image/png',
         'image/webp',
+        'application/dicom',
+        'application/octet-stream', // DICOM fallback
     ];
 
-    private const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+    private const MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
 
     private const SIGNED_URL_TTL = 900; // 15 minutos
 
@@ -93,12 +95,12 @@ final class MedicalFileService
     {
         if (!in_array($file->getMimeType(), self::ALLOWED_MIMES, true)) {
             throw new RuntimeException(
-                'Tipo de archivo no permitido. Se aceptan PDF, JPEG, PNG y WEBP.'
+                'Tipo de archivo no permitido. Se aceptan PDF, JPEG, PNG, WEBP y DICOM.'
             );
         }
 
         if ($file->getSize() > self::MAX_SIZE_BYTES) {
-            throw new RuntimeException('El archivo supera el límite de 10 MB.');
+            throw new RuntimeException('El archivo supera el límite de 20 MB.');
         }
     }
 

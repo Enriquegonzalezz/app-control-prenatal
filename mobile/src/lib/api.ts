@@ -124,6 +124,57 @@ export const authApi = {
   },
 };
 
+// ── Medical Records — catalog types ────────────────────────────────────
+
+export interface RecordSubcategory {
+  id: string;
+  category_id: string;
+  name: string;
+  slug: string;
+  sort_order: number;
+}
+
+export interface RecordCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string | null;
+  color: string | null;
+  sort_order: number;
+  subcategories: RecordSubcategory[];
+}
+
+export interface RecordTag {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+export interface RecordDoctor {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+}
+
+export interface MedicalRecordCatalog {
+  categories: RecordCategory[];
+  tags: RecordTag[];
+  doctors: RecordDoctor[];
+}
+
+export interface MedicalRecordFilters {
+  patient_id?: string;
+  category_id?: string;
+  subcategory_id?: string;
+  tag_ids?: string[];
+  date_from?: string;
+  date_to?: string;
+  doctor_id?: string;
+  has_appointment?: 0 | 1;
+  visibility?: 'shared' | 'private';
+  uploaded_by_me?: 1;
+}
+
 export interface VitalSign {
   id: string;
   recorded_at: string;
@@ -147,38 +198,150 @@ export interface MedicalRecordFile {
 export interface MedicalRecord {
   id: string;
   patient_id: string;
-  doctor_id: string;
+  doctor_id: string | null;
   clinic_id: string | null;
   appointment_id: string | null;
   specialty_id: string | null;
-  title: string;
+  // Legacy doctor-note fields
+  title: string | null;
   notes: string | null;
   diagnosis: string | null;
   specialty_context: Record<string, unknown> | null;
+  // Document-upload fields
+  uploader_id: string | null;
+  uploader_role: 'patient' | 'doctor' | null;
+  category_id: string | null;
+  subcategory_id: string | null;
+  document_date: string | null;
+  description: string | null;
+  visibility: 'shared' | 'private';
+  storage_path: string | null;
+  file_type: string | null;
+  file_size_kb: number | null;
+  // Computed
+  display_title: string;
   created_at: string;
   updated_at: string;
-  doctor: { id: string; name: string; email: string } | null;
-  patient: { id: string; name: string; email: string } | null;
-  specialty: { id: string; name: string; slug: string } | null;
+  // Relations
+  doctor: { id: string; name: string; avatar_url: string | null } | null;
+  patient: { id: string; name: string } | null;
+  category: { id: string; name: string; slug: string; icon: string | null; color: string | null } | null;
+  subcategory: { id: string; name: string; slug: string } | null;
+  tags?: RecordTag[];
   vital_signs?: VitalSign[];
   files?: MedicalRecordFile[];
 }
 
-export const medicalApi = {
-  async list(token: string) {
-    return request<{ status: string; data: MedicalRecord[] }>('/medical-records', {
-      headers: { Authorization: `Bearer ${token}` },
+async function requestMultipart<T>(
+  endpoint: string,
+  token: string,
+  formData: FormData,
+): Promise<T> {
+  const url = `${API_URL}${endpoint}`;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        // Do NOT set Content-Type — fetch sets it with boundary automatically for FormData
+      },
+      body: formData,
     });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new ApiError(data.message || 'Error en la solicitud', response.status, data.errors);
+    }
+    return data;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('Error de conexión. Verifica tu red.', 0);
+  }
+}
+
+export interface UploadDocumentPayload {
+  patient_id: string;
+  category_id: string;
+  subcategory_id: string;
+  document_date: string;   // YYYY-MM-DD
+  description: string;
+  visibility: 'shared' | 'private';
+  /** URI from expo-document-picker or expo-image-picker */
+  fileUri: string;
+  fileName: string;
+  fileMimeType: string;
+  tag_ids?: string[];
+  appointment_id?: string;
+  doctor_id?: string;
+}
+
+export const medicalApi = {
+  async list(token: string, filters?: MedicalRecordFilters) {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v === undefined || v === null) return;
+        if (Array.isArray(v)) {
+          v.forEach((item) => params.append(`${k}[]`, item));
+        } else {
+          params.set(k, String(v));
+        }
+      });
+    }
+    const qs = params.toString();
+    return request<{ status: string; data: MedicalRecord[] }>(
+      `/medical-records${qs ? `?${qs}` : ''}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
   },
+
   async show(token: string, id: string) {
     return request<{ status: string; data: MedicalRecord }>(`/medical-records/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
   },
+
+  async catalog(token: string) {
+    return request<{ status: string; data: MedicalRecordCatalog }>('/medical-records/catalog', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  async uploadDocument(token: string, payload: UploadDocumentPayload) {
+    const formData = new FormData();
+    formData.append('patient_id', payload.patient_id);
+    formData.append('category_id', payload.category_id);
+    formData.append('subcategory_id', payload.subcategory_id);
+    formData.append('document_date', payload.document_date);
+    formData.append('description', payload.description);
+    formData.append('visibility', payload.visibility);
+    formData.append('file', {
+      uri: payload.fileUri,
+      name: payload.fileName,
+      type: payload.fileMimeType,
+    } as any);
+    payload.tag_ids?.forEach((id) => formData.append('tag_ids[]', id));
+    if (payload.appointment_id) formData.append('appointment_id', payload.appointment_id);
+    if (payload.doctor_id) formData.append('doctor_id', payload.doctor_id);
+
+    return requestMultipart<{ status: string; data: MedicalRecord }>(
+      '/medical-records/upload',
+      token,
+      formData,
+    );
+  },
+
+  async getDocumentSignedUrl(token: string, recordId: string) {
+    return request<{ status: string; data: { url: string } }>(
+      `/medical-records/${recordId}/signed-url`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+  },
+
   async getSignedUrl(token: string, recordId: string, fileId: string) {
     return request<{ status: string; data: { url: string; expires_in: number } }>(
       `/medical-records/${recordId}/files/${fileId}/signed-url`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      { headers: { Authorization: `Bearer ${token}` } },
     );
   },
 };
