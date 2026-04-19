@@ -38,7 +38,7 @@ return [
     // Supabase — usado para llamar a Edge Functions desde Laravel
     'supabase' => [
         'url' => env('SUPABASE_URL'),
-        'key' => env('SUPABASE_KEY'), // service_role key
+        'key' => env('SUPABASE_SERVICE_KEY', env('SUPABASE_KEY')), // service_role key
     ],
 
     // Firebase / FCM v1 HTTP API

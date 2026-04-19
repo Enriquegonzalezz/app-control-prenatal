@@ -139,9 +139,16 @@ final class DocumentUploadService
 
     private function validateFile(UploadedFile $file): void
     {
-        $mime = $file->getMimeType();
+        // getMimeType() uses finfo (content-based); can return null on some environments.
+        // Fall back to the client-declared type so valid files from mobile apps aren't
+        // rejected when finfo fails (e.g. empty result on Windows dev servers).
+        $detectedMime = $file->getMimeType();
+        $clientMime   = $file->getClientMimeType();
 
-        if (!in_array($mime, self::ALLOWED_MIMES, true)) {
+        $allowed = in_array($detectedMime, self::ALLOWED_MIMES, true)
+                || in_array($clientMime, self::ALLOWED_MIMES, true);
+
+        if (!$allowed) {
             throw new RuntimeException(
                 'Tipo de archivo no permitido. Se aceptan PDF, JPG, PNG, WEBP y DICOM.'
             );
