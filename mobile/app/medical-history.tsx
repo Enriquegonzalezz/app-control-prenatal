@@ -117,12 +117,13 @@ function DocumentFile({ record, token, isDark }: { record: MedicalRecord; token:
   const [loadingUrl, setLoadingUrl] = useState(false);
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aspectRatio, setAspectRatio] = useState(4 / 3); // default until real dims load
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const isImage = record.file_type?.startsWith('image/');
   const ext = record.file_type?.split('/')[1]?.toUpperCase() ?? 'Archivo';
   const sizeLabel = record.file_size_kb ? `${record.file_size_kb} KB` : '';
 
-  // Fetch signed URL then download image bytes → base64 data URI (avoids RN Image redirect/header issues)
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -180,8 +181,8 @@ function DocumentFile({ record, token, isDark }: { record: MedicalRecord; token:
     }
   };
 
-  // ── Imágenes: mostrar inline ───────────────────────────────────────────────
-  const imgWidth = Dimensions.get('window').width - 64; // account for card padding (16 margin + 14 padding each side)
+  const imgWidth = Dimensions.get('window').width - 64;
+  const imgHeight = imgWidth / aspectRatio;
 
   if (isImage) {
     return (
@@ -192,14 +193,54 @@ function DocumentFile({ record, token, isDark }: { record: MedicalRecord; token:
             <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>Cargando imagen…</Text>
           </View>
         )}
+
         {url && !loadingUrl && (
-          <Image
-            source={{ uri: url }}
-            style={{ width: imgWidth, height: 220, borderRadius: 12, backgroundColor: isDark ? '#252525' : '#F0F0F0' }}
-            resizeMode="contain"
-            onError={(e) => setError(`Error al cargar imagen. URL: ${url?.substring(0, 80)}…`)}
-          />
+          <>
+            <Pressable
+              onPress={() => setViewerOpen(true)}
+              style={{ borderRadius: 12, overflow: 'hidden' }}
+            >
+              <Image
+                source={{ uri: url }}
+                style={{ width: imgWidth, height: imgHeight }}
+                resizeMode="cover"
+                onLoad={(e) => {
+                  const { width, height } = e.nativeEvent.source;
+                  if (width && height) setAspectRatio(width / height);
+                }}
+                onError={() => setError('Error al cargar la imagen.')}
+              />
+              <View style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: '#00000070', borderRadius: 8, padding: 5 }}>
+                <Ionicons name="expand-outline" size={14} color="#fff" />
+              </View>
+            </Pressable>
+            {sizeLabel ? <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{sizeLabel}</Text> : null}
+
+            <Modal
+              visible={viewerOpen}
+              transparent={false}
+              animationType="fade"
+              onRequestClose={() => setViewerOpen(false)}
+              statusBarTranslucent
+            >
+              <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center' }}>
+                <Image
+                  source={{ uri: url }}
+                  style={{ width: Dimensions.get('window').width, height: Dimensions.get('window').height }}
+                  resizeMode="contain"
+                />
+                <Pressable
+                  onPress={() => setViewerOpen(false)}
+                  style={{ position: 'absolute', top: 52, right: 18, backgroundColor: '#00000080', borderRadius: 22, padding: 9 }}
+                  hitSlop={12}
+                >
+                  <Ionicons name="close" size={22} color="#fff" />
+                </Pressable>
+              </View>
+            </Modal>
+          </>
         )}
+
         {!url && !loadingUrl && !error && (
           <View style={{ height: 80, borderRadius: 12, backgroundColor: isDark ? '#252525' : '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="image-outline" size={22} color="#9CA3AF" />
@@ -211,12 +252,10 @@ function DocumentFile({ record, token, isDark }: { record: MedicalRecord; token:
             <Text style={{ fontSize: 11, color: '#EF4444' }}>{error}</Text>
           </View>
         )}
-        {sizeLabel ? <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{sizeLabel}</Text> : null}
       </View>
     );
   }
 
-  // ── PDFs / otros archivos: botón para abrir externamente ─────────────────
   return (
     <>
       <Pressable
