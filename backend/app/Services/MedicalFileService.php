@@ -147,10 +147,9 @@ final class MedicalFileService
      */
     private function createSignedUrl(string $storagePath): string
     {
-        $url = config('services.supabase.url')
-            . '/storage/v1/object/sign/'
-            . self::BUCKET . '/'
-            . $storagePath;
+        $base = rtrim((string) config('services.supabase.url'), '/');
+
+        $url = $base . '/storage/v1/object/sign/' . self::BUCKET . '/' . $storagePath;
 
         $response = $this->supabaseHttp()
             ->post($url, ['expiresIn' => self::SIGNED_URL_TTL]);
@@ -159,14 +158,19 @@ final class MedicalFileService
             throw new RuntimeException('Error al generar la URL firmada [' . $response->status() . ']: ' . $response->body());
         }
 
-        $signedPath = $response->json('signedURL');
+        // Supabase may return 'signedURL' (older) or 'signedUrl' (newer) — handle both.
+        $signedPath = $response->json('signedURL') ?? $response->json('signedUrl');
 
         if (!$signedPath) {
-            throw new RuntimeException('Respuesta inesperada de Supabase Storage.');
+            throw new RuntimeException('Respuesta inesperada de Supabase Storage: ' . $response->body());
         }
 
-        // signedURL ya incluye el path completo: /storage/v1/object/sign/...
-        return config('services.supabase.url') . $signedPath;
+        // If Supabase already returns a full URL, use it directly.
+        if (str_starts_with($signedPath, 'http')) {
+            return $signedPath;
+        }
+
+        return $base . $signedPath;
     }
 
     private function supabaseHttp(): \Illuminate\Http\Client\PendingRequest
