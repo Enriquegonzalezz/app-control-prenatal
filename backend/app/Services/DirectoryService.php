@@ -42,6 +42,7 @@ final class DirectoryService
             ->leftJoin('clinics as c', 'c.id', '=', 'cd.clinic_id')
             ->leftJoin('clinic_branches as cb', 'cb.id', '=', 'cd.branch_id')
             ->where('u.is_active', true)
+            ->where('dp.is_verified', true)
             ->when($specialtyId, fn ($q) => $q->where('dp.specialty_id', $specialtyId))
             ->when($search, function ($q) use ($search) {
                 $term = '%' . mb_strtolower($search) . '%';

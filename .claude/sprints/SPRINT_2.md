@@ -120,6 +120,28 @@ export const darkMapStyle = [
 - [x] Selector de semanas para generar slots (2/4/6/8 semanas)
 - [x] Banner instructivo cuando no hay horarios aún
 
+### ✅ Mejoras UX/UI Recientes (Abril 2026)
+- [x] **DirectoryService** - Filtrado estricto de doctores verificados (`dp.is_verified = true`)
+  - Solo médicos verificados aparecen en el directorio y búsqueda GPS
+  - Protege contra médicos sin verificación OTP completada
+- [x] **Layout agendamiento** - Rediseño completo de `book-appointment.tsx`
+  - Grid de slots 3 columnas con diseño tipo calendario
+  - Header por fecha con contador de horarios disponibles
+  - Slots con animación de selección y checkmark visual
+  - Separador visual entre hora inicio y fin
+  - Sombras y elevación mejoradas para mejor feedback táctil
+- [x] **Sticky Bottom Bar** - Accesos rápidos en pantalla home de pacientes
+  - Barra fija inferior con botones inline: "Mis Citas" | "Historial"
+  - Diseño dual con iconos circulares, títulos y subtítulos
+  - Bordes de color según categoría (azul/naranja)
+  - Sombras y elevación para jerarquía visual
+  - Acceso directo sin scroll a las funciones más usadas
+- [x] **Privacidad de citas** - Sistema de relaciones bidireccionales
+  - Cada cita solo visible para doctor y paciente asignados
+  - Filtrado automático en `AppointmentService::listForUser()`
+  - Paciente ve nombre del doctor, doctor ve nombre del paciente
+  - No hay cross-visibility entre pacientes diferentes
+
 ### ⏳ Pendiente
 - [ ] S2.5 - Vista Mapa con marcadores dinámicos
 - [ ] S2.7 - Perfil detallado del médico
