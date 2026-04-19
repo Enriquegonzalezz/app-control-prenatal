@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { chatApi, Conversation } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
+import { useCacheStore } from '@/store/cacheStore';
 
 function formatRelativeTime(iso: string | undefined): string {
   if (!iso) return '';
@@ -117,18 +118,28 @@ export default function MessagesScreen() {
   const isDark = theme === 'dark';
   const token = useAuthStore((s) => s.token);
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [conversations, setConversations] = useState<Conversation[]>(
+    () => (useCacheStore.getState().conversations?.data as Conversation[]) ?? []
+  );
+  const [loading, setLoading] = useState(() => !useCacheStore.getState().conversations);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (silent = false) => {
+  const load = useCallback(async (force = false) => {
     if (!token) return;
-    if (!silent) setLoading(true);
+    const cache = useCacheStore.getState();
+    if (!force && !cache.isStale('conversations')) {
+      setConversations((cache.conversations?.data as Conversation[]) ?? []);
+      setLoading(false);
+      return;
+    }
+    if (!force) setLoading(true);
     setError(null);
     try {
       const res = await chatApi.conversations(token);
-      setConversations(Array.isArray(res.data) ? res.data : []);
+      const data = Array.isArray(res.data) ? res.data : [];
+      setConversations(data);
+      useCacheStore.getState().setConversations(data);
     } catch {
       setError('No se pudieron cargar las conversaciones.');
     } finally {

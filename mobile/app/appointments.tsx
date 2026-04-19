@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import { appointmentApi, chatApi, scheduleApi, Appointment, Slot } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
+import { useCacheStore } from '@/store/cacheStore';
 
 type FilterKey = 'active' | 'completed' | 'cancelled';
 
@@ -319,8 +320,10 @@ export default function AppointmentsScreen() {
   const user = useAuthStore((s) => s.user);
   const userRole: 'patient' | 'doctor' = user?.role === 'doctor' ? 'doctor' : 'patient';
 
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [appointments, setAppointments] = useState<Appointment[]>(
+    () => (useCacheStore.getState().appointments?.data as Appointment[]) ?? []
+  );
+  const [loading, setLoading] = useState(() => !useCacheStore.getState().appointments);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>('active');
@@ -336,13 +339,21 @@ export default function AppointmentsScreen() {
   const [rescheduleError, setRescheduleError] = useState<string | null>(null);
   const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState<Slot | null>(null);
 
-  const load = useCallback(async (silent = false) => {
+  const load = useCallback(async (force = false) => {
     if (!token) return;
-    if (!silent) setLoading(true);
+    const cache = useCacheStore.getState();
+    if (!force && !cache.isStale('appointments')) {
+      setAppointments((cache.appointments?.data as Appointment[]) ?? []);
+      setLoading(false);
+      return;
+    }
+    if (!force) setLoading(true);
     setError(null);
     try {
       const res = await appointmentApi.list(token);
-      setAppointments(Array.isArray(res.data) ? res.data : []);
+      const data = Array.isArray(res.data) ? res.data : [];
+      setAppointments(data);
+      useCacheStore.getState().setAppointments(data);
     } catch {
       setError('No se pudo cargar las citas.');
     } finally {
@@ -409,6 +420,7 @@ export default function AppointmentsScreen() {
       await appointmentApi.reschedule(token, rescheduleTarget.id, newSlotId);
       setRescheduleTarget(null);
       setSelectedRescheduleSlot(null);
+      useCacheStore.getState().invalidate('appointments');
       await load(true);
     } catch (err: any) {
       setRescheduleError(err?.message ?? 'Error al reagendar. Intenta de nuevo.');
@@ -436,6 +448,7 @@ export default function AppointmentsScreen() {
     setConfirmingCancel(null);
     try {
       await appointmentApi.cancel(token, id);
+      useCacheStore.getState().invalidate('appointments');
       await load(true);
     } catch {
       setCancelError('No se pudo cancelar la cita. Intenta de nuevo.');

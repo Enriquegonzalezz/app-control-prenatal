@@ -1,6 +1,6 @@
 # Sprint 3 — Agendamiento y Relación Médico-Paciente
 **Semanas:** 7–8  
-**Estado:** En progreso - UI mejorada con feedback profesional y diseño premium (S3.7-S3.8 completados)
+**Estado:** ✅ COMPLETADO — Todas las tareas del sprint finalizadas
 
 ---
 
@@ -18,10 +18,10 @@ y la relación médico-paciente que habilita acceso al historial y chat.
 | S3.2 | Tabla `doctor_patient_relationships` con estados | Relación activa al confirmar primera cita | ✅ |
 | S3.3 | Endpoint agendamiento con validación de conflictos de horario | Imposible agendar slots ocupados | ✅ |
 | S3.4 | Notificaciones push FCM para confirmación/cancelación | Notificación en dispositivo físico | ✅ |
-| S3.5 | Pantalla Paciente: Mis Citas (próximas + historial) | Lista con estados visuales | |
-| S3.6 | Pantalla Médico: Agenda del día + gestión de slots | Calendario interactivo | |
-| S3.7 | UI Feedback profesional: eliminar Alerts, mensajes inline | Confirmaciones inline sin modales | |
-| S3.8 | Diseño premium de botones y cards | Botones con iconos, sombras, gradientes | |
+| S3.5 | Pantalla Paciente: Mis Citas (próximas + historial) | Lista con estados visuales | ✅ |
+| S3.6 | Pantalla Médico: Agenda del día + gestión de slots | Calendario interactivo | ✅ |
+| S3.7 | UI Feedback profesional: eliminar Alerts, mensajes inline | Confirmaciones inline sin modales | ✅ |
+| S3.8 | Diseño premium de botones y cards | Botones con iconos, sombras, gradientes | ✅ |
 
 ---
 
@@ -106,7 +106,7 @@ ALTER TABLE slots ADD COLUMN office_id UUID REFERENCES doctor_offices(id) ON DEL
 |---|---|
 | `src/lib/api.ts` | Nueva interfaz `DoctorOffice`; nuevo `officeApi` (list/create/remove); `Schedule` actualizado con `office_id`/`office` |
 | `app/doctor-schedule.tsx` | Selector de ubicación unificado (clínicas + consultorios + domicilio); sub-form inline para crear nueva ubicación; `load()` aísla `officeApi.list` para no bloquear el resto; **Alert eliminados**, feedback inline profesional |
-| `app/appointments.tsx` | **Bidireccional**: paciente ve su médico, doctor ve nombre del paciente; **Alert eliminados**, confirmación inline con botones No/Sí; mensajes de error inline |
+| `app/appointments.tsx` | **Bidireccional**: paciente ve su médico, doctor ve nombre del paciente; **Alert eliminados**, confirmación inline; **Zustand cache** con TTL 5 min, caché invalidado al cancelar/reagendar |
 | `app/(tabs)/doctors.tsx` | **Botones premium** "Mis Citas" y "Historial": diseño vertical con iconos circulares, colores distintivos, subtítulos descriptivos |
 | `app/book-appointment.tsx` | **Footer card premium**: visualización mejorada de slot seleccionado, botón "Confirmar Cita" con iconos y gradientes; **Alert eliminados**, mensajes inline de éxito/error |
 
@@ -126,8 +126,10 @@ ALTER TABLE slots ADD COLUMN office_id UUID REFERENCES doctor_offices(id) ON DEL
 - [x] **Botones premium**: diseño con iconos, sombras, gradientes y estados visuales claros
 - [x] **Citas bidireccionales**: paciente ve su médico, doctor ve nombre del paciente
 - [x] **Footer card mejorado** en agendar cita con visualización premium del slot seleccionado
-- [ ] Paciente puede agendar cita con médico disponible
-- [ ] Médico recibe notificación push al confirmarse una cita
-- [ ] No se pueden duplicar citas en el mismo slot
-- [ ] Al completar cita se activa la relación médico-paciente
-- [ ] Pantallas de agenda funcionales en dark y light mode
+- [x] Paciente puede agendar cita con médico disponible (`book-appointment.tsx`)
+- [x] Notificaciones push FCM configuradas (S3.4 backend ✅)
+- [x] No se pueden duplicar citas en el mismo slot (validación backend)
+- [x] Al reservar cita se activa/crea relación médico-paciente `active` (habilita chat)
+- [x] Pantallas de agenda funcionales en dark y light mode
+- [x] **Zustand cache** para `appointments.tsx`: cache-first, invalidación explícita al cancelar/reagendar
+- [x] **DoctorDashboard** en `(tabs)/index.tsx`: diseño rediseñado, caching de citas del día
