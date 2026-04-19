@@ -76,12 +76,34 @@ function SkeletonCard({ isDark }: { isDark: boolean }) {
 const CHAT_ACTIVE_STATUSES = new Set<Appointment['status']>(['pending', 'confirmed', 'in_progress', 'completed', 'no_show']);
 const RESCHEDULE_STATUSES  = new Set<Appointment['status']>(['confirmed', 'pending']);
 
-function formatSlot(slot: Slot): string {
-  const d = new Date(slot.starts_at);
+function formatTimeSlot(iso: string): string {
   return new Intl.DateTimeFormat('es', {
-    weekday: 'short', day: '2-digit', month: 'short',
-    hour: '2-digit', minute: '2-digit',
-  }).format(d);
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(new Date(iso));
+}
+
+function formatDateHeaderLabel(iso: string): string {
+  return new Intl.DateTimeFormat('es', {
+    weekday: 'long', day: '2-digit', month: 'long',
+  }).format(new Date(iso));
+}
+
+function formatDateKey(iso: string): string {
+  return new Date(iso).toISOString().split('T')[0];
+}
+
+function groupSlotsByDate(slots: Slot[]): { date: string; label: string; slots: Slot[] }[] {
+  const map = new Map<string, Slot[]>();
+  for (const slot of slots) {
+    const key = formatDateKey(slot.starts_at);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(slot);
+  }
+  return Array.from(map.entries()).map(([date, slotList]) => ({
+    date,
+    label: formatDateHeaderLabel(slotList[0].starts_at),
+    slots: slotList,
+  }));
 }
 
 function AppointmentCard({
@@ -276,6 +298,7 @@ export default function AppointmentsScreen() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
   const [rescheduleError, setRescheduleError] = useState<string | null>(null);
+  const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState<Slot | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!token) return;
@@ -325,6 +348,7 @@ export default function AppointmentsScreen() {
     if (!token) return;
     setRescheduleTarget(appt);
     setRescheduleError(null);
+    setSelectedRescheduleSlot(null);
     setLoadingSlots(true);
     try {
       const res = await scheduleApi.listSlots(token);
@@ -348,6 +372,7 @@ export default function AppointmentsScreen() {
     try {
       await appointmentApi.reschedule(token, rescheduleTarget.id, newSlotId);
       setRescheduleTarget(null);
+      setSelectedRescheduleSlot(null);
       await load(true);
     } catch (err: any) {
       setRescheduleError(err?.message ?? 'Error al reagendar. Intenta de nuevo.');
@@ -510,83 +535,185 @@ export default function AppointmentsScreen() {
         visible={rescheduleTarget !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => setRescheduleTarget(null)}
+        onRequestClose={() => { setRescheduleTarget(null); setSelectedRescheduleSlot(null); }}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
           <View style={{
             backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
-            paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32,
-            maxHeight: '80%',
+            paddingTop: 16,
+            maxHeight: '85%',
           }}>
             {/* Handle */}
-            <View style={{ alignItems: 'center', marginBottom: 16 }}>
+            <View style={{ alignItems: 'center', marginBottom: 12 }}>
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? '#3D3D3D' : '#D1D5DB' }} />
             </View>
 
             {/* Title */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 4 }}>
               <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }}>
                 Reagendar Cita
               </Text>
-              <Pressable onPress={() => setRescheduleTarget(null)} accessibilityLabel="Cerrar">
+              <Pressable onPress={() => { setRescheduleTarget(null); setSelectedRescheduleSlot(null); }} accessibilityLabel="Cerrar">
                 <Ionicons name="close" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
               </Pressable>
             </View>
-            <Text style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 16 }}>
+            <Text style={{ fontSize: 12, color: '#9CA3AF', paddingHorizontal: 20, marginBottom: 16 }}>
               Selecciona el nuevo horario disponible
             </Text>
 
             {/* Error */}
             {rescheduleError && (
-              <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 10, padding: 10, marginBottom: 12 }}>
+              <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 10, padding: 10, marginHorizontal: 20, marginBottom: 12 }}>
                 <Text style={{ fontSize: 12, color: '#EF4444' }}>{rescheduleError}</Text>
               </View>
             )}
 
-            {/* Slot list */}
+            {/* Slot groups */}
             {loadingSlots ? (
-              <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                 <Text style={{ color: '#9CA3AF' }}>Cargando horarios...</Text>
               </View>
             ) : availableSlots.length === 0 ? (
-              <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 }}>
                 <Ionicons name="calendar-outline" size={36} color="#9CA3AF" />
                 <Text style={{ color: '#9CA3AF', marginTop: 8, textAlign: 'center' }}>
                   No tienes horarios disponibles.{'\n'}Genera nuevos slots desde tu agenda.
                 </Text>
               </View>
             ) : (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {availableSlots.map((slot) => (
-                  <Pressable
-                    key={slot.id}
-                    onPress={() => handleRescheduleConfirm(slot.id)}
-                    disabled={rescheduling}
-                    style={({ pressed }) => ({
-                      flexDirection: 'row', alignItems: 'center', gap: 12,
-                      backgroundColor: isDark ? '#252525' : '#F9FAFB',
-                      borderRadius: 14, padding: 14, marginBottom: 8,
-                      borderWidth: 1, borderColor: isDark ? '#333' : '#E5E7EB',
-                      opacity: pressed || rescheduling ? 0.65 : 1,
-                    })}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Reagendar al ${formatSlot(slot)}`}
-                  >
-                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#10B98115', alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="time-outline" size={18} color="#10B981" />
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                {groupSlotsByDate(availableSlots).map(({ date, label, slots: daySlots }) => (
+                  <View key={date} style={{ marginBottom: 24 }}>
+                    {/* Date header card */}
+                    <View style={{
+                      backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+                      borderRadius: 16, padding: 14, marginBottom: 14,
+                      flexDirection: 'row', alignItems: 'center',
+                      borderWidth: 1, borderColor: isDark ? '#2D2D2D' : '#F3F4F6',
+                      shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: isDark ? 0.15 : 0.05, shadowRadius: 8, elevation: 2,
+                    }}>
+                      <View style={{
+                        width: 48, height: 48, borderRadius: 12, backgroundColor: '#E8467C',
+                        alignItems: 'center', justifyContent: 'center', marginRight: 12,
+                      }}>
+                        <Text style={{ fontSize: 18, fontWeight: '900', color: '#fff' }}>
+                          {new Date(daySlots[0].starts_at).getDate()}
+                        </Text>
+                        <Text style={{ fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.8)', marginTop: -2 }}>
+                          {new Date(daySlots[0].starts_at).toLocaleDateString('es', { month: 'short' }).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827', textTransform: 'capitalize' }}>
+                          {label.split(',')[0]}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>
+                          {daySlots.length} horario{daySlots.length !== 1 ? 's' : ''} disponible{daySlots.length !== 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
                     </View>
-                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: isDark ? '#F9FAFB' : '#111827' }}>
-                      {formatSlot(slot)}
-                    </Text>
-                    {rescheduling ? (
-                      <Text style={{ fontSize: 11, color: '#9CA3AF' }}>...</Text>
-                    ) : (
-                      <Ionicons name="arrow-forward" size={16} color="#10B981" />
-                    )}
-                  </Pressable>
+
+                    {/* Slot grid — 3 columns */}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                      {daySlots.map((slot) => {
+                        const isSelected = selectedRescheduleSlot?.id === slot.id;
+                        return (
+                          <Pressable
+                            key={slot.id}
+                            onPress={() => setSelectedRescheduleSlot(isSelected ? null : slot)}
+                            disabled={rescheduling}
+                            style={({ pressed }) => ({
+                              width: '31%',
+                              paddingVertical: 14,
+                              borderRadius: 14,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: isSelected ? '#E8467C' : (isDark ? '#1E1E1E' : '#FFFFFF'),
+                              borderWidth: 1.5,
+                              borderColor: isSelected ? '#E8467C' : (isDark ? '#2D2D2D' : '#E5E7EB'),
+                              opacity: pressed || rescheduling ? 0.75 : 1,
+                              shadowColor: isSelected ? '#E8467C' : '#000',
+                              shadowOffset: { width: 0, height: isSelected ? 4 : 2 },
+                              shadowOpacity: isSelected ? 0.4 : (isDark ? 0.2 : 0.06),
+                              shadowRadius: isSelected ? 10 : 4,
+                              elevation: isSelected ? 6 : 2,
+                            })}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: isSelected }}
+                          >
+                            <Text style={{ fontSize: 16, fontWeight: '800', color: isSelected ? '#FFFFFF' : (isDark ? '#F9FAFB' : '#111827'), letterSpacing: -0.3 }}>
+                              {formatTimeSlot(slot.starts_at)}
+                            </Text>
+                            <View style={{
+                              height: 1, width: 20,
+                              backgroundColor: isSelected ? 'rgba(255,255,255,0.3)' : (isDark ? '#2D2D2D' : '#E5E7EB'),
+                              marginVertical: 4,
+                            }} />
+                            <Text style={{ fontSize: 11, fontWeight: '600', color: isSelected ? '#FFD6E7' : '#9CA3AF' }}>
+                              {formatTimeSlot(slot.ends_at)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
                 ))}
               </ScrollView>
+            )}
+
+            {/* Action buttons */}
+            {selectedRescheduleSlot && (
+              <View style={{
+                paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28,
+                borderTopWidth: 1, borderTopColor: isDark ? '#2D2D2D' : '#F3F4F6',
+                gap: 10,
+              }}>
+                <Pressable
+                  onPress={() => handleRescheduleConfirm(selectedRescheduleSlot.id)}
+                  disabled={rescheduling}
+                  style={({ pressed }) => ({
+                    backgroundColor: rescheduling ? '#9CA3AF' : '#E8467C',
+                    borderRadius: 22, paddingVertical: 18,
+                    alignItems: 'center', justifyContent: 'center',
+                    opacity: pressed ? 0.88 : 1,
+                    shadowColor: rescheduling ? 'transparent' : '#E8467C',
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: rescheduling ? 0 : 0.4,
+                    shadowRadius: 20, elevation: rescheduling ? 0 : 12,
+                  })}
+                  accessibilityRole="button"
+                  accessibilityLabel="Confirmar reagendamiento"
+                >
+                  <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 }}>
+                    {rescheduling ? 'Reagendando...' : 'Confirmar Reagendamiento'}
+                  </Text>
+                  {!rescheduling && (
+                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 2 }}>
+                      {formatTimeSlot(selectedRescheduleSlot.starts_at)} – {formatTimeSlot(selectedRescheduleSlot.ends_at)}
+                    </Text>
+                  )}
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setSelectedRescheduleSlot(null)}
+                  style={({ pressed }) => ({
+                    borderRadius: 22, paddingVertical: 14,
+                    alignItems: 'center', justifyContent: 'center',
+                    borderWidth: 1.5, borderColor: isDark ? '#3A3A3A' : '#E5E7EB',
+                    backgroundColor: isDark ? '#252525' : '#F9FAFB',
+                    opacity: pressed ? 0.75 : 1,
+                  })}
+                  accessibilityRole="button"
+                  accessibilityLabel="Quitar selección"
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#9CA3AF' : '#6B7280' }}>
+                    Quitar selección
+                  </Text>
+                </Pressable>
+              </View>
             )}
           </View>
         </View>
