@@ -170,7 +170,16 @@ export default function UploadDocumentScreen() {
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'No se pudo subir el documento.');
+      // Show field-level validation errors if present, otherwise the main message
+      const fieldErrors = err?.errors
+        ? Object.entries(err.errors as Record<string, string[]>)
+            .map(([field, msgs]) => `• ${field}: ${msgs[0]}`)
+            .join('\n')
+        : null;
+      Alert.alert(
+        'Error al subir',
+        fieldErrors ?? err?.message ?? 'No se pudo subir el documento.',
+      );
     } finally {
       setUploading(false);
     }

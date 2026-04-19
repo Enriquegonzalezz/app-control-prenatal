@@ -172,15 +172,17 @@ final class DocumentUploadService
             . self::BUCKET . '/'
             . $storagePath;
 
-        $mime = $file->getMimeType() ?? 'application/octet-stream';
+        $mime = $file->getMimeType() ?? $file->getClientMimeType() ?? 'application/octet-stream';
 
-        $response = Http::withToken(config('services.supabase.key'))
+        $response = $this->supabaseHttp()
             ->withHeaders(['Content-Type' => $mime])
             ->withBody($file->getContent(), $mime)
             ->post($url);
 
         if ($response->failed()) {
-            throw new RuntimeException('Error al subir el archivo al storage: ' . $response->body());
+            throw new RuntimeException(
+                'Error al subir el archivo al storage [' . $response->status() . ']: ' . $response->body()
+            );
         }
     }
 
@@ -191,7 +193,7 @@ final class DocumentUploadService
             . self::BUCKET . '/'
             . $storagePath;
 
-        $response = Http::withToken(config('services.supabase.key'))
+        $response = $this->supabaseHttp()
             ->post($url, ['expiresIn' => self::SIGNED_URL_TTL]);
 
         if ($response->failed()) {
@@ -205,5 +207,26 @@ final class DocumentUploadService
         }
 
         return config('services.supabase.url') . $signedPath;
+    }
+
+    /**
+     * Returns an HTTP client pre-configured with both headers Supabase Storage requires:
+     * - Authorization: Bearer <service_role_jwt>
+     * - apikey: <service_role_jwt>
+     *
+     * Throws early if the key is not configured so the error is clear.
+     */
+    private function supabaseHttp(): \Illuminate\Http\Client\PendingRequest
+    {
+        $key = config('services.supabase.key');
+
+        if (empty($key)) {
+            throw new RuntimeException(
+                'Supabase service_role key no configurada. Revisa SUPABASE_SERVICE_KEY en las variables de entorno.'
+            );
+        }
+
+        return Http::withToken($key)
+            ->withHeaders(['apikey' => $key]);
     }
 }
