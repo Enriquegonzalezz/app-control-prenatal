@@ -353,23 +353,25 @@ function PatientHome({ isDark }: { isDark: boolean }) {
   const user = useAuthStore((s) => s.user);
   const router = useRouter();
   const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
+  const bg = isDark ? '#141414' : '#F5F5F5';
 
   const firstName = user?.name?.split(' ')[0] ?? 'Paciente';
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+    <>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ fontSize: 24, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827', marginRight: 8 }}>
             Hola, {firstName}
           </Text>
-          <Ionicons name="heart" size={22} color="#E8467C" />
+            <Ionicons name="heart" size={22} color="#E8467C" />
+          </View>
+          <Text style={{ fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>Tu salud prenatal en control</Text>
         </View>
-        <Text style={{ fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>Tu salud prenatal en control</Text>
-      </View>
 
-      {/* Hero card */}
-      <View style={{ marginHorizontal: 16, marginBottom: 20, backgroundColor: '#E8467C', borderRadius: 20, padding: 20 }}>
+        {/* Hero card */}
+        <View style={{ marginHorizontal: 16, marginBottom: 20, backgroundColor: '#E8467C', borderRadius: 20, padding: 20 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
             <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '600', marginBottom: 6 }}>BIENESTAR PRENATAL</Text>
@@ -388,11 +390,11 @@ function PatientHome({ isDark }: { isDark: boolean }) {
         >
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Buscar médico</Text>
           <Ionicons name="arrow-forward" size={14} color="#fff" />
-        </Pressable>
-      </View>
+          </Pressable>
+        </View>
 
-      {/* Quick actions grid */}
-      <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
+        {/* Quick actions grid */}
+        <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
         <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827', marginBottom: 12 }}>Accesos rápidos</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {[
@@ -412,13 +414,13 @@ function PatientHome({ isDark }: { isDark: boolean }) {
               </View>
               <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }}>{item.label}</Text>
               <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{item.sub}</Text>
-            </Pressable>
-          ))}
+              </Pressable>
+            ))}
+          </View>
         </View>
-      </View>
 
-      {/* Tips */}
-      <View style={{ paddingHorizontal: 16 }}>
+        {/* Tips */}
+        <View style={{ paddingHorizontal: 16 }}>
         <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827', marginBottom: 12 }}>Tips de salud</Text>
         {[
           { icon: 'water' as const,     color: '#3B82F6', title: 'Hidratación',           body: 'Bebe al menos 8 vasos de agua al día.' },
@@ -432,11 +434,123 @@ function PatientHome({ isDark }: { isDark: boolean }) {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }}>{tip.title}</Text>
               <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2, lineHeight: 17 }}>{tip.body}</Text>
+              </View>
             </View>
-          </View>
-        ))}
+          ))}
+        </View>
+      </ScrollView>
+
+      {/* Sticky Bottom Bar - Quick Access */}
+      <View style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: bg,
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 28,
+        borderTopWidth: 1,
+        borderTopColor: isDark ? '#2D2D2D' : '#E5E7EB',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: isDark ? 0.3 : 0.1,
+        shadowRadius: 12,
+        elevation: 8,
+      }}>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <Pressable
+            onPress={() => router.push('/appointments')}
+            style={({ pressed }) => ({
+              flex: 1,
+              backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+              borderRadius: 16,
+              paddingVertical: 14,
+              paddingHorizontal: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              borderWidth: 1.5,
+              borderColor: '#3B82F6',
+              opacity: pressed ? 0.8 : 1,
+              shadowColor: '#3B82F6',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 8,
+              elevation: 4,
+            })}
+            accessibilityRole="button"
+            accessibilityLabel="Ver mis citas"
+          >
+            <View style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: '#3B82F6',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Ionicons name="calendar" size={18} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }}>
+                Mis Citas
+              </Text>
+              <Text style={{ fontSize: 11, color: '#3B82F6', fontWeight: '600' }}>
+                Ver y gestionar
+              </Text>
+            </View>
+            <Ionicons name="arrow-forward" size={16} color="#3B82F6" />
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/medical-history')}
+            style={({ pressed }) => ({
+              flex: 1,
+              backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+              borderRadius: 16,
+              paddingVertical: 14,
+              paddingHorizontal: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              borderWidth: 1.5,
+              borderColor: '#F59E0B',
+              opacity: pressed ? 0.8 : 1,
+              shadowColor: '#F59E0B',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 8,
+              elevation: 4,
+            })}
+            accessibilityRole="button"
+            accessibilityLabel="Ver historial médico"
+          >
+            <View style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: '#F59E0B',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Ionicons name="documents" size={18} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }}>
+                Historial
+              </Text>
+              <Text style={{ fontSize: 11, color: '#F59E0B', fontWeight: '600' }}>
+                Consultas previas
+              </Text>
+            </View>
+            <Ionicons name="arrow-forward" size={16} color="#F59E0B" />
+          </Pressable>
+        </View>
       </View>
-    </ScrollView>
+    </>
   );
 }
 

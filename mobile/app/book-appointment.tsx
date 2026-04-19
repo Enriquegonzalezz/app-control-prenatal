@@ -249,16 +249,51 @@ export default function BookAppointmentScreen() {
         )}
 
         {!loading && !error && grouped.map(({ date, label, slots: daySlots }) => (
-          <View key={date} style={{ paddingHorizontal: 20, marginBottom: 20 }}>
-            {/* Date label */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 }}>
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#E8467C' }} />
-              <Text style={{ fontSize: 13, fontWeight: '700', color: textColor, textTransform: 'capitalize' }}>
-                {label}
-              </Text>
+          <View key={date} style={{ paddingHorizontal: 20, marginBottom: 24 }}>
+            {/* Date header - calendar style */}
+            <View style={{
+              backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+              borderRadius: 16,
+              padding: 14,
+              marginBottom: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: isDark ? '#2D2D2D' : '#F3F4F6',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0.15 : 0.05,
+              shadowRadius: 8,
+              elevation: 2,
+            }}>
+              <View style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                backgroundColor: '#E8467C',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 12,
+              }}>
+                <Text style={{ fontSize: 18, fontWeight: '900', color: '#fff' }}>
+                  {new Date(daySlots[0].starts_at).getDate()}
+                </Text>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.8)', marginTop: -2 }}>
+                  {new Date(daySlots[0].starts_at).toLocaleDateString('es', { month: 'short' }).toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: textColor, textTransform: 'capitalize' }}>
+                  {label.split(',')[0]}
+                </Text>
+                <Text style={{ fontSize: 12, color: subColor, marginTop: 1 }}>
+                  {daySlots.length} horario{daySlots.length !== 1 ? 's' : ''} disponible{daySlots.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={subColor} />
             </View>
 
-            {/* Time chips */}
+            {/* Time slots grid - 3 columns */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
               {daySlots.map((slot) => {
                 const isSelected = selectedSlot?.id === slot.id;
@@ -267,25 +302,54 @@ export default function BookAppointmentScreen() {
                     key={slot.id}
                     onPress={() => setSelectedSlot(isSelected ? null : slot)}
                     style={({ pressed }) => ({
-                      paddingHorizontal: 16, paddingVertical: 11,
-                      borderRadius: 14, minWidth: 80, alignItems: 'center',
-                      backgroundColor: isSelected ? '#E8467C' : (isDark ? '#252525' : '#FFFFFF'),
+                      width: '31%',
+                      paddingVertical: 14,
+                      borderRadius: 14,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isSelected ? '#E8467C' : (isDark ? '#1E1E1E' : '#FFFFFF'),
                       borderWidth: 1.5,
-                      borderColor: isSelected ? '#E8467C' : (isDark ? '#333' : '#E5E7EB'),
+                      borderColor: isSelected ? '#E8467C' : (isDark ? '#2D2D2D' : '#E5E7EB'),
                       opacity: pressed ? 0.75 : 1,
-                      shadowColor: isSelected ? '#E8467C' : 'transparent',
-                      shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: isSelected ? 4 : 0,
+                      shadowColor: isSelected ? '#E8467C' : '#000',
+                      shadowOffset: { width: 0, height: isSelected ? 4 : 2 },
+                      shadowOpacity: isSelected ? 0.4 : (isDark ? 0.2 : 0.06),
+                      shadowRadius: isSelected ? 10 : 4,
+                      elevation: isSelected ? 6 : 2,
                     })}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: isSelected }}
                     accessibilityLabel={`Slot ${formatTime(slot.starts_at)}`}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: isSelected ? '#FFFFFF' : textColor }}>
-                      {formatTime(slot.starts_at)}
-                    </Text>
-                    <Text style={{ fontSize: 10, fontWeight: '500', color: isSelected ? '#FFD6E7' : subColor, marginTop: 1 }}>
-                      {formatTime(slot.ends_at)}
-                    </Text>
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ fontSize: 16, fontWeight: '800', color: isSelected ? '#FFFFFF' : textColor, letterSpacing: -0.3 }}>
+                        {formatTime(slot.starts_at)}
+                      </Text>
+                      <View style={{
+                        height: 1,
+                        width: 20,
+                        backgroundColor: isSelected ? 'rgba(255,255,255,0.3)' : (isDark ? '#2D2D2D' : '#E5E7EB'),
+                        marginVertical: 4,
+                      }} />
+                      <Text style={{ fontSize: 11, fontWeight: '600', color: isSelected ? '#FFD6E7' : subColor }}>
+                        {formatTime(slot.ends_at)}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <View style={{
+                        position: 'absolute',
+                        top: 6,
+                        right: 6,
+                        width: 20,
+                        height: 20,
+                        borderRadius: 10,
+                        backgroundColor: 'rgba(255,255,255,0.25)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                        <Ionicons name="checkmark" size={12} color="#fff" />
+                      </View>
+                    )}
                   </Pressable>
                 );
               })}
