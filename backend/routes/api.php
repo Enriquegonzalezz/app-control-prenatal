@@ -138,10 +138,19 @@ Route::prefix('v1')->group(function (): void {
         // ── Historial médico (Sprint 4) ───────────────────────────
         // Acceso: paciente ve el suyo; médico ve los de sus pacientes activos.
         Route::prefix('medical-records')->group(function (): void {
+            // Catalog (categories + subcategories + tags + related doctors) — for upload form
+            Route::get('/catalog',                                   [MedicalRecordController::class, 'catalog'])->name('medical-records.catalog');
+
+            // Document upload (patient or doctor with active relationship)
+            Route::post('/upload',                                   [MedicalRecordController::class, 'upload'])->name('medical-records.upload');
+
             Route::get('/',                                          [MedicalRecordController::class, 'index'])->name('medical-records.index');
             Route::post('/',                                         [MedicalRecordController::class, 'store'])->name('medical-records.store');
             Route::get('/{medicalRecord}',                           [MedicalRecordController::class, 'show'])->name('medical-records.show');
             Route::patch('/{medicalRecord}',                         [MedicalRecordController::class, 'update'])->name('medical-records.update');
+
+            // Signed URL for document-type records
+            Route::get('/{medicalRecord}/signed-url',                [MedicalRecordController::class, 'signedUrl'])->name('medical-records.signed-url');
 
             // Signos vitales
             Route::get('/{medicalRecord}/vital-signs',               [VitalSignController::class, 'index'])->name('medical-records.vital-signs.index');
