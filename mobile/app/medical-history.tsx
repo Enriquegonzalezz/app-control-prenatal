@@ -1,19 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Linking,
+  Modal,
   Pressable,
+  ScrollView,
   SectionList,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   medicalApi,
   MedicalRecord,
   MedicalRecordFile,
+  MedicalRecordFilters,
+  RecordCategory,
   VitalSign,
 } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -33,7 +39,6 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// Group by document_date (YYYY-MM-DD) or created_at month as fallback
 function groupByDocumentDate(records: MedicalRecord[]): Array<{ title: string; data: MedicalRecord[] }> {
   const map = new Map<string, { sort: string; label: string; items: MedicalRecord[] }>();
   records.forEach((r) => {
@@ -61,9 +66,7 @@ function SkeletonPulse({ width, height = 12, rounded = false }: { width: number 
     ).start();
   }, [anim]);
   return (
-    <Animated.View
-      style={{ opacity: anim, width: width as number, height, borderRadius: rounded ? height / 2 : 6, backgroundColor: '#E5E7EB' }}
-    />
+    <Animated.View style={{ opacity: anim, width: width as number, height, borderRadius: rounded ? height / 2 : 6, backgroundColor: '#E5E7EB' }} />
   );
 }
 
@@ -85,35 +88,21 @@ function FileItem({ file, recordId, token, isDark }: { file: MedicalRecordFile; 
     try {
       const res = await medicalApi.getSignedUrl(token, recordId, file.id);
       await Linking.openURL(res.data.url);
-    } catch { /* silent */ }
-    finally { setOpening(false); }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? 'No se pudo abrir el archivo.');
+    } finally { setOpening(false); }
   };
 
   return (
-    <View style={{
-      flexDirection: 'row', alignItems: 'center',
-      backgroundColor: isDark ? '#25252550' : '#F9FAFB',
-      borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 6,
-    }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#25252550' : '#F9FAFB', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 6 }}>
       <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
         <Ionicons name="document-outline" size={16} color={ACCENT} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#F3F4F6' : '#111827' }} numberOfLines={1}>
-          {file.file_name}
-        </Text>
-        <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>
-          {formatBytes(file.file_size_bytes)}
-        </Text>
+        <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#F3F4F6' : '#111827' }} numberOfLines={1}>{file.file_name}</Text>
+        <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{formatBytes(file.file_size_bytes)}</Text>
       </View>
-      <Pressable
-        onPress={handleOpen}
-        disabled={opening}
-        style={{
-          backgroundColor: ACCENT, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
-          opacity: opening ? 0.6 : 1, minWidth: 44, minHeight: 32, alignItems: 'center', justifyContent: 'center',
-        }}
-      >
+      <Pressable onPress={handleOpen} disabled={opening} style={{ backgroundColor: ACCENT, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, opacity: opening ? 0.6 : 1, minWidth: 44, minHeight: 32, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{opening ? '...' : 'Abrir'}</Text>
       </Pressable>
     </View>
@@ -127,29 +116,43 @@ function DocumentFile({ record, token, isDark }: { record: MedicalRecord; token:
     setOpening(true);
     try {
       const res = await medicalApi.getDocumentSignedUrl(token, record.id);
-      await Linking.openURL(res.data.url);
-    } catch { /* silent */ }
-    finally { setOpening(false); }
+      const url = res.data?.url;
+      if (!url) {
+        Alert.alert('Error', 'No se pudo obtener la URL del archivo.');
+        return;
+      }
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        Alert.alert('Error', 'No se puede abrir este tipo de archivo en este dispositivo.');
+        return;
+      }
+      await Linking.openURL(url);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? 'No se pudo abrir el archivo.');
+    } finally {
+      setOpening(false);
+    }
   };
+
+  const ext = record.file_type?.split('/')[1]?.toUpperCase() ?? 'Archivo';
+  const sizeLabel = record.file_size_kb ? `${record.file_size_kb} KB` : '';
 
   return (
     <Pressable
       onPress={handleOpen}
       disabled={opening}
-      style={{
-        flexDirection: 'row', alignItems: 'center', marginTop: 10,
-        backgroundColor: isDark ? '#252525' : '#FFF1F6',
-        borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
-      }}
+      style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: isDark ? '#252525' : '#FFF1F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, opacity: opening ? 0.7 : 1 }}
     >
-      <Ionicons name="document-outline" size={18} color={ACCENT} style={{ marginRight: 8 }} />
+      <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+        <Ionicons name={record.file_type?.startsWith('image/') ? 'image-outline' : 'document-outline'} size={18} color={ACCENT} />
+      </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: ACCENT }}>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: ACCENT }}>
           {opening ? 'Abriendo…' : 'Ver archivo adjunto'}
         </Text>
-        {record.file_size_kb && (
+        {(sizeLabel || ext) && (
           <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>
-            {(record.file_size_kb).toFixed(0)} KB · {record.file_type?.split('/')[1]?.toUpperCase() ?? 'Archivo'}
+            {[sizeLabel, ext].filter(Boolean).join(' · ')}
           </Text>
         )}
       </View>
@@ -164,9 +167,9 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
   const [loadingDetail, setLoadingDetail] = useState(false);
   const chevron = useRef(new Animated.Value(0)).current;
 
-  const isDocumentUpload = !!record.storage_path;
   const displayTitle = record.title ?? record.category?.name ?? 'Documento médico';
   const dateLabel = formatDate(record.document_date ?? record.created_at);
+  const iconColor = record.category?.color ?? ACCENT;
 
   const toggle = useCallback(async () => {
     const next = !expanded;
@@ -177,7 +180,7 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
       try {
         const res = await medicalApi.show(token, record.id);
         setDetail(res.data);
-      } catch { /* show nothing */ }
+      } catch { /* ignore */ }
       finally { setLoadingDetail(false); }
     }
   }, [expanded, detail, record.id, token, chevron]);
@@ -185,36 +188,23 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
   const rotate = chevron.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
   const vitals: VitalSign | undefined = detail?.vital_signs?.[0];
 
-  const iconColor = record.category?.color ?? ACCENT;
-  const catIcon = isDocumentUpload ? 'document-text-outline' : 'medkit-outline';
-
   return (
     <Pressable
       onPress={toggle}
-      style={{
-        backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
-        borderRadius: 16, marginHorizontal: 16, marginBottom: 10,
-        borderWidth: 1, borderColor: isDark ? '#2D2D2D' : '#F3F4F6',
-        overflow: 'hidden',
-      }}
+      style={{ backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF', borderRadius: 16, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: isDark ? '#2D2D2D' : '#F3F4F6', overflow: 'hidden' }}
       accessibilityRole="button"
       accessibilityLabel={`${displayTitle}, ${dateLabel}`}
       accessibilityState={{ expanded }}
     >
-      {/* ── Card header ── */}
+      {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: 14 }}>
-        <View style={{
-          width: 40, height: 40, borderRadius: 12,
-          backgroundColor: iconColor + '20',
-          alignItems: 'center', justifyContent: 'center', marginRight: 12,
-        }}>
-          <Ionicons name={catIcon as any} size={20} color={iconColor} />
+        <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: iconColor + '20', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+          <Ionicons name={record.storage_path ? 'document-text-outline' : 'medkit-outline'} size={20} color={iconColor} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }} numberOfLines={2}>
             {displayTitle}
           </Text>
-          {/* Category + subcategory badges */}
           {record.category && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4, gap: 4 }}>
               <View style={{ backgroundColor: iconColor + '20', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 }}>
@@ -239,14 +229,10 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
               Dr. {record.doctor.name}
             </Text>
           )}
-          {/* Tags */}
           {record.tags && record.tags.length > 0 && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, gap: 4 }}>
               {record.tags.map((tag) => (
-                <View
-                  key={tag.id}
-                  style={{ backgroundColor: (tag.color ?? '#9CA3AF') + '25', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 }}
-                >
+                <View key={tag.id} style={{ backgroundColor: (tag.color ?? '#9CA3AF') + '25', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 }}>
                   <Text style={{ fontSize: 10, fontWeight: '600', color: tag.color ?? '#6B7280' }}>{tag.name}</Text>
                 </View>
               ))}
@@ -258,39 +244,28 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
         </Animated.View>
       </View>
 
-      {/* ── Expanded content ── */}
+      {/* Expanded */}
       {expanded && (
         <View style={{ paddingHorizontal: 14, paddingBottom: 14, borderTopWidth: 1, borderTopColor: isDark ? '#2D2D2D' : '#F3F4F6' }}>
-          {/* Description (document-upload records) */}
           {record.description && (
-            <View style={{ marginTop: 10, marginBottom: 4 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
-                Descripción
-              </Text>
-              <Text style={{ fontSize: 13, color: isDark ? '#E5E7EB' : '#374151', lineHeight: 18 }}>
-                {record.description}
-              </Text>
+            <View style={{ marginTop: 10 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Descripción</Text>
+              <Text style={{ fontSize: 13, color: isDark ? '#E5E7EB' : '#374151', lineHeight: 18 }}>{record.description}</Text>
             </View>
           )}
 
-          {/* Document file link */}
+          {/* Archivo del documento subido */}
           {record.storage_path && (
             <DocumentFile record={record} token={token} isDark={isDark} />
           )}
 
-          {/* Diagnosis (legacy doctor-note) */}
           {record.diagnosis && (
-            <View style={{ marginTop: 10, marginBottom: 8 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
-                Diagnóstico
-              </Text>
-              <Text style={{ fontSize: 13, color: isDark ? '#E5E7EB' : '#374151', lineHeight: 18 }}>
-                {record.diagnosis}
-              </Text>
+            <View style={{ marginTop: 10 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Diagnóstico</Text>
+              <Text style={{ fontSize: 13, color: isDark ? '#E5E7EB' : '#374151', lineHeight: 18 }}>{record.diagnosis}</Text>
             </View>
           )}
 
-          {/* Loading skeleton */}
           {loadingDetail && (
             <View style={{ marginTop: 8, gap: 6 }}>
               <SkeletonPulse width="100%" height={32} />
@@ -298,40 +273,31 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
             </View>
           )}
 
-          {/* Vital signs */}
           {!loadingDetail && vitals && (
-            <View style={{ marginTop: 8, marginBottom: 10 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                Signos Vitales
-              </Text>
+            <View style={{ marginTop: 8 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Signos Vitales</Text>
               <View style={{ backgroundColor: isDark ? '#252525' : '#F9FAFB', borderRadius: 10, padding: 10 }}>
-                {vitals.weight_kg      && <VitalRow label="Peso"             value={`${vitals.weight_kg} kg`}         icon="scale-outline" />}
-                {vitals.height_cm      && <VitalRow label="Talla"            value={`${vitals.height_cm} cm`}         icon="resize-outline" />}
-                {vitals.blood_pressure && <VitalRow label="Presión art."     value={vitals.blood_pressure}            icon="pulse-outline" />}
-                {vitals.heart_rate_bpm && <VitalRow label="Frec. cardíaca"   value={`${vitals.heart_rate_bpm} bpm`}  icon="heart-outline" />}
-                {vitals.temperature_c  && <VitalRow label="Temperatura"      value={`${vitals.temperature_c} °C`}    icon="thermometer-outline" />}
+                {vitals.weight_kg       && <VitalRow label="Peso"            value={`${vitals.weight_kg} kg`}         icon="scale-outline" />}
+                {vitals.height_cm       && <VitalRow label="Talla"           value={`${vitals.height_cm} cm`}         icon="resize-outline" />}
+                {vitals.blood_pressure  && <VitalRow label="Presión art."    value={vitals.blood_pressure}            icon="pulse-outline" />}
+                {vitals.heart_rate_bpm  && <VitalRow label="Frec. cardíaca"  value={`${vitals.heart_rate_bpm} bpm`}  icon="heart-outline" />}
+                {vitals.temperature_c   && <VitalRow label="Temperatura"     value={`${vitals.temperature_c} °C`}    icon="thermometer-outline" />}
                 {vitals.oxygen_saturation && <VitalRow label="SaO₂"          value={`${vitals.oxygen_saturation}%`}  icon="water-outline" />}
               </View>
             </View>
           )}
 
-          {/* Legacy attached files */}
           {!loadingDetail && detail?.files && detail.files.length > 0 && (
-            <View style={{ marginTop: vitals ? 0 : 10 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                Archivos adjuntos
-              </Text>
+            <View style={{ marginTop: 10 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Archivos adjuntos</Text>
               {detail.files.map((f) => (
                 <FileItem key={f.id} file={f} recordId={record.id} token={token} isDark={isDark} />
               ))}
             </View>
           )}
 
-          {/* No extra info */}
           {!loadingDetail && !record.description && !record.storage_path && !record.diagnosis && !vitals && (!detail?.files || detail.files.length === 0) && (
-            <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 10, textAlign: 'center' }}>
-              Sin detalles adicionales en este registro.
-            </Text>
+            <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 10, textAlign: 'center' }}>Sin detalles adicionales.</Text>
           )}
         </View>
       )}
@@ -339,66 +305,266 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
   );
 }
 
+// ── Filter modal ────────────────────────────────────────────────────────────
+
+interface Filters {
+  category_id: string;
+  date_from: string;
+  date_to: string;
+  visibility: '' | 'shared' | 'private';
+  uploaded_by_me: boolean;
+}
+
+const EMPTY_FILTERS: Filters = { category_id: '', date_from: '', date_to: '', visibility: '', uploaded_by_me: false };
+
+function FilterModal({
+  visible, onClose, onApply, initial, categories, isPatient, isDark,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onApply: (f: Filters) => void;
+  initial: Filters;
+  categories: RecordCategory[];
+  isPatient: boolean;
+  isDark: boolean;
+}) {
+  const [f, setF] = useState<Filters>(initial);
+  const bg = isDark ? '#1A1A1A' : '#FFFFFF';
+  const inputBg = isDark ? '#252525' : '#F3F4F6';
+  const text = isDark ? '#F9FAFB' : '#111827';
+  const muted = '#9CA3AF';
+
+  useEffect(() => { if (visible) setF(initial); }, [visible]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1, backgroundColor: '#00000060' }} onPress={onClose} />
+      <View style={{ backgroundColor: bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 }}>
+        {/* Handle */}
+        <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB', alignSelf: 'center', marginBottom: 16 }} />
+        <Text style={{ fontSize: 18, fontWeight: '800', color: text, marginBottom: 16 }}>Filtrar historial</Text>
+
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {/* Categoría */}
+          <Text style={{ fontSize: 11, fontWeight: '700', color: muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Categoría</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            <Pressable
+              onPress={() => setF(p => ({ ...p, category_id: '' }))}
+              style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: f.category_id === '' ? ACCENT : (isDark ? '#2D2D2D' : '#F3F4F6'), borderWidth: 1, borderColor: f.category_id === '' ? ACCENT : (isDark ? '#3D3D3D' : '#E5E7EB') }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: f.category_id === '' ? '#fff' : text }}>Todas</Text>
+            </Pressable>
+            {categories.map(cat => (
+              <Pressable
+                key={cat.id}
+                onPress={() => setF(p => ({ ...p, category_id: p.category_id === cat.id ? '' : cat.id }))}
+                style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: f.category_id === cat.id ? (cat.color ?? ACCENT) : (isDark ? '#2D2D2D' : '#F3F4F6'), borderWidth: 1, borderColor: f.category_id === cat.id ? (cat.color ?? ACCENT) : (isDark ? '#3D3D3D' : '#E5E7EB') }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '600', color: f.category_id === cat.id ? '#fff' : text }}>{cat.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {/* Fecha */}
+          <Text style={{ fontSize: 11, fontWeight: '700', color: muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Rango de fecha</Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 11, color: muted, marginBottom: 4 }}>Desde</Text>
+              <TextInput
+                value={f.date_from}
+                onChangeText={v => setF(p => ({ ...p, date_from: v }))}
+                placeholder="AAAA-MM-DD"
+                placeholderTextColor={muted}
+                style={{ backgroundColor: inputBg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: text }}
+                keyboardType="numeric"
+                maxLength={10}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 11, color: muted, marginBottom: 4 }}>Hasta</Text>
+              <TextInput
+                value={f.date_to}
+                onChangeText={v => setF(p => ({ ...p, date_to: v }))}
+                placeholder="AAAA-MM-DD"
+                placeholderTextColor={muted}
+                style={{ backgroundColor: inputBg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: text }}
+                keyboardType="numeric"
+                maxLength={10}
+              />
+            </View>
+          </View>
+
+          {/* Visibilidad (solo paciente) */}
+          {isPatient && (
+            <>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Visibilidad</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                {(['', 'shared', 'private'] as const).map(v => {
+                  const label = v === '' ? 'Todos' : v === 'shared' ? 'Compartidos' : 'Privados';
+                  const active = f.visibility === v;
+                  return (
+                    <Pressable key={v} onPress={() => setF(p => ({ ...p, visibility: v }))}
+                      style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center', backgroundColor: active ? ACCENT : inputBg, borderWidth: 1, borderColor: active ? ACCENT : (isDark ? '#3D3D3D' : '#E5E7EB') }}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: active ? '#fff' : text }}>{label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Subido por mí */}
+              <Pressable
+                onPress={() => setF(p => ({ ...p, uploaded_by_me: !p.uploaded_by_me }))}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: inputBg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 20 }}
+              >
+                <Text style={{ fontSize: 14, color: text, fontWeight: '500' }}>Solo subidos por mí</Text>
+                <View style={{ width: 44, height: 26, borderRadius: 13, backgroundColor: f.uploaded_by_me ? ACCENT : '#D1D5DB', justifyContent: 'center', paddingHorizontal: 2 }}>
+                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff', alignSelf: f.uploaded_by_me ? 'flex-end' : 'flex-start' }} />
+                </View>
+              </Pressable>
+            </>
+          )}
+        </ScrollView>
+
+        {/* Acciones */}
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+          <Pressable
+            onPress={() => { setF(EMPTY_FILTERS); onApply(EMPTY_FILTERS); }}
+            style={{ flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: inputBg }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: '700', color: text }}>Limpiar</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => onApply(f)}
+            style={{ flex: 2, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: ACCENT }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>Aplicar filtros</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ── Main screen ─────────────────────────────────────────────────────────────
+
 export default function MedicalHistoryScreen() {
   const theme = useEffectiveTheme();
   const isDark = theme === 'dark';
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
 
+  const params = useLocalSearchParams<{ patient_id?: string; patient_name?: string }>();
+  const doctorViewPatientId = params.patient_id;    // set when doctor opens a patient's history
+  const doctorViewPatientName = params.patient_name;
+
+  const isPatient = user?.role === 'patient';
+
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
+  const [categories, setCategories] = useState<RecordCategory[]>([]);
+
+  // Fetch catalog categories for the filter modal
+  useEffect(() => {
+    if (!token) return;
+    medicalApi.catalog(token)
+      .then(res => setCategories(res.data.categories))
+      .catch(() => {}); // non-critical
+  }, [token]);
 
   const load = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await medicalApi.list(token);
+      const apiFilters: MedicalRecordFilters = {};
+      if (doctorViewPatientId) apiFilters.patient_id = doctorViewPatientId;
+      if (filters.category_id) apiFilters.category_id = filters.category_id;
+      if (filters.date_from) apiFilters.date_from = filters.date_from;
+      if (filters.date_to) apiFilters.date_to = filters.date_to;
+      if (filters.visibility) apiFilters.visibility = filters.visibility as 'shared' | 'private';
+      if (filters.uploaded_by_me) apiFilters.uploaded_by_me = 1;
+
+      const res = await medicalApi.list(token, apiFilters);
       setRecords(Array.isArray(res.data) ? res.data : []);
     } catch {
       setError('No se pudo cargar el historial. Verifica tu conexión.');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, doctorViewPatientId, filters]);
 
   useEffect(() => { load(); }, [load]);
+
+  const applyFilters = (f: Filters) => {
+    setFilters(f);
+    setShowFilters(false);
+  };
+
+  const hasActiveFilters = filters.category_id || filters.date_from || filters.date_to || filters.visibility || filters.uploaded_by_me;
 
   const sections = groupByDocumentDate(records);
   const bg = isDark ? '#141414' : '#F5F5F5';
   const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
 
-  const isPatient = user?.role === 'patient';
+  const headerTitle = doctorViewPatientId
+    ? `Historial de ${doctorViewPatientName ?? 'Paciente'}`
+    : 'Historial Médico';
+  const headerSub = doctorViewPatientId
+    ? 'Documentos compartidos del paciente'
+    : 'Todos tus exámenes y consultas';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={['top']}>
-      {/* ── Header ── */}
+      {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
         <Pressable
           onPress={() => router.back()}
           style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: cardBg, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
+          accessibilityRole="button" accessibilityLabel="Volver"
         >
           <Ionicons name="arrow-back" size={20} color={isDark ? '#F9FAFB' : '#111827'} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 20, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }}>
-            Historial Médico
+          <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }} numberOfLines={1}>
+            {headerTitle}
           </Text>
-          <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>
-            Todos tus exámenes y consultas
-          </Text>
+          <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>{headerSub}</Text>
         </View>
+        {/* Filter button */}
+        <Pressable
+          onPress={() => setShowFilters(true)}
+          style={{
+            width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
+            backgroundColor: hasActiveFilters ? '#E8467C20' : cardBg,
+            borderWidth: hasActiveFilters ? 1.5 : 0,
+            borderColor: hasActiveFilters ? ACCENT : 'transparent',
+          }}
+          accessibilityRole="button" accessibilityLabel="Filtros"
+        >
+          <Ionicons name="options-outline" size={20} color={hasActiveFilters ? ACCENT : (isDark ? '#F9FAFB' : '#111827')} />
+        </Pressable>
         {!loading && records.length > 0 && (
-          <View style={{ backgroundColor: '#E8467C15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+          <View style={{ backgroundColor: '#E8467C15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginLeft: 8 }}>
             <Text style={{ fontSize: 12, fontWeight: '700', color: ACCENT }}>{records.length}</Text>
           </View>
         )}
       </View>
 
-      {/* ── Skeleton ── */}
+      {/* Active filters hint */}
+      {hasActiveFilters && (
+        <Pressable onPress={() => setShowFilters(true)} style={{ marginHorizontal: 16, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#E8467C15', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 }}>
+          <Ionicons name="funnel" size={13} color={ACCENT} />
+          <Text style={{ fontSize: 12, color: ACCENT, fontWeight: '600', flex: 1 }}>Filtros activos — toca para editar</Text>
+          <Pressable onPress={() => setFilters(EMPTY_FILTERS)}>
+            <Ionicons name="close-circle" size={16} color={ACCENT} />
+          </Pressable>
+        </Pressable>
+      )}
+
+      {/* Skeleton */}
       {loading && (
         <View style={{ paddingTop: 8 }}>
           {[1, 2, 3].map((i) => (
@@ -415,15 +581,13 @@ export default function MedicalHistoryScreen() {
         </View>
       )}
 
-      {/* ── Error ── */}
+      {/* Error */}
       {!loading && error && (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
           <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
             <Ionicons name="cloud-offline-outline" size={32} color="#EF4444" />
           </View>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827', textAlign: 'center', marginBottom: 8 }}>
-            Error de conexión
-          </Text>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827', textAlign: 'center', marginBottom: 8 }}>Error de conexión</Text>
           <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginBottom: 24, lineHeight: 18 }}>{error}</Text>
           <Pressable onPress={load} style={{ backgroundColor: ACCENT, paddingHorizontal: 32, paddingVertical: 12, borderRadius: 24 }}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>Reintentar</Text>
@@ -431,7 +595,7 @@ export default function MedicalHistoryScreen() {
         </View>
       )}
 
-      {/* ── List ── */}
+      {/* List */}
       {!loading && !error && (
         <SectionList
           sections={sections}
@@ -446,7 +610,7 @@ export default function MedicalHistoryScreen() {
           renderItem={({ item }) => (
             <RecordCard record={item} token={token!} isDark={isDark} />
           )}
-          contentContainerStyle={{ paddingBottom: isPatient ? 100 : 48 }}
+          contentContainerStyle={{ paddingBottom: isPatient && !doctorViewPatientId ? 100 : 48 }}
           showsVerticalScrollIndicator={false}
           stickySectionHeadersEnabled={false}
           ListEmptyComponent={
@@ -455,36 +619,52 @@ export default function MedicalHistoryScreen() {
                 <Ionicons name="documents-outline" size={32} color={ACCENT} />
               </View>
               <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827', textAlign: 'center', marginBottom: 8 }}>
-                Sin registros médicos
+                {hasActiveFilters ? 'Sin resultados' : 'Sin registros médicos'}
               </Text>
               <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 18 }}>
-                {isPatient
-                  ? 'Sube tu primer documento con el botón +'
-                  : 'Tus consultas y exámenes aparecerán aquí.'}
+                {hasActiveFilters
+                  ? 'Ningún registro coincide con los filtros aplicados.'
+                  : isPatient
+                    ? 'Sube tu primer documento con el botón +'
+                    : 'Los documentos compartidos del paciente aparecerán aquí.'}
               </Text>
+              {hasActiveFilters && (
+                <Pressable onPress={() => setFilters(EMPTY_FILTERS)} style={{ marginTop: 16, backgroundColor: ACCENT, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 }}>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Limpiar filtros</Text>
+                </Pressable>
+              )}
             </View>
           }
         />
       )}
 
-      {/* ── FAB upload (patients only) ── */}
-      {isPatient && !loading && (
+      {/* FAB upload (patients, solo en su propio historial) */}
+      {isPatient && !doctorViewPatientId && !loading && (
         <Pressable
           onPress={() => router.push('/upload-document')}
           style={{
             position: 'absolute', bottom: 32, right: 20,
-            width: 56, height: 56, borderRadius: 28,
-            backgroundColor: ACCENT,
+            width: 56, height: 56, borderRadius: 28, backgroundColor: ACCENT,
             alignItems: 'center', justifyContent: 'center',
             shadowColor: ACCENT, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
             elevation: 8,
           }}
-          accessibilityRole="button"
-          accessibilityLabel="Subir nuevo documento"
+          accessibilityRole="button" accessibilityLabel="Subir nuevo documento"
         >
           <Ionicons name="add" size={28} color="#fff" />
         </Pressable>
       )}
+
+      {/* Filter modal */}
+      <FilterModal
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        onApply={applyFilters}
+        initial={filters}
+        categories={categories}
+        isPatient={isPatient}
+        isDark={isDark}
+      />
     </SafeAreaView>
   );
 }
