@@ -158,6 +158,27 @@ final class AppointmentController extends Controller
         ]);
     }
 
+    public function reschedule(Request $request, Appointment $appointment): JsonResponse
+    {
+        $request->validate(['new_slot_id' => ['required', 'uuid']]);
+
+        try {
+            $appointment = $this->appointmentService->reschedule(
+                $appointment,
+                $request->user(),
+                $request->input('new_slot_id'),
+            );
+        } catch (RuntimeException $e) {
+            return $this->errorResponse($e->getMessage(), Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Cita reagendada correctamente.',
+            'data'    => $appointment,
+        ]);
+    }
+
     public function noShow(Request $request, Appointment $appointment): JsonResponse
     {
         try {

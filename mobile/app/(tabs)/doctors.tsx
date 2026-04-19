@@ -16,7 +16,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
-import { directoryApi, NearbyDoctor } from '@/lib/api';
+import { directoryApi, chatApi, NearbyDoctor } from '@/lib/api';
+import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -76,12 +77,21 @@ function DoctorProfileSheet({
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
+  const token = useAuthStore((s) => s.token);
+  const userRole = useAuthStore((s) => s.user?.role);
+  const [chattingNow, setChattingNow] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+
   const sheetBg   = isDark ? '#1A1A1A' : '#FFFFFF';
   const labelColor = isDark ? '#9CA3AF' : '#6B7280';
   const textColor  = isDark ? '#F9FAFB' : '#111827';
   const statBg     = isDark ? '#252525' : '#F9FAFB';
   const statBorder = isDark ? '#333333' : '#F3F4F6';
   const divider    = isDark ? '#2A2A2A' : '#F3F4F6';
+
+  useEffect(() => {
+    if (!visible) setChatError(null);
+  }, [visible]);
 
   useEffect(() => {
     if (visible) {
@@ -110,6 +120,22 @@ function DoctorProfileSheet({
       }
     },
   }), [translateY, onClose]);
+
+  const handleOpenChat = async () => {
+    if (!token || !doctor) return;
+    setChatError(null);
+    setChattingNow(true);
+    try {
+      const res = await chatApi.startConversation(token, doctor.user_id);
+      const name = res.data.other_party?.name ?? doctor.full_name;
+      onClose();
+      router.push({ pathname: '/chat/[id]', params: { id: res.data.relationship_id, name } });
+    } catch {
+      setChatError('No se pudo iniciar la conversación. Intenta de nuevo.');
+    } finally {
+      setChattingNow(false);
+    }
+  };
 
   if (!doctor) return null;
 
@@ -328,78 +354,53 @@ function DoctorProfileSheet({
               </View>
             </Pressable>
 
-            {/* Secondary row */}
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <Pressable
-                onPress={() => { onClose(); router.push('/appointments'); }}
-                style={({ pressed }) => ({
-                  flex: 1,
-                  backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
-                  borderRadius: 20,
-                  paddingVertical: 16,
-                  paddingHorizontal: 8,
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 8,
-                  borderWidth: 1.5,
-                  borderColor: isDark ? '#374151' : '#E2E8F0',
-                  opacity: pressed ? 0.85 : 1,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.3 : 0.08,
-                  shadowRadius: 8,
-                  elevation: 2,
-                })}
-                accessibilityRole="button" accessibilityLabel="Ver mis citas"
-              >
-                <View style={{
-                  width: 40, height: 40, borderRadius: 20,
-                  backgroundColor: isDark ? '#3B82F620' : '#DBEAFE',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Ionicons name="calendar-outline" size={18} color="#3B82F6" />
-                </View>
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: isDark ? '#F3F4F6' : '#1F2937' }}>Mis Citas</Text>
-                  <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 1 }}>Próximas y pasadas</Text>
-                </View>
-              </Pressable>
+            {/* Chat — visible para pacientes con cualquier médico verificado */}
+            {userRole === 'patient' && (
+              <>
+                <Pressable
+                  onPress={handleOpenChat}
+                  disabled={chattingNow}
+                  style={({ pressed }) => ({
+                    marginTop: 10,
+                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+                    backgroundColor: isDark ? '#1A2A3A' : '#EFF6FF',
+                    borderRadius: 20, paddingVertical: 16, paddingHorizontal: 24,
+                    borderWidth: 1.5, borderColor: isDark ? '#2563EB50' : '#BFDBFE',
+                    opacity: pressed || chattingNow ? 0.75 : 1,
+                    shadowColor: '#3B82F6',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: isDark ? 0.25 : 0.12,
+                    shadowRadius: 10,
+                    elevation: 3,
+                  })}
+                  accessibilityRole="button"
+                  accessibilityLabel="Enviar mensaje al médico"
+                >
+                  <View style={{
+                    width: 38, height: 38, borderRadius: 19,
+                    backgroundColor: isDark ? '#2563EB25' : '#DBEAFE',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Ionicons name="chatbubble-ellipses" size={18} color="#3B82F6" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: isDark ? '#93C5FD' : '#1D4ED8' }}>
+                      {chattingNow ? 'Conectando...' : 'Enviar mensaje'}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: isDark ? '#60A5FA' : '#3B82F6', marginTop: 1 }}>
+                      Consulta rápida con tu médico
+                    </Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={16} color="#3B82F6" />
+                </Pressable>
+                {chatError && (
+                  <View style={{ marginTop: 8, backgroundColor: isDark ? '#2D1F10' : '#FFF7ED', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: isDark ? '#92400E50' : '#FED7AA' }}>
+                    <Text style={{ fontSize: 12, color: isDark ? '#FCD34D' : '#92400E' }}>{chatError}</Text>
+                  </View>
+                )}
+              </>
+            )}
 
-              <Pressable
-                onPress={() => { onClose(); router.push('/medical-history'); }}
-                style={({ pressed }) => ({
-                  flex: 1,
-                  backgroundColor: isDark ? '#1F2937' : '#F8FAFC',
-                  borderRadius: 20,
-                  paddingVertical: 16,
-                  paddingHorizontal: 8,
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 8,
-                  borderWidth: 1.5,
-                  borderColor: isDark ? '#374151' : '#E2E8F0',
-                  opacity: pressed ? 0.85 : 1,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.3 : 0.08,
-                  shadowRadius: 8,
-                  elevation: 2,
-                })}
-                accessibilityRole="button" accessibilityLabel="Ver historial médico"
-              >
-                <View style={{
-                  width: 40, height: 40, borderRadius: 20,
-                  backgroundColor: isDark ? '#8B5CF620' : '#EDE9FE',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Ionicons name="document-text-outline" size={18} color="#8B5CF6" />
-                </View>
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: isDark ? '#F3F4F6' : '#1F2937' }}>Historial</Text>
-                  <Text style={{ fontSize: 10, color: isDark ? '#9CA3AF' : '#6B7280', marginTop: 1 }}>Consultas y notas</Text>
-                </View>
-              </Pressable>
-            </View>
           </View>
         </ScrollView>
       </Animated.View>

@@ -141,8 +141,8 @@ export default function ChatRoomScreen() {
       {/* Messages */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {loading ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -156,11 +156,11 @@ export default function ChatRoomScreen() {
             renderItem={({ item }) => (
               <MessageBubble msg={item} isMe={item.sender_id === userId} isDark={isDark} />
             )}
-            contentContainerStyle={{ paddingTop: 16, paddingBottom: 12 }}
+            contentContainerStyle={{ paddingTop: 16, paddingBottom: 16 }}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
             ListEmptyComponent={
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 }}>
+              <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 80 }}>
                 <Ionicons name="chatbubbles-outline" size={48} color="#E8467C" />
                 <Text style={{ color: '#9CA3AF', fontSize: 13, marginTop: 12, textAlign: 'center' }}>
                   No hay mensajes aún.{'\n'}¡Sé el primero en escribir!
@@ -173,24 +173,30 @@ export default function ChatRoomScreen() {
         {/* Input bar */}
         <View style={{
           flexDirection: 'row', alignItems: 'flex-end',
-          paddingHorizontal: 12, paddingVertical: 10,
+          paddingHorizontal: 16,
+          paddingTop: 12,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 16,
           backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
-          borderTopWidth: 1, borderTopColor: isDark ? '#2D2D2D' : '#F3F4F6',
-          gap: 8,
+          borderTopWidth: 1, borderTopColor: isDark ? '#2D2D2D' : '#F0F0F0',
+          gap: 10,
         }}>
           <View style={{
-            flex: 1, backgroundColor: inputBg,
-            borderRadius: 24, borderWidth: 1,
+            flex: 1,
+            backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+            borderRadius: 26,
+            borderWidth: 1,
             borderColor: isDark ? '#3A3A3A' : '#E5E7EB',
-            paddingHorizontal: 16, paddingVertical: 10,
-            minHeight: 44,
+            paddingHorizontal: 18,
+            paddingVertical: 12,
+            minHeight: 48,
+            justifyContent: 'center',
           }}>
             <TextInput
               value={text}
               onChangeText={setText}
               placeholder="Escribe un mensaje..."
               placeholderTextColor="#9CA3AF"
-              style={{ fontSize: 14, color: inputText, maxHeight: 100 }}
+              style={{ fontSize: 15, color: inputText, maxHeight: 120, lineHeight: 20 }}
               multiline
               returnKeyType="default"
               accessibilityLabel="Campo de mensaje"
@@ -200,16 +206,21 @@ export default function ChatRoomScreen() {
             onPress={handleSend}
             disabled={!text.trim() || sending}
             style={{
-              width: 44, height: 44, borderRadius: 22,
+              width: 48, height: 48, borderRadius: 24,
               backgroundColor: text.trim() && !sending ? '#E8467C' : (isDark ? '#3A3A3A' : '#E5E7EB'),
               alignItems: 'center', justifyContent: 'center',
+              shadowColor: text.trim() && !sending ? '#E8467C' : 'transparent',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.35,
+              shadowRadius: 8,
+              elevation: text.trim() && !sending ? 4 : 0,
             }}
             accessibilityRole="button"
             accessibilityLabel="Enviar mensaje"
           >
             <Ionicons
               name="send"
-              size={18}
+              size={19}
               color={text.trim() && !sending ? '#FFFFFF' : '#9CA3AF'}
             />
           </Pressable>

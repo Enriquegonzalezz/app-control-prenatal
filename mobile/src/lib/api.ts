@@ -278,6 +278,13 @@ export const appointmentApi = {
       headers: { Authorization: `Bearer ${token}` },
     });
   },
+  async reschedule(token: string, id: string, newSlotId: string) {
+    return request<{ status: string; data: Appointment }>(`/appointments/${id}/reschedule`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ new_slot_id: newSlotId }),
+    });
+  },
 };
 
 export const chatApi = {
@@ -303,6 +310,23 @@ export const chatApi = {
   },
   async markRead(token: string, relationshipId: string) {
     return request<{ status: string; data: { updated: number } }>(`/chat/${relationshipId}/read`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+  async findRelationship(token: string, userId: string) {
+    return request<{
+      status: string;
+      data: { relationship_id: string; other_party: { id: string; name: string; avatar_url: string | null } } | null;
+    }>(`/chat/with/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+  async startConversation(token: string, userId: string) {
+    return request<{
+      status: string;
+      data: { relationship_id: string; other_party: { id: string; name: string; avatar_url: string | null } };
+    }>(`/chat/with/${userId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     });

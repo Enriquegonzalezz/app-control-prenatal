@@ -104,11 +104,12 @@ Route::prefix('v1')->group(function (): void {
             // Paciente o médico cancelan
             Route::post('/{appointment}/cancel',    [AppointmentController::class, 'cancel'])->name('appointments.cancel');
 
-            // Médico confirma / completa / no-show (requiere médico verificado)
+            // Médico confirma / completa / no-show / reagenda (requiere médico verificado)
             Route::middleware('doctor_verified')->group(function (): void {
-                Route::post('/{appointment}/confirm',  [AppointmentController::class, 'confirm'])->name('appointments.confirm');
-                Route::post('/{appointment}/complete', [AppointmentController::class, 'complete'])->name('appointments.complete');
-                Route::post('/{appointment}/no-show',  [AppointmentController::class, 'noShow'])->name('appointments.no-show');
+                Route::post('/{appointment}/confirm',    [AppointmentController::class, 'confirm'])->name('appointments.confirm');
+                Route::post('/{appointment}/complete',   [AppointmentController::class, 'complete'])->name('appointments.complete');
+                Route::post('/{appointment}/no-show',    [AppointmentController::class, 'noShow'])->name('appointments.no-show');
+                Route::post('/{appointment}/reschedule', [AppointmentController::class, 'reschedule'])->name('appointments.reschedule');
             });
         });
 
@@ -119,6 +120,8 @@ Route::prefix('v1')->group(function (): void {
         // ── Chat cifrado (Sprint 5) ───────────────────────────────
         Route::prefix('chat')->group(function (): void {
             Route::get('/',                                             [ChatController::class, 'conversations'])->name('chat.conversations');
+            Route::get('/with/{user}',                                  [ChatController::class, 'findRelationship'])->name('chat.find-relationship');
+            Route::post('/with/{user}',                                 [ChatController::class, 'startConversation'])->name('chat.start');
             Route::get('/{relationship}/messages',                      [ChatController::class, 'messages'])->name('chat.messages');
             Route::post('/{relationship}/messages',                     [ChatController::class, 'send'])->name('chat.send');
             Route::post('/{relationship}/read',                         [ChatController::class, 'markRead'])->name('chat.read');
