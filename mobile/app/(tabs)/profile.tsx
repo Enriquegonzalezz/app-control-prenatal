@@ -100,6 +100,26 @@ export default function ProfileScreen() {
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
               </View>
             </Pressable>
+
+            <Pressable
+              onPress={() => router.push('/medical-history')}
+              className="bg-card-light dark:bg-card-dark rounded-xl p-4 active:opacity-70"
+              accessibilityRole="button"
+              accessibilityLabel="Mi historial médico personal"
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center">
+                  <View className="w-10 h-10 rounded-xl bg-pink-50 dark:bg-pink-900/20 items-center justify-center mr-3">
+                    <Ionicons name="documents-outline" size={20} color="#E8467C" />
+                  </View>
+                  <View>
+                    <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mi Historial Médico</Text>
+                    <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Tus documentos y registros personales</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              </View>
+            </Pressable>
           </View>
         )}
 

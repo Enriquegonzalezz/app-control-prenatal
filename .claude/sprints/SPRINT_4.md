@@ -1,6 +1,6 @@
 # Sprint 4 — Historial Médico y Storage
 **Semanas:** 9–10  
-**Estado:** ✅ Backend completado — pendiente UI (RN, S4.5–S4.7)
+**Estado:** ✅ Backend + Frontend completados — pendiente solo gráficas vitales (S4.7)
 
 ---
 
@@ -19,9 +19,12 @@ RLS + Signed URLs de 15 minutos.
 | S4.2 | Tabla `vital_signs` con campos genéricos + `specialty_data` JSONB | CRUD con extensibilidad | ✅ |
 | S4.3 | Bucket privado en Supabase Storage con políticas de acceso | Upload/download solo para autorizados | ✅ |
 | S4.4 | Endpoint upload con validación MIME + tamaño + Signed URL 15min | Archivo accesible vía URL temporal | ✅ |
-| S4.5 | Pantalla Paciente: Mi Historial (tabs dinámicas por especialidad) | Tabs genéricas desde specialty schema | ⏳ |
-| S4.6 | Pantalla Médico: Historial de Paciente (lectura + notas) | Médico puede agregar diagnósticos | ⏳ |
+| S4.5 | Pantalla Paciente: Mi Historial (tabs dinámicas por especialidad) | Tabs genéricas desde specialty schema | ✅ |
+| S4.6 | Pantalla Médico: Historial de Paciente (lectura + notas) | Médico puede agregar diagnósticos | ✅ |
 | S4.7 | Gráficas de constantes vitales (peso, presión por semana gestacional) | Gráfica con victory-native | ⏳ |
+| **EXTRA** | Pantalla subida de documentos (`upload-document.tsx`) | Pacientes y médicos pueden subir archivos | ✅ |
+| **EXTRA** | Zustand cache para historial médico (`medicalRecords`) | Cache-first con TTL 5 min para historial propio | ✅ |
+| **EXTRA** | Médicos pueden ver/subir su propio historial médico | Acceso unificado para todos los roles | ✅ |
 
 ---
 
@@ -91,6 +94,10 @@ private const MAX_SIZE_MB = 10;
 
 - [x] Paciente puede subir PDF/imagen y acceder solo con URL temporal
 - [x] Médico solo puede ver historial de sus pacientes activos (RLS verificado)
-- [ ] Tabs del historial se renderizan según el specialty schema (dinámico) — RN pendiente
-- [ ] Gráfica de evolución de peso con semana gestacional en eje X — RN pendiente
+- [x] **`medical-history.tsx`**: listado agrupado por mes, expand/collapse por registro, visor de imágenes inline (base64) con fullscreen, visor de PDFs con signed URL, filtros por categoría/fecha/visibilidad, skeleton loading
+- [x] **`upload-document.tsx`**: subida de archivos con selección de categória, feedback inline (sin Alert.alert), navegación auto al completar
+- [x] **Médico puede ver historial de paciente** desde `appointments.tsx` → `medical-history.tsx?patient_id=X`
+- [x] **Médico puede ver y subir su propio historial médico** (FAB visible para todos los roles en historial propio)
+- [x] **Zustand cache** para `medicalRecords`: cache-first solo en historial propio sin filtros activos
 - [x] Ningún archivo accesible sin autenticación
+- [ ] Gráfica de evolución de peso con semana gestacional en eje X (S4.7 ⏳)

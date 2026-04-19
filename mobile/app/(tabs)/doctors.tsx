@@ -19,6 +19,7 @@ import { router } from 'expo-router';
 import { directoryApi, chatApi, NearbyDoctor } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
+import { useCacheStore } from '@/store/cacheStore';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.78);
@@ -559,17 +560,19 @@ export default function DoctorsScreen() {
   const theme = useEffectiveTheme();
   const isDark = theme === 'dark';
 
-  const [doctors, setDoctors] = useState<NearbyDoctor[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [doctors, setDoctors] = useState<NearbyDoctor[]>(
+    () => (useCacheStore.getState().doctors?.data as NearbyDoctor[]) ?? []
+  );
+  const [loading, setLoading] = useState(() => !useCacheStore.getState().doctors);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(true);
   const [hasGps, setHasGps] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [lastPage, setLastPage] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(() => useCacheStore.getState().doctorsMeta?.currentPage ?? 1);
+  const [lastPage, setLastPage] = useState(() => useCacheStore.getState().doctorsMeta?.lastPage ?? 1);
+  const [total, setTotal] = useState(() => useCacheStore.getState().doctorsMeta?.total ?? 0);
 
   // Modal state
   const [selectedDoctor, setSelectedDoctor] = useState<NearbyDoctor | null>(null);
@@ -585,15 +588,31 @@ export default function DoctorsScreen() {
   }, []);
 
   // 1️⃣ Cargar primera página o refrescar
-  const loadAll = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
+  const loadAll = useCallback(async (force = false) => {
+    const cache = useCacheStore.getState();
+    if (!force && !cache.isStale('doctors')) {
+      setDoctors((cache.doctors?.data as NearbyDoctor[]) ?? []);
+      setCurrentPage(cache.doctorsMeta?.currentPage ?? 1);
+      setLastPage(cache.doctorsMeta?.lastPage ?? 1);
+      setTotal(cache.doctorsMeta?.total ?? 0);
+      setLoading(false);
+      return;
+    }
+    if (!force) setLoading(true);
     setApiError(null);
     try {
       const res = await directoryApi.listDoctors({ per_page: 20, page: 1 });
-      setDoctors(res.data?.doctors ?? []);
-      setCurrentPage(res.data?.pagination.current_page ?? 1);
-      setLastPage(res.data?.pagination.last_page ?? 1);
-      setTotal(res.data?.pagination.total ?? 0);
+      const data = res.data?.doctors ?? [];
+      const meta = {
+        currentPage: res.data?.pagination.current_page ?? 1,
+        lastPage: res.data?.pagination.last_page ?? 1,
+        total: res.data?.pagination.total ?? 0,
+      };
+      setDoctors(data);
+      setCurrentPage(meta.currentPage);
+      setLastPage(meta.lastPage);
+      setTotal(meta.total);
+      useCacheStore.getState().setDoctors(data, meta);
     } catch {
       setApiError('No se pudo conectar al servidor. Verifica tu red.');
     } finally {
@@ -608,15 +627,22 @@ export default function DoctorsScreen() {
     setLoadingMore(true);
     try {
       const res = await directoryApi.listDoctors({ per_page: 20, page: currentPage + 1 });
-      setDoctors((prev) => [...prev, ...(res.data?.doctors ?? [])]);
-      setCurrentPage(res.data?.pagination.current_page ?? currentPage);
-      setLastPage(res.data?.pagination.last_page ?? lastPage);
+      const newData = res.data?.doctors ?? [];
+      const newMeta = {
+        currentPage: res.data?.pagination.current_page ?? currentPage,
+        lastPage: res.data?.pagination.last_page ?? lastPage,
+        total: res.data?.pagination.total ?? total,
+      };
+      setDoctors((prev) => [...prev, ...newData]);
+      setCurrentPage(newMeta.currentPage);
+      setLastPage(newMeta.lastPage);
+      useCacheStore.getState().appendDoctors(newData, newMeta);
     } catch {
       // Silenciar errores en loadMore para no interrumpir UX
     } finally {
       setLoadingMore(false);
     }
-  }, [currentPage, lastPage, loadingMore]);
+  }, [currentPage, lastPage, loadingMore, total]);
 
   // 3️⃣ GPS como mejora: enriquece distancias y reordena por cercanía
   const enrichWithGps = useCallback(async () => {

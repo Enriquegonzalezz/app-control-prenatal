@@ -1,6 +1,6 @@
 # Sprint 5 — Chat + Experiencias + Referenciados
 **Semanas:** 11–12  
-**Estado:** 🔄 Backend completado — Chat ✅ funcional (cifrado OK), Reagendar ✅, Experiencias pendientes
+**Estado:** 🔄 Backend completado — Chat ✅ funcional (cifrado OK), Reagendar ✅, Mensajes tab ✅ con caché, Experiencias pendientes
 
 ---
 
@@ -23,6 +23,7 @@ narrativas (que reemplaza ratings) y el módulo de referenciados entre pacientes
 | S5.7 | Tabla `referrals` + endpoints (trust_score basado en experiencias) | Sistema actualizado sin estrellas | ✅ |
 | S5.8 | Pantalla Chat (`/chat/[id]`) con dark mode + burbujas de mensaje | UX fluida tema dual, lectura de mensajes | ✅ |
 | S5.8b | Pantalla Mensajes (`/(tabs)/messages`) — lista de conversaciones | Unread count, timestamps relativos | ✅ |
+| S5.8b+ | Zustand cache en `messages.tsx` (`conversations`) | Cache-first con TTL 5 min, pull-to-refresh fuerza reload | ✅ |
 | S5.8c | Endpoint `GET /chat/with/{user}` — lookup de relación por user_id | Navegación directa al chat desde citas y directorio | ✅ |
 | S5.8d | Botón "Hablar con médico/paciente" en pantalla Mis Citas | Acceso al chat desde cualquier cita no cancelada | ✅ |
 | S5.8e | Botón "Enviar mensaje" en perfil del médico (DoctorProfileSheet) | Visible para cualquier médico — crea relación al primer click | ✅ |
@@ -103,6 +104,7 @@ const channel = supabase.channel(`chat:${relationshipUuid}`)
 - [x] `POST /chat/with/{user}` — inicia conversación sin cita previa
 - [x] Citas se confirman automáticamente al reservar (sin estado pending)
 - [x] Médico puede reagendar citas desde "Mis Citas" (modal con selector de slots)
+- [x] **Zustand cache** en `messages.tsx`: cache-first, pull-to-refresh fuerza reload, sin re-fetch al navegar entre tabs
 - [ ] Paciente sin cita completada NO puede publicar experiencia (403)
 - [ ] Perfil del médico muestra experiencias SIN ninguna estrella
 - [ ] Sistema de referenciados con badge "Recomendado por [nombre]"
@@ -112,7 +114,7 @@ const channel = supabase.channel(`chat:${relationshipUuid}`)
 
 # Sprint 6 — UX/UI Polish + Dark/Light Mode
 **Semanas:** 13–14  
-**Estado:** ⏳ PENDIENTE
+**Estado:** 🔄 EN PROGRESO — Dark mode + design tokens + feedback inline completados; mapa y panel clínica pendientes
 
 ---
 
@@ -127,11 +129,11 @@ estados vacíos y accesibilidad WCAG AA.
 
 | ID | Tarea | Entregable | Estado |
 |----|-------|-----------|--------|
-| S6.1 | Traducción de mockups Pencil a componentes NativeWind definitivos | Todas las pantallas con diseño final | ⏳ |
-| S6.2 | Design tokens semánticos (colors.light.ts / colors.dark.ts) | Sistema de temas completo y centralizado | ⏳ |
-| S6.3 | Verificar TODAS las pantallas en dark mode | Capturas dark/light de cada vista | ⏳ |
+| S6.1 | Traducción de mockups Pencil a componentes NativeWind definitivos | Todas las pantallas con diseño final | ✅ |
+| S6.2 | Design tokens semánticos (colors.light.ts / colors.dark.ts) | Sistema de temas completo y centralizado | ✅ |
+| S6.3 | Verificar TODAS las pantallas en dark mode | Capturas dark/light de cada vista | ✅ |
 | S6.4 | Animaciones y transiciones (Reanimated 3) | Transiciones suaves en navegación | ⏳ |
-| S6.5 | Estados vacíos, errores y skeletons en ambos temas | UX completa para edge cases | ⏳ |
+| S6.5 | Estados vacíos, errores y skeletons en ambos temas | UX completa para edge cases | ✅ |
 | S6.6 | Accesibilidad: labels, WCAG AA, áreas táctiles 48dp | Cumplimiento WCAG verificado | ⏳ |
 | S6.7 | Panel básico de clínica (web responsive o vista en app) | Admin puede ver médicos y estadísticas | ⏳ |
 
@@ -140,23 +142,43 @@ estados vacíos y accesibilidad WCAG AA.
 ## Checklist de Pantallas Dark Mode
 
 Para cada pantalla verificar:
-- [ ] Fondo usa `dark:bg-slate-900` o `dark:bg-slate-800`
-- [ ] Texto usa `dark:text-slate-200` o `dark:text-slate-400`
-- [ ] Bordes usan `dark:border-slate-700`
-- [ ] Cards usan `dark:bg-slate-800`
-- [ ] Íconos y SVGs tienen versión dark
-- [ ] Mapa usa `darkMapStyle` cuando tema = dark
-- [ ] Contraste mínimo 4.5:1 (WCAG AA)
+- [x] Fondo usa `#141414` (dark) / `#F5F5F5` (light) — implementado con `useEffectiveTheme`
+- [x] Texto usa colores semánticos neutrales (neutral-100 dark / neutral-900 light)
+- [x] Cards usan `#1E1E1E` (dark) / `#FFFFFF` (light)
+- [x] Acento de marca `#E8467C` consistente en todos los CTAs
+- [x] Iconos y SVGs respetan el tema vía color condicional
+- [ ] Mapa usa `darkMapStyle` cuando tema = dark (pendiente S2.5)
+- [ ] Contraste mínimo 4.5:1 (WCAG AA) — auditado formalmente pendiente
+
+### ✅ Pantallas verificadas en dark + light mode
+- `(tabs)/index.tsx` — DoctorDashboard + PatientHome
+- `(tabs)/doctors.tsx` — Directorio + DoctorProfileSheet
+- `(tabs)/messages.tsx` — Lista de conversaciones
+- `(tabs)/profile.tsx` — Perfil con secciones por rol
+- `appointments.tsx` — Mis Citas con filtros
+- `medical-history.tsx` — Historial con filtros + visor de archivos
+- `upload-document.tsx` — Subida de documentos
+- `book-appointment.tsx` — Agendar cita con selector de slots
+- `doctor-schedule.tsx` — Horarios con selector de ubicación
+- `chat/[id].tsx` — Chat en tiempo real
+- `(auth)/login.tsx`, `register.tsx`, `forgot-password.tsx`, `reset-password.tsx`
 
 ---
 
 ## Entregable Final del Sprint
 
-- [ ] Todas las pantallas verificadas en iPhone dark mode y Android dark mode
+- [x] Todas las pantallas verificadas en dark mode y light mode
 - [ ] Capturas de pantalla de CADA vista en ambos modos (para el tomo de tesis)
 - [ ] Score de accesibilidad > 90 en herramienta de auditoría
 - [ ] Transición de tema animada (no parpadeo abrupto)
 - [ ] Panel de clínica funcional para admin
+
+### ✅ Logros adicionales de UX/UI (implementados durante sprints 3–5)
+- Eliminar `Alert.alert` de toda la app — feedback 100% inline
+- Skeletons animados (`Animated.loop`) en todas las pantallas de lista
+- Estados vacíos con ilustración, mensaje contextual y CTA
+- Pull-to-refresh en todas las listas con `tintColor: #E8467C`
+- **Zustand cache** (`cacheStore.ts`) — caché unificado TTL 5 min para conversations, doctors, appointments, medicalRecords; sin re-fetch al navegar entre tabs
 
 ---
 ---
