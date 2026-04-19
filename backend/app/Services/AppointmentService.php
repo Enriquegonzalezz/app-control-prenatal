@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\AppointmentStatus;
+use App\Enums\RelationshipStatus;
 use App\Enums\SlotStatus;
 use App\Enums\UserRole;
 use App\Models\Appointment;
+use App\Models\DoctorPatientRelationship;
 use App\Models\Slot;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -67,14 +69,17 @@ final class AppointmentService
                 throw new RuntimeException('El médico del slot no está verificado.');
             }
 
-            // Snapshot de honorarios al momento de reservar (el precio puede cambiar después)
+            // Snapshot de honorarios al momento de reservar (el precio puede cambiar después).
+            // Se crea directamente como CONFIRMED: el médico publicó el slot porque tiene
+            // disponibilidad; puede cancelar/reagendar si surge un imprevisto.
             $appointment = Appointment::create([
                 'patient_id'       => $patient->id,
                 'doctor_id'        => $doctorProfile->user_id,
                 'clinic_id'        => $branch->clinic_id,
                 'branch_id'        => $branch->id,
                 'slot_id'          => $slot->id,
-                'status'           => AppointmentStatus::PENDING,
+                'status'           => AppointmentStatus::CONFIRMED,
+                'confirmed_at'     => now(),
                 'scheduled_at'     => $slot->starts_at,
                 'duration_minutes' => $slot->starts_at->diffInMinutes($slot->ends_at),
                 'consultation_fee' => $doctorProfile->consultation_fee,
@@ -83,6 +88,20 @@ final class AppointmentService
 
             $slot->status = SlotStatus::BOOKED;
             $slot->save();
+
+            // Crear la relación médico-paciente al reservar la cita, no al confirmar.
+            // Esto permite el chat desde el primer contacto (paciente puede enviar
+            // notas previas, médico puede pedir información antes de la consulta).
+            DoctorPatientRelationship::firstOrCreate(
+                [
+                    'doctor_id'  => $doctorProfile->user_id,
+                    'patient_id' => $patient->id,
+                ],
+                [
+                    'status'     => RelationshipStatus::ACTIVE,
+                    'started_at' => now(),
+                ]
+            );
 
             app(ScheduleService::class)->refreshNextAvailableSlot($doctorProfile);
 
@@ -111,10 +130,90 @@ final class AppointmentService
         $appointment->confirmed_at = now();
         $appointment->save();
 
+        // Crear o activar la relación médico-paciente explícitamente.
+        // El trigger activate_relationship_on_confirm en Supabase hace lo mismo,
+        // pero lo garantizamos aquí para no depender exclusivamente del trigger.
+        $rel = DoctorPatientRelationship::where('doctor_id', $appointment->doctor_id)
+            ->where('patient_id', $appointment->patient_id)
+            ->first();
+
+        if ($rel) {
+            if ($rel->status !== RelationshipStatus::ACTIVE) {
+                $rel->status     = RelationshipStatus::ACTIVE;
+                $rel->started_at = $rel->started_at ?? now();
+                $rel->save();
+            }
+        } else {
+            DoctorPatientRelationship::create([
+                'doctor_id'  => $appointment->doctor_id,
+                'patient_id' => $appointment->patient_id,
+                'status'     => RelationshipStatus::ACTIVE,
+                'started_at' => now(),
+            ]);
+        }
+
         $fresh = $appointment->fresh();
         $this->push->notifyAppointmentConfirmed($fresh);
 
         return $fresh;
+    }
+
+    /**
+     * Reagenda una cita a un nuevo slot. Solo el médico asignado puede hacerlo.
+     * Libera el slot anterior y marca el nuevo como reservado.
+     *
+     * @throws RuntimeException
+     */
+    public function reschedule(Appointment $appointment, User $actor, string $newSlotId): Appointment
+    {
+        $this->assertActorIsDoctorOfAppointment($appointment, $actor);
+
+        if (!in_array($appointment->status, [AppointmentStatus::CONFIRMED, AppointmentStatus::PENDING], true)) {
+            throw new RuntimeException('Solo citas confirmadas pueden reagendarse.');
+        }
+
+        return DB::transaction(function () use ($appointment, $actor, $newSlotId): Appointment {
+            $newSlot = Slot::query()->whereKey($newSlotId)->lockForUpdate()->first();
+
+            if (!$newSlot) {
+                throw new RuntimeException('El nuevo slot no existe.');
+            }
+            if ($newSlot->status !== SlotStatus::AVAILABLE) {
+                throw new RuntimeException('El nuevo slot no está disponible.');
+            }
+            if ($newSlot->starts_at->isPast()) {
+                throw new RuntimeException('El nuevo slot está en el pasado.');
+            }
+
+            $doctorProfile = $actor->doctorProfile;
+            if (!$doctorProfile || $newSlot->doctor_id !== $doctorProfile->id) {
+                throw new RuntimeException('El slot debe pertenecer al mismo médico.');
+            }
+
+            // Liberar slot anterior
+            $oldSlot = Slot::query()->whereKey($appointment->slot_id)->lockForUpdate()->first();
+            if ($oldSlot && $oldSlot->status === SlotStatus::BOOKED) {
+                $oldSlot->status = SlotStatus::AVAILABLE;
+                $oldSlot->save();
+            }
+
+            // Ocupar nuevo slot
+            $newSlot->status = SlotStatus::BOOKED;
+            $newSlot->save();
+
+            // Actualizar cita
+            $appointment->slot_id          = $newSlot->id;
+            $appointment->scheduled_at     = $newSlot->starts_at;
+            $appointment->duration_minutes = $newSlot->starts_at->diffInMinutes($newSlot->ends_at);
+            $appointment->branch_id        = $newSlot->branch_id;
+            $appointment->save();
+
+            if ($doctorProfile) {
+                app(ScheduleService::class)->refreshNextAvailableSlot($doctorProfile);
+            }
+
+            return $appointment->fresh(['doctor', 'patient', 'clinic', 'branch', 'slot']);
+        });
     }
 
     /**

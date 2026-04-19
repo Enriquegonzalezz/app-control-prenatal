@@ -2,15 +2,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   FlatList,
+  Modal,
   Pressable,
   RefreshControl,
+  ScrollView,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { appointmentApi, Appointment } from '@/lib/api';
+import { appointmentApi, chatApi, scheduleApi, Appointment, Slot } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
 
@@ -69,20 +71,45 @@ function SkeletonCard({ isDark }: { isDark: boolean }) {
   );
 }
 
+// Chat disponible en todos los estados excepto cancelled
+// La relación se crea al reservar la cita (book), así que pending también tiene chat.
+const CHAT_ACTIVE_STATUSES = new Set<Appointment['status']>(['pending', 'confirmed', 'in_progress', 'completed', 'no_show']);
+const RESCHEDULE_STATUSES  = new Set<Appointment['status']>(['confirmed', 'pending']);
+
+function formatSlot(slot: Slot): string {
+  const d = new Date(slot.starts_at);
+  return new Intl.DateTimeFormat('es', {
+    weekday: 'short', day: '2-digit', month: 'short',
+    hour: '2-digit', minute: '2-digit',
+  }).format(d);
+}
+
 function AppointmentCard({
-  appt, isDark, onCancel, cancelling, userRole,
+  appt, isDark, onCancel, cancelling, userRole, onChat, chatting, chatError, onReschedule,
 }: {
-  appt: Appointment; isDark: boolean; onCancel: (id: string) => void; cancelling: string | null; userRole: 'patient' | 'doctor';
+  appt: Appointment;
+  isDark: boolean;
+  onCancel: (id: string) => void;
+  cancelling: string | null;
+  userRole: 'patient' | 'doctor';
+  onChat: (appt: Appointment) => void;
+  chatting: string | null;
+  chatError: { id: string; msg: string } | null;
+  onReschedule: (appt: Appointment) => void;
 }) {
   const sc = STATUS_CONFIG[appt.status];
   const canCancel = CANCELLABLE.has(appt.status);
   const isCancelling = cancelling === appt.id;
+  const isChatting = chatting === appt.id;
+  const thisChatError = chatError?.id === appt.id ? chatError.msg : null;
 
-  // Determinar quién mostrar y quién es el "otro"
   const isPatientView = userRole === 'patient';
   const shownPerson = isPatientView ? appt.doctor : appt.patient;
   const initials = (shownPerson?.name ?? '?')
     .split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
+
+  const chatAvailable = CHAT_ACTIVE_STATUSES.has(appt.status);
+  const chatLabel     = isPatientView ? 'Hablar con médico' : 'Hablar con paciente';
 
   return (
     <View style={{
@@ -91,7 +118,7 @@ function AppointmentCard({
       borderWidth: 1, borderColor: isDark ? '#2D2D2D' : '#F3F4F6',
       padding: 16,
     }}>
-      {/* Top row: avatar + doctor + status badge */}
+      {/* Top row: avatar + name + status badge */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 }}>
         <View style={{
           width: 44, height: 44, borderRadius: 22,
@@ -149,8 +176,7 @@ function AppointmentCard({
               backgroundColor: '#FEF2F2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
               opacity: isCancelling ? 0.5 : 1, minHeight: 32,
             }}
-            accessibilityRole="button"
-            accessibilityLabel="Cancelar cita"
+            accessibilityRole="button" accessibilityLabel="Cancelar cita"
           >
             <Ionicons name="close-circle-outline" size={14} color="#EF4444" style={{ marginRight: 4 }} />
             <Text style={{ fontSize: 12, fontWeight: '700', color: '#EF4444' }}>
@@ -165,6 +191,62 @@ function AppointmentCard({
         <View style={{ marginTop: 8, backgroundColor: isDark ? '#2D1010' : '#FEF2F2', borderRadius: 8, padding: 8 }}>
           <Text style={{ fontSize: 11, color: '#EF4444' }}>
             Motivo: {appt.cancellation_reason}
+          </Text>
+        </View>
+      )}
+
+      {/* ── Botones de acción (chat + reagendar) ── */}
+      <View style={{ marginTop: 10, gap: 8 }}>
+        {/* Chat */}
+        {chatAvailable && (
+          <Pressable
+            onPress={() => onChat(appt)}
+            disabled={isChatting}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              backgroundColor: isDark ? '#1A2A3A' : '#EFF6FF',
+              borderRadius: 12, paddingVertical: 11,
+              borderWidth: 1, borderColor: isDark ? '#2563EB50' : '#BFDBFE',
+              opacity: isChatting ? 0.6 : 1,
+            }}
+            accessibilityRole="button" accessibilityLabel={chatLabel}
+          >
+            <Ionicons name="chatbubble-ellipses" size={15} color="#3B82F6" />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#3B82F6' }}>
+              {isChatting ? 'Conectando...' : chatLabel}
+            </Text>
+          </Pressable>
+        )}
+
+        {/* Reagendar — solo médico, solo en citas activas */}
+        {!isPatientView && RESCHEDULE_STATUSES.has(appt.status) && (
+          <Pressable
+            onPress={() => onReschedule(appt)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              backgroundColor: isDark ? '#1A2D1A' : '#F0FDF4',
+              borderRadius: 12, paddingVertical: 11,
+              borderWidth: 1, borderColor: isDark ? '#16653050' : '#BBF7D0',
+            }}
+            accessibilityRole="button" accessibilityLabel="Reagendar cita"
+          >
+            <Ionicons name="calendar" size={15} color="#10B981" />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#10B981' }}>Reagendar</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Inline chat error */}
+      {thisChatError && (
+        <View style={{
+          marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 6,
+          backgroundColor: isDark ? '#2D1F10' : '#FFF7ED',
+          borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+          borderWidth: 1, borderColor: isDark ? '#92400E50' : '#FED7AA',
+        }}>
+          <Ionicons name="information-circle-outline" size={14} color="#F59E0B" />
+          <Text style={{ flex: 1, fontSize: 11, color: isDark ? '#FCD34D' : '#92400E', lineHeight: 16 }}>
+            {thisChatError}
           </Text>
         </View>
       )}
@@ -187,6 +269,13 @@ export default function AppointmentsScreen() {
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [confirmingCancel, setConfirmingCancel] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [chatting, setChatting] = useState<string | null>(null);
+  const [chatError, setChatError] = useState<{ id: string; msg: string } | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null);
+  const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!token) return;
@@ -208,6 +297,63 @@ export default function AppointmentsScreen() {
   const handleCancel = (id: string) => {
     setConfirmingCancel(id);
     setCancelError(null);
+  };
+
+  const handleChat = async (appt: Appointment) => {
+    if (!token) return;
+    setChatError(null);
+
+    const otherId   = userRole === 'patient' ? appt.doctor?.id   : appt.patient?.id;
+    const otherName = userRole === 'patient' ? appt.doctor?.name : appt.patient?.name;
+    if (!otherId) return;
+
+    setChatting(appt.id);
+    try {
+      const res = await chatApi.startConversation(token, otherId);
+      router.push({
+        pathname: '/chat/[id]',
+        params: { id: res.data.relationship_id, name: otherName ?? '' },
+      });
+    } catch {
+      setChatError({ id: appt.id, msg: 'Error de conexión. Intenta de nuevo.' });
+    } finally {
+      setChatting(null);
+    }
+  };
+
+  const handleReschedule = async (appt: Appointment) => {
+    if (!token) return;
+    setRescheduleTarget(appt);
+    setRescheduleError(null);
+    setLoadingSlots(true);
+    try {
+      const res = await scheduleApi.listSlots(token);
+      const now = Date.now();
+      const future = (res.data ?? []).filter(
+        (s) => s.status === 'available' && new Date(s.starts_at).getTime() > now,
+      );
+      setAvailableSlots(future);
+    } catch {
+      setRescheduleError('No se pudo cargar los horarios disponibles.');
+      setAvailableSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const handleRescheduleConfirm = async (newSlotId: string) => {
+    if (!token || !rescheduleTarget) return;
+    setRescheduling(true);
+    setRescheduleError(null);
+    try {
+      await appointmentApi.reschedule(token, rescheduleTarget.id, newSlotId);
+      setRescheduleTarget(null);
+      await load(true);
+    } catch (err: any) {
+      setRescheduleError(err?.message ?? 'Error al reagendar. Intenta de nuevo.');
+    } finally {
+      setRescheduling(false);
+    }
   };
 
   const handleCancelConfirm = async (id: string) => {
@@ -303,12 +449,16 @@ export default function AppointmentsScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <View>
-              <AppointmentCard 
-                appt={item} 
-                isDark={isDark} 
-                onCancel={handleCancel} 
-                cancelling={cancelling} 
+              <AppointmentCard
+                appt={item}
+                isDark={isDark}
+                onCancel={handleCancel}
+                cancelling={cancelling}
                 userRole={userRole}
+                onChat={handleChat}
+                chatting={chatting}
+                chatError={chatError}
+                onReschedule={handleReschedule}
               />
               {/* Confirmación de cancelación inline */}
               {confirmingCancel === item.id && (
@@ -354,6 +504,93 @@ export default function AppointmentsScreen() {
           }
         />
       )}
+
+      {/* ── Modal Reagendar ── */}
+      <Modal
+        visible={rescheduleTarget !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRescheduleTarget(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
+          <View style={{
+            backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
+            borderTopLeftRadius: 24, borderTopRightRadius: 24,
+            paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32,
+            maxHeight: '80%',
+          }}>
+            {/* Handle */}
+            <View style={{ alignItems: 'center', marginBottom: 16 }}>
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? '#3D3D3D' : '#D1D5DB' }} />
+            </View>
+
+            {/* Title */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }}>
+                Reagendar Cita
+              </Text>
+              <Pressable onPress={() => setRescheduleTarget(null)} accessibilityLabel="Cerrar">
+                <Ionicons name="close" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              </Pressable>
+            </View>
+            <Text style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 16 }}>
+              Selecciona el nuevo horario disponible
+            </Text>
+
+            {/* Error */}
+            {rescheduleError && (
+              <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 10, padding: 10, marginBottom: 12 }}>
+                <Text style={{ fontSize: 12, color: '#EF4444' }}>{rescheduleError}</Text>
+              </View>
+            )}
+
+            {/* Slot list */}
+            {loadingSlots ? (
+              <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                <Text style={{ color: '#9CA3AF' }}>Cargando horarios...</Text>
+              </View>
+            ) : availableSlots.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                <Ionicons name="calendar-outline" size={36} color="#9CA3AF" />
+                <Text style={{ color: '#9CA3AF', marginTop: 8, textAlign: 'center' }}>
+                  No tienes horarios disponibles.{'\n'}Genera nuevos slots desde tu agenda.
+                </Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {availableSlots.map((slot) => (
+                  <Pressable
+                    key={slot.id}
+                    onPress={() => handleRescheduleConfirm(slot.id)}
+                    disabled={rescheduling}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row', alignItems: 'center', gap: 12,
+                      backgroundColor: isDark ? '#252525' : '#F9FAFB',
+                      borderRadius: 14, padding: 14, marginBottom: 8,
+                      borderWidth: 1, borderColor: isDark ? '#333' : '#E5E7EB',
+                      opacity: pressed || rescheduling ? 0.65 : 1,
+                    })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Reagendar al ${formatSlot(slot)}`}
+                  >
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#10B98115', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="time-outline" size={18} color="#10B981" />
+                    </View>
+                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: isDark ? '#F9FAFB' : '#111827' }}>
+                      {formatSlot(slot)}
+                    </Text>
+                    {rescheduling ? (
+                      <Text style={{ fontSize: 11, color: '#9CA3AF' }}>...</Text>
+                    ) : (
+                      <Ionicons name="arrow-forward" size={16} color="#10B981" />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

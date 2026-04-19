@@ -163,7 +163,7 @@ function DoctorDashboard({ isDark }: { isDark: boolean }) {
   const pendingCount  = todayAppts.filter((a) => a.status === 'pending').length;
   const confirmedCount= todayAppts.filter((a) => a.status === 'confirmed' || a.status === 'in_progress').length;
   const completedCount= todayAppts.filter((a) => a.status === 'completed').length;
-  const totalAll      = appointments.length;
+  const totalAll      = appointments.filter((a) => a.status !== 'cancelled' && a.status !== 'no_show').length;
 
   const handleAction = (action: 'confirm' | 'complete' | 'no_show' | 'cancel', id: string) => {
     const labels = { confirm: 'Confirmar cita', complete: 'Marcar como completada', no_show: 'Marcar como no asistió', cancel: 'Cancelar cita' };
@@ -353,14 +353,12 @@ function PatientHome({ isDark }: { isDark: boolean }) {
   const user = useAuthStore((s) => s.user);
   const router = useRouter();
   const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
-  const bg = isDark ? '#141414' : '#F5F5F5';
 
   const firstName = user?.name?.split(' ')[0] ?? 'Paciente';
 
   return (
-    <>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ fontSize: 24, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827', marginRight: 8 }}>
             Hola, {firstName}
@@ -438,119 +436,7 @@ function PatientHome({ isDark }: { isDark: boolean }) {
             </View>
           ))}
         </View>
-      </ScrollView>
-
-      {/* Sticky Bottom Bar - Quick Access */}
-      <View style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: bg,
-        paddingHorizontal: 16,
-        paddingTop: 12,
-        paddingBottom: 28,
-        borderTopWidth: 1,
-        borderTopColor: isDark ? '#2D2D2D' : '#E5E7EB',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: isDark ? 0.3 : 0.1,
-        shadowRadius: 12,
-        elevation: 8,
-      }}>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Pressable
-            onPress={() => router.push('/appointments')}
-            style={({ pressed }) => ({
-              flex: 1,
-              backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
-              borderRadius: 16,
-              paddingVertical: 14,
-              paddingHorizontal: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              borderWidth: 1.5,
-              borderColor: '#3B82F6',
-              opacity: pressed ? 0.8 : 1,
-              shadowColor: '#3B82F6',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.2,
-              shadowRadius: 8,
-              elevation: 4,
-            })}
-            accessibilityRole="button"
-            accessibilityLabel="Ver mis citas"
-          >
-            <View style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: '#3B82F6',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <Ionicons name="calendar" size={18} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }}>
-                Mis Citas
-              </Text>
-              <Text style={{ fontSize: 11, color: '#3B82F6', fontWeight: '600' }}>
-                Ver y gestionar
-              </Text>
-            </View>
-            <Ionicons name="arrow-forward" size={16} color="#3B82F6" />
-          </Pressable>
-
-          <Pressable
-            onPress={() => router.push('/medical-history')}
-            style={({ pressed }) => ({
-              flex: 1,
-              backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
-              borderRadius: 16,
-              paddingVertical: 14,
-              paddingHorizontal: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              borderWidth: 1.5,
-              borderColor: '#F59E0B',
-              opacity: pressed ? 0.8 : 1,
-              shadowColor: '#F59E0B',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.2,
-              shadowRadius: 8,
-              elevation: 4,
-            })}
-            accessibilityRole="button"
-            accessibilityLabel="Ver historial médico"
-          >
-            <View style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: '#F59E0B',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <Ionicons name="documents" size={18} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }}>
-                Historial
-              </Text>
-              <Text style={{ fontSize: 11, color: '#F59E0B', fontWeight: '600' }}>
-                Consultas previas
-              </Text>
-            </View>
-            <Ionicons name="arrow-forward" size={16} color="#F59E0B" />
-          </Pressable>
-        </View>
-      </View>
-    </>
+    </ScrollView>
   );
 }
 

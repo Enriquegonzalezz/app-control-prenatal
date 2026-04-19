@@ -1,6 +1,6 @@
 # Sprint 5 — Chat + Experiencias + Referenciados
 **Semanas:** 11–12  
-**Estado:** ✅ Backend completado — pendiente UI (RN, S5.8–S5.10)
+**Estado:** 🔄 Backend completado — Chat ✅ funcional (cifrado OK), Reagendar ✅, Experiencias pendientes
 
 ---
 
@@ -21,9 +21,31 @@ narrativas (que reemplaza ratings) y el módulo de referenciados entre pacientes
 | S5.5 | Tabla `experience_tags` (catálogo de etiquetas) | Catálogo extensible | ✅ |
 | S5.6 | Endpoints CRUD experiencias con validación de elegibilidad | Solo cita completada permite publicar | ✅ |
 | S5.7 | Tabla `referrals` + endpoints (trust_score basado en experiencias) | Sistema actualizado sin estrellas | ✅ |
-| S5.8 | Pantalla Chat con dark mode | UX fluida tema dual | ⏳ |
+| S5.8 | Pantalla Chat (`/chat/[id]`) con dark mode + burbujas de mensaje | UX fluida tema dual, lectura de mensajes | ✅ |
+| S5.8b | Pantalla Mensajes (`/(tabs)/messages`) — lista de conversaciones | Unread count, timestamps relativos | ✅ |
+| S5.8c | Endpoint `GET /chat/with/{user}` — lookup de relación por user_id | Navegación directa al chat desde citas y directorio | ✅ |
+| S5.8d | Botón "Hablar con médico/paciente" en pantalla Mis Citas | Acceso al chat desde cualquier cita no cancelada | ✅ |
+| S5.8e | Botón "Enviar mensaje" en perfil del médico (DoctorProfileSheet) | Visible para cualquier médico — crea relación al primer click | ✅ |
+| S5.8f | Endpoint `POST /chat/with/{user}` — inicia conversación (crea relación si no existe) | Chat desde perfil sin cita previa | ✅ |
+| S5.8g | Citas se crean como `confirmed` al reservar (sin paso de confirmación) | Flujo simplificado; médico cancela/reagenda si hay imprevisto | ✅ |
+| S5.8h | Endpoint `POST /appointments/{id}/reschedule` — médico reagenda a nuevo slot | Slot anterior liberado, nuevo slot reservado | ✅ |
+| S5.8i | Modal "Reagendar" en pantalla Mis Citas (médico) con selector de slots | UX de reagendamiento inline | ✅ |
 | S5.9 | Pantalla: Escribir Experiencia post-consulta | Formulario narrativo con tags | ⏳ |
 | S5.10 | Visualización de experiencias en perfil del médico | Badges + testimonios renderizados | ⏳ |
+
+### Decisiones de diseño del chat (actualizado)
+- El endpoint `POST /chat/with/{user}` crea la `DoctorPatientRelationship` como `active`
+  si no existe — permite iniciar conversación desde el perfil del médico **antes de reservar**.
+- El botón "Enviar mensaje" en el perfil del médico es visible para **cualquier paciente**;
+  ya no requiere relación previa.
+- Las citas se crean directamente en estado `confirmed` (sin `pending`). El médico puede
+  cancelar o reagendar si ocurre un imprevisto.
+- `CHAT_ENCRYPTION_KEY` debe ser exactamente 32 chars en `.env`. Sin esta clave todo el
+  módulo de chat falla silenciosamente (500 interno).
+- El backend valida en cada request que el usuario autenticado sea participante
+  de la relación (`assertParticipant`). Un usuario externo no puede acceder.
+- Los mensajes se almacenan cifrados con AES-256-CBC; el contenido no es legible
+  directamente en la base de datos.
 
 ---
 
@@ -74,8 +96,13 @@ const channel = supabase.channel(`chat:${relationshipUuid}`)
 
 ## Entregable Final del Sprint
 
-- [ ] Chat en tiempo real funcionando entre médico y paciente
-- [ ] Mensajes ilegibles al consultar DB directamente
+- [x] Chat en tiempo real funcionando entre médico y paciente (AES-256 OK)
+- [x] Mensajes ilegibles al consultar DB directamente
+- [x] Botón "Hablar con médico/paciente" en pantalla Mis Citas (todos los estados menos cancelled)
+- [x] Botón "Enviar mensaje" en perfil del médico — visible siempre, crea relación al primer click
+- [x] `POST /chat/with/{user}` — inicia conversación sin cita previa
+- [x] Citas se confirman automáticamente al reservar (sin estado pending)
+- [x] Médico puede reagendar citas desde "Mis Citas" (modal con selector de slots)
 - [ ] Paciente sin cita completada NO puede publicar experiencia (403)
 - [ ] Perfil del médico muestra experiencias SIN ninguna estrella
 - [ ] Sistema de referenciados con badge "Recomendado por [nombre]"
