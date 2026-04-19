@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
+  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
+import { useCacheStore } from '@/store/cacheStore';
 import { appointmentApi, Appointment } from '@/lib/api';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -48,14 +49,19 @@ const STATUS_CFG = {
 // ─── Doctor agenda card (clinical left-border design) ─────────────────────
 
 function AgendaCard({
-  appt, isDark, onAction,
+  appt, isDark, onAction, actioningId,
 }: {
-  appt: Appointment; isDark: boolean; onAction: (action: 'confirm' | 'complete' | 'no_show' | 'cancel', id: string) => void;
+  appt: Appointment;
+  isDark: boolean;
+  onAction: (action: 'confirm' | 'complete' | 'no_show' | 'cancel', id: string) => void;
+  actioningId: string | null;
 }) {
+  const [confirm, setConfirm] = useState<{ action: 'confirm' | 'complete' | 'no_show' | 'cancel'; label: string } | null>(null);
   const sc = STATUS_CFG[appt.status];
   const patientName = appt.patient?.name ?? 'Paciente';
   const initials = patientName.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
   const cardBg = isDark ? '#1C1C1C' : '#FFFFFF';
+  const isActioning = actioningId === appt.id;
 
   return (
     <View style={{
@@ -98,38 +104,64 @@ function AgendaCard({
         ) : null}
 
         {/* Action buttons */}
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {appt.status === 'pending' && (
-            <>
-              <Pressable onPress={() => onAction('confirm', appt.id)}
-                style={{ flex: 1, backgroundColor: '#2563EB', borderRadius: 8, paddingVertical: 9, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 4 }}
-                accessibilityRole="button" accessibilityLabel="Confirmar cita">
-                <Ionicons name="checkmark" size={13} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Confirmar</Text>
+        {confirm ? (
+          <View style={{ backgroundColor: isDark ? '#1A1A2E' : '#F0F4FF', borderRadius: 10, padding: 10, gap: 8 }}>
+            <Text style={{ fontSize: 12, color: isDark ? '#CBD5E1' : '#374151', fontWeight: '600', textAlign: 'center' }}>
+              {confirm.label}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable
+                onPress={() => { onAction(confirm.action, appt.id); setConfirm(null); }}
+                disabled={isActioning}
+                style={{ flex: 1, backgroundColor: confirm.action === 'cancel' || confirm.action === 'no_show' ? '#EF4444' : '#2563EB', borderRadius: 8, paddingVertical: 9, alignItems: 'center', justifyContent: 'center' }}
+              >
+                {isActioning
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Sí, confirmar</Text>}
               </Pressable>
-              <Pressable onPress={() => onAction('cancel', appt.id)}
-                style={{ paddingHorizontal: 14, backgroundColor: isDark ? '#2A2A2A' : '#FEF2F2', borderRadius: 8, paddingVertical: 9, alignItems: 'center' }}
-                accessibilityRole="button" accessibilityLabel="Cancelar cita">
-                <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700' }}>Cancelar</Text>
+              <Pressable
+                onPress={() => setConfirm(null)}
+                disabled={isActioning}
+                style={{ paddingHorizontal: 16, backgroundColor: isDark ? '#2A2A2A' : '#E5E7EB', borderRadius: 8, paddingVertical: 9, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text style={{ color: isDark ? '#D1D5DB' : '#374151', fontSize: 12, fontWeight: '700' }}>Cancelar</Text>
               </Pressable>
-            </>
-          )}
-          {(appt.status === 'confirmed' || appt.status === 'in_progress') && (
-            <>
-              <Pressable onPress={() => onAction('complete', appt.id)}
-                style={{ flex: 1, backgroundColor: '#059669', borderRadius: 8, paddingVertical: 9, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 4 }}
-                accessibilityRole="button" accessibilityLabel="Completar cita">
-                <Ionicons name="checkmark-done" size={13} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Completar</Text>
-              </Pressable>
-              <Pressable onPress={() => onAction('no_show', appt.id)}
-                style={{ paddingHorizontal: 14, backgroundColor: isDark ? '#2A2A2A' : '#FFF7ED', borderRadius: 8, paddingVertical: 9, alignItems: 'center' }}
-                accessibilityRole="button" accessibilityLabel="Marcar no asistió">
-                <Text style={{ color: '#F97316', fontSize: 12, fontWeight: '700' }}>No asistió</Text>
-              </Pressable>
-            </>
-          )}
-        </View>
+            </View>
+          </View>
+        ) : (
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {appt.status === 'pending' && (
+              <>
+                <Pressable onPress={() => setConfirm({ action: 'confirm', label: '¿Confirmar esta cita?' })}
+                  style={{ flex: 1, backgroundColor: '#2563EB', borderRadius: 8, paddingVertical: 9, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 4 }}
+                  accessibilityRole="button" accessibilityLabel="Confirmar cita">
+                  <Ionicons name="checkmark" size={13} color="#fff" />
+                  <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Confirmar</Text>
+                </Pressable>
+                <Pressable onPress={() => setConfirm({ action: 'cancel', label: '¿Cancelar esta cita?' })}
+                  style={{ paddingHorizontal: 14, backgroundColor: isDark ? '#2A2A2A' : '#FEF2F2', borderRadius: 8, paddingVertical: 9, alignItems: 'center' }}
+                  accessibilityRole="button" accessibilityLabel="Cancelar cita">
+                  <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700' }}>Cancelar</Text>
+                </Pressable>
+              </>
+            )}
+            {(appt.status === 'confirmed' || appt.status === 'in_progress') && (
+              <>
+                <Pressable onPress={() => setConfirm({ action: 'complete', label: '¿Marcar como completada?' })}
+                  style={{ flex: 1, backgroundColor: '#059669', borderRadius: 8, paddingVertical: 9, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 4 }}
+                  accessibilityRole="button" accessibilityLabel="Completar cita">
+                  <Ionicons name="checkmark-done" size={13} color="#fff" />
+                  <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Completar</Text>
+                </Pressable>
+                <Pressable onPress={() => setConfirm({ action: 'no_show', label: '¿Marcar como no asistió?' })}
+                  style={{ paddingHorizontal: 14, backgroundColor: isDark ? '#2A2A2A' : '#FFF7ED', borderRadius: 8, paddingVertical: 9, alignItems: 'center' }}
+                  accessibilityRole="button" accessibilityLabel="Marcar no asistió">
+                  <Text style={{ color: '#F97316', fontSize: 12, fontWeight: '700' }}>No asistió</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -142,16 +174,28 @@ function DoctorDashboard({ isDark }: { isDark: boolean }) {
   const user = useAuthStore((s) => s.user);
   const router = useRouter();
 
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [appointments, setAppointments] = useState<Appointment[]>(
+    () => (useCacheStore.getState().appointments?.data as Appointment[]) ?? []
+  );
+  const [loading, setLoading] = useState(() => !useCacheStore.getState().appointments);
   const [refreshing, setRefreshing] = useState(false);
+  const [actioningId, setActioningId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const load = useCallback(async (silent = false) => {
+  const load = useCallback(async (force = false) => {
     if (!token) return;
-    if (!silent) setLoading(true);
+    const cache = useCacheStore.getState();
+    if (!force && !cache.isStale('appointments')) {
+      setAppointments((cache.appointments?.data as Appointment[]) ?? []);
+      setLoading(false);
+      return;
+    }
+    if (!force) setLoading(true);
     try {
       const res = await appointmentApi.list(token);
-      setAppointments(Array.isArray(res.data) ? res.data : []);
+      const data = Array.isArray(res.data) ? res.data : [];
+      setAppointments(data);
+      useCacheStore.getState().setAppointments(data);
     } catch { /* silent */ }
     finally { setLoading(false); setRefreshing(false); }
   }, [token]);
@@ -165,43 +209,40 @@ function DoctorDashboard({ isDark }: { isDark: boolean }) {
   const completedCount= todayAppts.filter((a) => a.status === 'completed').length;
   const totalAll      = appointments.filter((a) => a.status !== 'cancelled' && a.status !== 'no_show').length;
 
-  const handleAction = (action: 'confirm' | 'complete' | 'no_show' | 'cancel', id: string) => {
-    const labels = { confirm: 'Confirmar cita', complete: 'Marcar como completada', no_show: 'Marcar como no asistió', cancel: 'Cancelar cita' };
-    Alert.alert(labels[action], '¿Confirmar esta acción?', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Sí',
-        style: action === 'cancel' || action === 'no_show' ? 'destructive' : 'default',
-        onPress: async () => {
-          if (!token) return;
-          try {
-            if (action === 'confirm') await appointmentApi.confirm(token, id);
-            else if (action === 'complete') await appointmentApi.complete(token, id);
-            else if (action === 'no_show') await appointmentApi.noShow(token, id);
-            else await appointmentApi.cancel(token, id);
-            await load(true);
-          } catch {
-            Alert.alert('Error', 'No se pudo realizar la acción.');
-          }
-        },
-      },
-    ]);
+  const handleAction = async (action: 'confirm' | 'complete' | 'no_show' | 'cancel', id: string) => {
+    if (!token) return;
+    setActioningId(id);
+    setActionError(null);
+    try {
+      if (action === 'confirm') await appointmentApi.confirm(token, id);
+      else if (action === 'complete') await appointmentApi.complete(token, id);
+      else if (action === 'no_show') await appointmentApi.noShow(token, id);
+      else await appointmentApi.cancel(token, id);
+      useCacheStore.getState().invalidate('appointments');
+      await load(true);
+    } catch {
+      setActionError('No se pudo realizar la acción. Intenta de nuevo.');
+    } finally {
+      setActioningId(null);
+    }
   };
 
   const isVerified = (user as any)?.doctor_profile?.is_verified ?? true;
   const doctorTitle = (user as any)?.doctor_profile?.gender === 'F' ? 'Dra.' : 'Dr.';
   const fullName = user?.name ?? 'Doctor';
 
-  const STATS = [
-    { value: pendingCount,   label: 'Pendientes', color: '#F59E0B' },
-    { value: confirmedCount, label: 'Confirmadas', color: '#3B82F6' },
-    { value: completedCount, label: 'Completadas', color: '#10B981' },
-    { value: totalAll,       label: 'Total citas',  color: '#8B5CF6' },
-  ];
+  const surfaceBg   = isDark ? '#141414' : '#F5F5F5';
+  const cardBg      = isDark ? '#1E1E1E' : '#FFFFFF';
+  const border      = isDark ? '#2D2D2D' : '#F3F4F6';
+  const textPrimary = isDark ? '#F3F4F6' : '#111827';
+  const textMuted   = '#9CA3AF';
 
-  const surfaceBg     = isDark ? '#111111' : '#F0F4F8';
-  const textPrimary   = isDark ? '#F3F4F6' : '#0F172A';
-  const textSecondary = '#64748B';
+  const STATS = [
+    { value: pendingCount,   label: 'Pendientes', icon: 'time-outline'         as const },
+    { value: confirmedCount, label: 'Confirmadas', icon: 'checkmark-circle-outline' as const },
+    { value: completedCount, label: 'Completadas', icon: 'checkmark-done-outline'   as const },
+    { value: totalAll,       label: 'Total',        icon: 'calendar-outline'    as const },
+  ];
 
   return (
     <FlatList
@@ -214,85 +255,88 @@ function DoctorDashboard({ isDark }: { isDark: boolean }) {
       ListHeaderComponent={
         <View style={{ backgroundColor: surfaceBg }}>
 
-          {/* ── Clinical header ── */}
-          <View style={{ backgroundColor: isDark ? '#0D0D0D' : '#0F172A', paddingTop: 24, paddingBottom: 28, paddingHorizontal: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' }}>{greet()}</Text>
-                <Text style={{ fontSize: 26, fontWeight: '800', color: '#FFFFFF', marginTop: 4, letterSpacing: -0.3 }}>
-                  {doctorTitle} {fullName}
-                </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8 }}>
+          {/* ── Header card ── */}
+          <View style={{ backgroundColor: cardBg, marginHorizontal: 16, marginTop: 16, borderRadius: 20, borderWidth: 1, borderColor: border, overflow: 'hidden' }}>
+            {/* Pink accent strip */}
+            <View style={{ height: 3, backgroundColor: '#E8467C' }} />
+            <View style={{ padding: 20 }}>
+              {/* Greeting row */}
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, color: textMuted, fontWeight: '600', letterSpacing: 0.5 }}>
+                    {greet()} · {new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'short' })}
+                  </Text>
+                  <Text style={{ fontSize: 24, fontWeight: '800', color: textPrimary, marginTop: 4, letterSpacing: -0.3 }}>
+                    {doctorTitle} {fullName}
+                  </Text>
                   {isVerified ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#05966920', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20, borderWidth: 1, borderColor: '#05966940' }}>
-                      <Ionicons name="shield-checkmark" size={11} color="#34D399" />
-                      <Text style={{ fontSize: 10, color: '#34D399', fontWeight: '700', marginLeft: 4 }}>VERIFICADO</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 4 }}>
+                      <Ionicons name="shield-checkmark" size={13} color="#E8467C" />
+                      <Text style={{ fontSize: 11, color: '#E8467C', fontWeight: '600' }}>Verificado</Text>
                     </View>
                   ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F59E0B20', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20, borderWidth: 1, borderColor: '#F59E0B40' }}>
-                      <Ionicons name="alert-circle" size={11} color="#F59E0B" />
-                      <Text style={{ fontSize: 10, color: '#F59E0B', fontWeight: '700', marginLeft: 4 }}>PENDIENTE VERIFICACIÓN</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 4 }}>
+                      <Ionicons name="alert-circle-outline" size={13} color="#F59E0B" />
+                      <Text style={{ fontSize: 11, color: '#F59E0B', fontWeight: '600' }}>Verificación pendiente</Text>
                     </View>
                   )}
-                  <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
-                    {new Date().toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' })}
-                  </Text>
                 </View>
+                <Pressable
+                  onPress={() => router.push('/appointments')}
+                  style={{ backgroundColor: '#E8467C', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center', gap: 4 }}
+                  accessibilityRole="button" accessibilityLabel="Ver agenda completa"
+                >
+                  <Ionicons name="calendar" size={18} color="#fff" />
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>Agenda</Text>
+                </Pressable>
               </View>
-              <Pressable
-                onPress={() => router.push('/appointments')}
-                style={{ backgroundColor: '#E8467C', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center' }}
-                accessibilityRole="button" accessibilityLabel="Ver agenda completa"
-              >
-                <Ionicons name="calendar" size={18} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700', marginTop: 3 }}>Agenda</Text>
-              </Pressable>
-            </View>
 
-            {/* Stats strip */}
-            <View style={{ flexDirection: 'row', marginTop: 20, gap: 0 }}>
-              {STATS.map((s, i) => (
-                <View key={s.label} style={{
-                  flex: 1, alignItems: 'center', paddingVertical: 12,
-                  borderRightWidth: i < STATS.length - 1 ? 1 : 0,
-                  borderRightColor: 'rgba(255,255,255,0.1)',
-                }}>
-                  <Text style={{ fontSize: 22, fontWeight: '900', color: loading ? '#444' : s.color }}>{loading ? '–' : s.value}</Text>
-                  <Text style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' }}>{s.label}</Text>
-                </View>
-              ))}
+              {/* Stats strip */}
+              <View style={{ flexDirection: 'row', marginTop: 20, gap: 8 }}>
+                {STATS.map((s) => (
+                  <View key={s.label} style={{
+                    flex: 1, alignItems: 'center', backgroundColor: isDark ? '#252525' : '#F9FAFB',
+                    borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: border,
+                  }}>
+                    <Text style={{ fontSize: 20, fontWeight: '900', color: loading ? textMuted : textPrimary }}>
+                      {loading ? '–' : s.value}
+                    </Text>
+                    <Text style={{ fontSize: 9, color: textMuted, fontWeight: '600', marginTop: 2, textAlign: 'center' }}>
+                      {s.label.toUpperCase()}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </View>
           </View>
 
-          {/* ── Quick action pills ── */}
-          <View style={{ backgroundColor: isDark ? '#161616' : '#1E293B', paddingVertical: 14, paddingHorizontal: 16 }}>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[
-                { label: 'Mensajes',   icon: 'chatbubbles'  as const, onPress: () => router.push('/(tabs)/messages'),    color: '#E8467C' },
-                { label: 'Directorio', icon: 'people'       as const, onPress: () => router.push('/(tabs)/doctors'),     color: '#3B82F6' },
-                { label: 'Citas hoy',  icon: 'list'         as const, onPress: () => router.push('/appointments'),       color: '#10B981' },
-                { label: 'Horarios',   icon: 'time'         as const, onPress: () => router.push('/doctor-schedule'),    color: '#8B5CF6' },
-              ].map((btn) => (
-                <Pressable
-                  key={btn.label}
-                  onPress={btn.onPress}
-                  style={{ flex: 1, backgroundColor: btn.color + '20', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: btn.color + '35' }}
-                  accessibilityRole="button" accessibilityLabel={btn.label}
-                >
-                  <Ionicons name={btn.icon} size={16} color={btn.color} />
-                  <Text style={{ color: btn.color, fontSize: 10, fontWeight: '700', marginTop: 4 }}>{btn.label}</Text>
-                </Pressable>
-              ))}
-            </View>
+          {/* ── Quick actions ── */}
+          <View style={{ flexDirection: 'row', marginHorizontal: 16, marginTop: 12, gap: 8 }}>
+            {[
+              { label: 'Mensajes',   icon: 'chatbubbles-outline'  as const, onPress: () => router.push('/(tabs)/messages') },
+              { label: 'Directorio', icon: 'people-outline'        as const, onPress: () => router.push('/(tabs)/doctors') },
+              { label: 'Citas',      icon: 'list-outline'          as const, onPress: () => router.push('/appointments') },
+              { label: 'Horarios',   icon: 'time-outline'          as const, onPress: () => router.push('/doctor-schedule') },
+            ].map((btn) => (
+              <Pressable
+                key={btn.label}
+                onPress={btn.onPress}
+                style={{ flex: 1, backgroundColor: cardBg, borderRadius: 14, paddingVertical: 12, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: border }}
+                accessibilityRole="button" accessibilityLabel={btn.label}
+              >
+                <Ionicons name={btn.icon} size={18} color="#E8467C" />
+                <Text style={{ color: textPrimary, fontSize: 10, fontWeight: '600' }}>{btn.label}</Text>
+              </Pressable>
+            ))}
           </View>
 
           {/* ── Unverified warning ── */}
           {!isVerified && (
-            <View style={{ margin: 16, backgroundColor: '#FEF3C7', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderColor: '#FDE68A' }}>
-              <Ionicons name="alert-circle" size={20} color="#D97706" style={{ marginRight: 10, marginTop: 1 }} />
+            <View style={{ marginHorizontal: 16, marginTop: 12, backgroundColor: isDark ? '#2D1F00' : '#FFFBEB', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderColor: isDark ? '#92400E40' : '#FDE68A' }}>
+              <Ionicons name="alert-circle-outline" size={18} color="#F59E0B" style={{ marginRight: 10, marginTop: 1 }} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#92400E' }}>Cuenta pendiente de verificación</Text>
-                <Text style={{ fontSize: 11, color: '#B45309', marginTop: 2, lineHeight: 16 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FCD34D' : '#92400E' }}>Verificación pendiente</Text>
+                <Text style={{ fontSize: 11, color: isDark ? '#D97706' : '#B45309', marginTop: 2, lineHeight: 16 }}>
                   Completa la verificación OTP para activar la gestión de horarios y agenda.
                 </Text>
               </View>
@@ -300,19 +344,30 @@ function DoctorDashboard({ isDark }: { isDark: boolean }) {
           )}
 
           {/* ── Section header ── */}
-          <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View>
               <Text style={{ fontSize: 15, fontWeight: '800', color: textPrimary }}>Agenda de hoy</Text>
-              <Text style={{ fontSize: 11, color: textSecondary, marginTop: 1 }}>
+              <Text style={{ fontSize: 11, color: textMuted, marginTop: 1 }}>
                 {activToday.length} cita{activToday.length !== 1 ? 's' : ''} activa{activToday.length !== 1 ? 's' : ''}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#F59E0B' }} />
-              <Text style={{ fontSize: 11, color: textSecondary, fontWeight: '600' }}>{pendingCount} pendiente{pendingCount !== 1 ? 's' : ''}</Text>
-            </View>
+            {pendingCount > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8467C15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, gap: 4 }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#E8467C' }} />
+                <Text style={{ fontSize: 11, color: '#E8467C', fontWeight: '700' }}>{pendingCount} pendiente{pendingCount !== 1 ? 's' : ''}</Text>
+              </View>
+            )}
           </View>
 
+          {actionError && (
+            <View style={{ marginHorizontal: 16, marginTop: 4, marginBottom: 4, flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, gap: 8 }}>
+              <Ionicons name="alert-circle-outline" size={16} color="#EF4444" />
+              <Text style={{ fontSize: 13, color: '#EF4444', flex: 1 }}>{actionError}</Text>
+              <Pressable onPress={() => setActionError(null)} hitSlop={8}>
+                <Ionicons name="close" size={15} color="#EF4444" />
+              </Pressable>
+            </View>
+          )}
           {loading ? (
             <View style={{ paddingVertical: 32, alignItems: 'center', gap: 8 }}>
               {[1, 2, 3].map((k) => (
@@ -324,7 +379,7 @@ function DoctorDashboard({ isDark }: { isDark: boolean }) {
       }
       renderItem={({ item }) => (
         <View style={{ backgroundColor: surfaceBg }}>
-          <AgendaCard appt={item} isDark={isDark} onAction={handleAction} />
+          <AgendaCard appt={item} isDark={isDark} onAction={handleAction} actioningId={actioningId} />
         </View>
       )}
       ListFooterComponent={<View style={{ backgroundColor: surfaceBg, height: 120 }} />}
@@ -337,7 +392,7 @@ function DoctorDashboard({ isDark }: { isDark: boolean }) {
             <Text style={{ fontSize: 15, fontWeight: '700', color: textPrimary, textAlign: 'center' }}>
               Sin citas pendientes hoy
             </Text>
-            <Text style={{ fontSize: 12, color: textSecondary, textAlign: 'center', marginTop: 4, lineHeight: 18 }}>
+            <Text style={{ fontSize: 12, color: textMuted, textAlign: 'center', marginTop: 4, lineHeight: 18 }}>
               Cuando tengas citas activas aparecerán aquí.
             </Text>
           </View>

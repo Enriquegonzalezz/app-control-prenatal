@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -87,6 +86,7 @@ export default function UploadDocumentScreen() {
   // ── Catalog state ──
   const [catalog, setCatalog] = useState<MedicalRecordCatalog | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
 
   // ── Form state ──
   const [categoryId, setCategoryId] = useState('');
@@ -102,13 +102,23 @@ export default function UploadDocumentScreen() {
   } | null>(null);
 
   const [uploading, setUploading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (submitted) {
+      const t = setTimeout(() => router.back(), 1800);
+      return () => clearTimeout(t);
+    }
+  }, [submitted]);
 
   // ── Load catalog ──
   useEffect(() => {
     if (!token) return;
     medicalApi.catalog(token)
-      .then((res) => setCatalog(res.data))
-      .catch(() => Alert.alert('Error', 'No se pudo cargar el catálogo.'))
+      .then((res) => { setCatalog(res.data); setCatalogError(null); })
+      .catch(() => setCatalogError('No se pudo cargar el catálogo. Verifica tu conexión.'))
       .finally(() => setCatalogLoading(false));
   }, [token]);
 
@@ -134,9 +144,10 @@ export default function UploadDocumentScreen() {
     if (result.canceled || result.assets.length === 0) return;
     const asset = result.assets[0];
     if (asset.size && asset.size > MAX_BYTES) {
-      Alert.alert('Archivo muy grande', 'El archivo no puede superar los 20 MB.');
+      setFileError('El archivo no puede superar los 20 MB.');
       return;
     }
+    setFileError(null);
     setPickedFile({
       uri: asset.uri,
       name: asset.name,
@@ -166,20 +177,14 @@ export default function UploadDocumentScreen() {
         appointment_id: params.appointment_id || undefined,
         doctor_id: doctorId || undefined,
       });
-      Alert.alert('¡Listo!', 'Documento subido correctamente.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      setSubmitted(true);
     } catch (err: any) {
-      // Show field-level validation errors if present, otherwise the main message
       const fieldErrors = err?.errors
         ? Object.entries(err.errors as Record<string, string[]>)
             .map(([field, msgs]) => `• ${field}: ${msgs[0]}`)
             .join('\n')
         : null;
-      Alert.alert(
-        'Error al subir',
-        fieldErrors ?? err?.message ?? 'No se pudo subir el documento.',
-      );
+      setSubmitError(fieldErrors ?? err?.message ?? 'No se pudo subir el documento.');
     } finally {
       setUploading(false);
     }
@@ -192,6 +197,31 @@ export default function UploadDocumentScreen() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color={ACCENT} />
+      </SafeAreaView>
+    );
+  }
+
+  if (catalogError) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={['top', 'bottom']}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
+          <Pressable onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: cardBg, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="arrow-back" size={20} color={textColor} />
+          </Pressable>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <Ionicons name="cloud-offline-outline" size={28} color="#EF4444" />
+          </View>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: textColor, marginBottom: 8, textAlign: 'center' }}>Error de conexión</Text>
+          <Text style={{ fontSize: 13, color: mutedColor, textAlign: 'center', marginBottom: 24 }}>{catalogError}</Text>
+          <Pressable
+            onPress={() => { setCatalogLoading(true); setCatalogError(null); if (token) medicalApi.catalog(token).then((res) => setCatalog(res.data)).catch(() => setCatalogError('No se pudo cargar el catálogo.')).finally(() => setCatalogLoading(false)); }}
+            style={{ backgroundColor: ACCENT, borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12 }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Reintentar</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
     );
   }
@@ -379,6 +409,12 @@ export default function UploadDocumentScreen() {
 
           {/* ── File picker ── */}
           <SectionLabel>Archivo *</SectionLabel>
+          {fileError && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8, gap: 8 }}>
+              <Ionicons name="warning-outline" size={16} color="#EF4444" />
+              <Text style={{ fontSize: 13, color: '#EF4444', flex: 1 }}>{fileError}</Text>
+            </View>
+          )}
           {pickedFile ? (
             <View style={{
               backgroundColor: cardBg, borderRadius: 12, padding: 14,
@@ -436,22 +472,38 @@ export default function UploadDocumentScreen() {
           backgroundColor: bg,
           borderTopWidth: 1, borderTopColor: isDark ? '#2D2D2D' : '#F3F4F6',
         }}>
-          <Pressable
-            onPress={handleSubmit}
-            disabled={!isValid || uploading}
-            style={{
-              backgroundColor: isValid && !uploading ? ACCENT : '#9CA3AF',
-              borderRadius: 16, paddingVertical: 16, alignItems: 'center',
-            }}
-          >
-            {uploading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>
-                Subir Documento
-              </Text>
-            )}
-          </Pressable>
+          {submitError && (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 10, gap: 8 }}>
+              <Ionicons name="alert-circle-outline" size={16} color="#EF4444" style={{ marginTop: 1 }} />
+              <Text style={{ fontSize: 13, color: '#EF4444', flex: 1, lineHeight: 18 }}>{submitError}</Text>
+              <Pressable onPress={() => setSubmitError(null)} hitSlop={8}>
+                <Ionicons name="close" size={16} color="#EF4444" />
+              </Pressable>
+            </View>
+          )}
+          {submitted ? (
+            <View style={{ backgroundColor: '#ECFDF5', borderRadius: 16, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10 }}>
+              <Ionicons name="checkmark-circle" size={22} color="#10B981" />
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#10B981' }}>¡Documento subido!</Text>
+            </View>
+          ) : (
+            <Pressable
+              onPress={handleSubmit}
+              disabled={!isValid || uploading}
+              style={{
+                backgroundColor: isValid && !uploading ? ACCENT : '#9CA3AF',
+                borderRadius: 16, paddingVertical: 16, alignItems: 'center',
+              }}
+            >
+              {uploading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>
+                  Subir Documento
+                </Text>
+              )}
+            </Pressable>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

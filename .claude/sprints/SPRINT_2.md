@@ -1,6 +1,6 @@
 # Sprint 2 — Geospatial Core: PostGIS y Directorio
 **Semanas:** 5–6  
-**Estado:** ✅ Backend completado + Frontend con paginación e infinite scroll
+**Estado:** ✅ COMPLETADO — Backend + Frontend (pendiente solo vista Mapa S2.5)
 
 ---
 
@@ -22,7 +22,7 @@ debe poder encontrar ginecobstetras cercanas a su ubicación.
 | S2.4 | Sistema de disponibilidad (tabla `schedules` + `slots`) | CRUD de horarios para médicos | ✅ |
 | S2.5 | Pantalla RN: Mapa con marcadores + dark map style | Marcadores dinámicos + mapa oscuro en dark mode | ⏳ |
 | S2.6 | Pantalla RN: Lista de médicos con filtros + infinite scroll | Filtros sin opción de rating, paginación optimizada | ✅ |
-| S2.7 | Pantalla RN: Perfil del médico con info clínica + experiencias + botón agendar | Perfil sin estrellas | ⏳ |
+| S2.7 | Pantalla RN: Perfil del médico con info clínica + experiencias + botón agendar | Perfil sin estrellas | ✅ |
 
 ---
 
@@ -109,6 +109,15 @@ export const darkMapStyle = [
 - [x] Ordenamiento: disponibles primero, luego por distancia GPS
 - [x] Estados de carga y error manejados
 - [x] Espaciado header corregido (`gap: 12` en contenedor, no `marginRight` en arrow)
+- [x] **Zustand cache** (`cacheStore`) integrado en `doctors.tsx` — cache-first con TTL 5 min, append para infinite scroll, GPS enriquecimiento no rompe caché
+
+### ✅ S2.7 — Perfil del Médico (`DoctorProfileSheet`) Completado
+- [x] Bottom sheet con info completa: bio, especialidad, clínica(s), tarifa consulta
+- [x] Botón "Agendar cita" → navega a `book-appointment.tsx`
+- [x] Botón "Enviar mensaje" → crea relación y navega al chat directamente
+- [x] Badge de verificación y disponibilidad
+- [x] Diseño sin ninguna mención a estrellas/rating
+- [x] Funciona en dark y light mode
 
 ### ✅ Pantalla Horarios Médico (`doctor-schedule.tsx`) — Rediseño completo
 - [x] Header con fondo brand color `#E8467C`
@@ -144,7 +153,6 @@ export const darkMapStyle = [
 
 ### ⏳ Pendiente
 - [ ] S2.5 - Vista Mapa con marcadores dinámicos
-- [ ] S2.7 - Perfil detallado del médico
 - [ ] Dark map style para modo oscuro
 
 ---
@@ -156,5 +164,5 @@ export const darkMapStyle = [
 - [x] Endpoint `/api/v1/doctors?page=1&per_page=20` con paginación
 - [ ] Vista Mapa con marcadores que cambian color según disponibilidad
 - [x] Vista Lista con filtros (distancia, disponibilidad, clínica) + infinite scroll
-- [ ] Perfil de médico sin ninguna mención a "estrellas" o "rating"
+- [x] Perfil de médico sin ninguna mención a "estrellas" o "rating"
 - [ ] Dark map style aplicado cuando el tema es oscuro
