@@ -93,7 +93,13 @@ final class MedicalFileService
 
     private function validateFile(UploadedFile $file): void
     {
-        if (!in_array($file->getMimeType(), self::ALLOWED_MIMES, true)) {
+        $detectedMime = $file->getMimeType();
+        $clientMime   = $file->getClientMimeType();
+
+        $allowed = in_array($detectedMime, self::ALLOWED_MIMES, true)
+                || in_array($clientMime, self::ALLOWED_MIMES, true);
+
+        if (!$allowed) {
             throw new RuntimeException(
                 'Tipo de archivo no permitido. Se aceptan PDF, JPEG, PNG, WEBP y DICOM.'
             );
