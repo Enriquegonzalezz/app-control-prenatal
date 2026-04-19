@@ -107,7 +107,7 @@ function groupSlotsByDate(slots: Slot[]): { date: string; label: string; slots: 
 }
 
 function AppointmentCard({
-  appt, isDark, onCancel, cancelling, userRole, onChat, chatting, chatError, onReschedule, onAttachDocument,
+  appt, isDark, onCancel, cancelling, userRole, onChat, chatting, chatError, onReschedule, onAttachDocument, onViewPatientHistory,
 }: {
   appt: Appointment;
   isDark: boolean;
@@ -119,6 +119,7 @@ function AppointmentCard({
   chatError: { id: string; msg: string } | null;
   onReschedule: (appt: Appointment) => void;
   onAttachDocument: (appt: Appointment) => void;
+  onViewPatientHistory: (appt: Appointment) => void;
 }) {
   const sc = STATUS_CONFIG[appt.status];
   const canCancel = CANCELLABLE.has(appt.status);
@@ -274,6 +275,23 @@ function AppointmentCard({
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#E8467C' }}>Adjuntar documento</Text>
           </Pressable>
         ) : null}
+
+        {/* Ver historial del paciente — solo médico, citas activas o completadas */}
+        {!isPatientView && (ACTIVE_STATUSES.has(appt.status) || appt.status === 'completed') && (
+          <Pressable
+            onPress={() => onViewPatientHistory(appt)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              backgroundColor: isDark ? '#1E1A2D' : '#F5F3FF',
+              borderRadius: 12, paddingVertical: 11,
+              borderWidth: 1, borderColor: isDark ? '#8B5CF640' : '#DDD6FE',
+            }}
+            accessibilityRole="button" accessibilityLabel="Ver historial del paciente"
+          >
+            <Ionicons name="folder-open-outline" size={15} color="#8B5CF6" />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#8B5CF6' }}>Ver historial del paciente</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Inline chat error */}
@@ -405,6 +423,13 @@ export default function AppointmentsScreen() {
     router.push({ pathname: '/upload-document', params });
   };
 
+  const handleViewPatientHistory = (appt: Appointment) => {
+    router.push({
+      pathname: '/medical-history',
+      params: { patient_id: appt.patient_id ?? '', patient_name: appt.patient?.name ?? 'Paciente' },
+    });
+  };
+
     const handleCancelConfirm = async (id: string) => {
     if (!token) return;
     setCancelling(id);
@@ -509,6 +534,7 @@ export default function AppointmentsScreen() {
                 chatError={chatError}
                 onReschedule={handleReschedule}
                 onAttachDocument={handleAttachDocument}
+                onViewPatientHistory={handleViewPatientHistory}
               />
               {/* Confirmación de cancelación inline */}
               {confirmingCancel === item.id && (
