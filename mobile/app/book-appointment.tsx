@@ -84,6 +84,7 @@ export default function BookAppointmentScreen() {
 
   const {
     doctorProfileId,
+    doctorUserId,
     doctorName,
     specialtyName,
     clinicName,
@@ -97,6 +98,8 @@ export default function BookAppointmentScreen() {
     branchId: string;
     consultationFee: string;
   }>();
+
+  const loggedUserId = useAuthStore((s) => s.user?.id);
 
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,6 +164,26 @@ export default function BookAppointmentScreen() {
   const grouped = groupSlotsByDate(slots);
   const initials = (doctorName ?? 'D').split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
   const fee = consultationFee ? `$${parseFloat(consultationFee).toFixed(0)}` : null;
+
+  if (loggedUserId && doctorUserId && String(loggedUserId) === doctorUserId) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }} edges={['top']}>
+        <Ionicons name="person-circle-outline" size={64} color="#9CA3AF" />
+        <Text style={{ fontSize: 17, fontWeight: '800', color: textColor, marginTop: 16, textAlign: 'center' }}>
+          Este es tu perfil
+        </Text>
+        <Text style={{ fontSize: 13, color: subColor, marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
+          No puedes agendar una cita contigo mismo.
+        </Text>
+        <Pressable
+          onPress={() => router.back()}
+          style={{ marginTop: 24, backgroundColor: '#E8467C', paddingHorizontal: 28, paddingVertical: 14, borderRadius: 22 }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Volver</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={['top']}>
@@ -335,21 +358,6 @@ export default function BookAppointmentScreen() {
                         {formatTime(slot.ends_at)}
                       </Text>
                     </View>
-                    {isSelected && (
-                      <View style={{
-                        position: 'absolute',
-                        top: 6,
-                        right: 6,
-                        width: 20,
-                        height: 20,
-                        borderRadius: 10,
-                        backgroundColor: 'rgba(255,255,255,0.25)',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                        <Ionicons name="checkmark" size={12} color="#fff" />
-                      </View>
-                    )}
                   </Pressable>
                 );
               })}
@@ -525,19 +533,6 @@ export default function BookAppointmentScreen() {
             accessibilityRole="button"
             accessibilityLabel="Confirmar reserva de cita"
           >
-            {/* Left icon with subtle background */}
-            {!booking && (
-              <View style={{
-                width: 36, height: 36, borderRadius: 18,
-                backgroundColor: 'rgba(255,255,255,0.18)',
-                alignItems: 'center', justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.25)',
-              }}>
-                <Ionicons name="checkmark-circle" size={18} color="#fff" />
-              </View>
-            )}
-            
             {/* Text content */}
             <View style={{ alignItems: 'center' }}>
               <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 }}>
@@ -550,18 +545,6 @@ export default function BookAppointmentScreen() {
               )}
             </View>
             
-            {/* Right arrow */}
-            {!booking && (
-              <View style={{
-                width: 32, height: 32, borderRadius: 16,
-                backgroundColor: 'rgba(255,255,255,0.18)',
-                alignItems: 'center', justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.25)',
-              }}>
-                <Ionicons name="arrow-forward" size={14} color="#fff" />
-              </View>
-            )}
           </Pressable>
         </View>
       )}

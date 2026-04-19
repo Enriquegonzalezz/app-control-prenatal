@@ -79,6 +79,7 @@ function DoctorProfileSheet({
 
   const token = useAuthStore((s) => s.token);
   const userRole = useAuthStore((s) => s.user?.role);
+  const userId = useAuthStore((s) => s.user?.id);
   const [chattingNow, setChattingNow] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
@@ -139,6 +140,7 @@ function DoctorProfileSheet({
 
   if (!doctor) return null;
 
+  const isSelf = userRole === 'doctor' && String(userId) === doctor.user_id;
   const initials = doctor.full_name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
   const dist = formatDistance(doctor.distance_m);
 
@@ -277,82 +279,102 @@ function DoctorProfileSheet({
           <View style={{ paddingHorizontal: 24, gap: 10 }}>
 
             {/* Primary: Agendar — premium design */}
-            <Pressable
-              onPress={() => {
-                onClose();
-                router.push({
-                  pathname: '/book-appointment',
-                  params: {
-                    doctorProfileId: doctor.doctor_profile_id,
-                    doctorUserId: doctor.user_id,
-                    doctorName: doctor.full_name,
-                    specialtyName: doctor.specialty.name,
-                    clinicName: doctor.clinic.name,
-                    branchId: doctor.branch.id,
-                    consultationFee: doctor.consultation_fee?.toString() ?? '',
-                  },
-                });
-              }}
-              disabled={!doctor.is_available}
-              style={({ pressed }) => ({
-                borderRadius: 22,
-                overflow: 'hidden',
-                opacity: pressed ? 0.88 : 1,
-                shadowColor: doctor.is_available ? '#C0325A' : '#000',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: doctor.is_available ? 0.45 : 0.12,
-                shadowRadius: 18,
-                elevation: doctor.is_available ? 10 : 2,
-              })}
-              accessibilityRole="button"
-              accessibilityLabel="Agendar cita con este médico"
-            >
+            {isSelf ? (
               <View style={{
-                backgroundColor: doctor.is_available ? '#E8467C' : '#9CA3AF',
-                borderRadius: 22,
-                paddingVertical: 18,
-                paddingHorizontal: 24,
-                flexDirection: 'row',
-                alignItems: 'center',
+                borderRadius: 22, paddingVertical: 18, paddingHorizontal: 24,
+                backgroundColor: isDark ? '#252525' : '#F3F4F6',
+                borderWidth: 1, borderColor: isDark ? '#3A3A3A' : '#E5E7EB',
+                flexDirection: 'row', alignItems: 'center', gap: 14,
               }}>
-                {/* Left icon circle */}
                 <View style={{
                   width: 42, height: 42, borderRadius: 21,
-                  backgroundColor: 'rgba(255,255,255,0.18)',
+                  backgroundColor: isDark ? '#333' : '#E5E7EB',
                   alignItems: 'center', justifyContent: 'center',
-                  marginRight: 14,
-                  borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
                 }}>
-                  <Ionicons name={doctor.is_available ? 'calendar' : 'close-circle'} size={20} color="#fff" />
+                  <Ionicons name="person" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
                 </View>
-
-                {/* Text block */}
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.2 }}>
-                    {doctor.is_available ? 'Agendar Cita' : 'No disponible'}
+                  <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280', fontSize: 15, fontWeight: '700' }}>
+                    Este es tu perfil
                   </Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 }}>
-                    {doctor.is_available
-                      ? doctor.consultation_fee
-                        ? `Consulta desde $${doctor.consultation_fee.toFixed(0)} · Elige tu horario`
-                        : 'Selecciona un horario disponible'
-                      : 'Este médico no tiene horarios activos'}
+                  <Text style={{ color: isDark ? '#6B7280' : '#9CA3AF', fontSize: 12, marginTop: 2 }}>
+                    No puedes agendar contigo mismo
                   </Text>
                 </View>
-
-                {/* Right arrow */}
-                {doctor.is_available && (
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => {
+                  onClose();
+                  router.push({
+                    pathname: '/book-appointment',
+                    params: {
+                      doctorProfileId: doctor.doctor_profile_id,
+                      doctorUserId: doctor.user_id,
+                      doctorName: doctor.full_name,
+                      specialtyName: doctor.specialty.name,
+                      clinicName: doctor.clinic.name,
+                      branchId: doctor.branch.id,
+                      consultationFee: doctor.consultation_fee?.toString() ?? '',
+                    },
+                  });
+                }}
+                disabled={!doctor.is_available}
+                style={({ pressed }) => ({
+                  borderRadius: 22,
+                  overflow: 'hidden',
+                  opacity: pressed ? 0.88 : 1,
+                  shadowColor: doctor.is_available ? '#C0325A' : '#000',
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: doctor.is_available ? 0.45 : 0.12,
+                  shadowRadius: 18,
+                  elevation: doctor.is_available ? 10 : 2,
+                })}
+                accessibilityRole="button"
+                accessibilityLabel="Agendar cita con este médico"
+              >
+                <View style={{
+                  backgroundColor: doctor.is_available ? '#E8467C' : '#9CA3AF',
+                  borderRadius: 22,
+                  paddingVertical: 18,
+                  paddingHorizontal: 24,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}>
                   <View style={{
-                    width: 32, height: 32, borderRadius: 16,
+                    width: 42, height: 42, borderRadius: 21,
                     backgroundColor: 'rgba(255,255,255,0.18)',
                     alignItems: 'center', justifyContent: 'center',
+                    marginRight: 14,
                     borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
                   }}>
-                    <Ionicons name="arrow-forward" size={15} color="#fff" />
+                    <Ionicons name={doctor.is_available ? 'calendar' : 'close-circle'} size={20} color="#fff" />
                   </View>
-                )}
-              </View>
-            </Pressable>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.2 }}>
+                      {doctor.is_available ? 'Agendar Cita' : 'No disponible'}
+                    </Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 }}>
+                      {doctor.is_available
+                        ? doctor.consultation_fee
+                          ? `Consulta desde $${doctor.consultation_fee.toFixed(0)} · Elige tu horario`
+                          : 'Selecciona un horario disponible'
+                        : 'Este médico no tiene horarios activos'}
+                    </Text>
+                  </View>
+                  {doctor.is_available && (
+                    <View style={{
+                      width: 32, height: 32, borderRadius: 16,
+                      backgroundColor: 'rgba(255,255,255,0.18)',
+                      alignItems: 'center', justifyContent: 'center',
+                      borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+                    }}>
+                      <Ionicons name="arrow-forward" size={15} color="#fff" />
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+            )}
 
             {/* Chat — visible para pacientes con cualquier médico verificado */}
             {userRole === 'patient' && (
