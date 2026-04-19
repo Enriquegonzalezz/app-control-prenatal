@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Dimensions,
   Image,
@@ -27,6 +26,7 @@ import {
 } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
+import { useCacheStore } from '@/store/cacheStore';
 
 const ACCENT = '#E8467C';
 
@@ -85,29 +85,39 @@ function VitalRow({ label, value, icon }: { label: string; value: string; icon: 
 
 function FileItem({ file, recordId, token, isDark }: { file: MedicalRecordFile; recordId: string; token: string; isDark: boolean }) {
   const [opening, setOpening] = useState(false);
+  const [fileItemError, setFileItemError] = useState<string | null>(null);
 
   const handleOpen = async () => {
     setOpening(true);
+    setFileItemError(null);
     try {
       const res = await medicalApi.getSignedUrl(token, recordId, file.id);
       await Linking.openURL(res.data.url);
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'No se pudo abrir el archivo.');
+      setFileItemError(err?.message ?? 'No se pudo abrir el archivo.');
     } finally { setOpening(false); }
   };
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#25252550' : '#F9FAFB', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 6 }}>
-      <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
-        <Ionicons name="document-outline" size={16} color={ACCENT} />
+    <View style={{ marginBottom: 6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#25252550' : '#F9FAFB', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 }}>
+        <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+          <Ionicons name="document-outline" size={16} color={ACCENT} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#F3F4F6' : '#111827' }} numberOfLines={1}>{file.file_name}</Text>
+          <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{formatBytes(file.file_size_bytes)}</Text>
+        </View>
+        <Pressable onPress={handleOpen} disabled={opening} style={{ backgroundColor: ACCENT, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, opacity: opening ? 0.6 : 1, minWidth: 44, minHeight: 32, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{opening ? '...' : 'Abrir'}</Text>
+        </Pressable>
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#F3F4F6' : '#111827' }} numberOfLines={1}>{file.file_name}</Text>
-        <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{formatBytes(file.file_size_bytes)}</Text>
-      </View>
-      <Pressable onPress={handleOpen} disabled={opening} style={{ backgroundColor: ACCENT, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, opacity: opening ? 0.6 : 1, minWidth: 44, minHeight: 32, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{opening ? '...' : 'Abrir'}</Text>
-      </Pressable>
+      {fileItemError && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginTop: 4, gap: 6 }}>
+          <Ionicons name="alert-circle-outline" size={13} color="#EF4444" />
+          <Text style={{ fontSize: 11, color: '#EF4444', flex: 1 }}>{fileItemError}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -586,9 +596,14 @@ export default function MedicalHistoryScreen() {
   const doctorViewPatientName = params.patient_name;
 
   const isPatient = user?.role === 'patient';
+  const isOwnHistory = !doctorViewPatientId;
 
-  const [records, setRecords] = useState<MedicalRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [records, setRecords] = useState<MedicalRecord[]>(
+    () => isOwnHistory ? (useCacheStore.getState().medicalRecords?.data as MedicalRecord[]) ?? [] : []
+  );
+  const [loading, setLoading] = useState(
+    () => isOwnHistory ? !useCacheStore.getState().medicalRecords : true
+  );
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
@@ -602,8 +617,17 @@ export default function MedicalHistoryScreen() {
       .catch(() => {}); // non-critical
   }, [token]);
 
-  const load = useCallback(async () => {
+  const hasActiveFilters = !!(filters.category_id || filters.date_from || filters.date_to || filters.visibility || filters.uploaded_by_me);
+
+  const load = useCallback(async (force = false) => {
     if (!token) return;
+    const cache = useCacheStore.getState();
+    const canUseCache = isOwnHistory && !hasActiveFilters;
+    if (canUseCache && !force && !cache.isStale('medicalRecords')) {
+      setRecords((cache.medicalRecords?.data as MedicalRecord[]) ?? []);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -616,13 +640,15 @@ export default function MedicalHistoryScreen() {
       if (filters.uploaded_by_me) apiFilters.uploaded_by_me = 1;
 
       const res = await medicalApi.list(token, apiFilters);
-      setRecords(Array.isArray(res.data) ? res.data : []);
+      const data = Array.isArray(res.data) ? res.data : [];
+      setRecords(data);
+      if (canUseCache) useCacheStore.getState().setMedicalRecords(data);
     } catch {
       setError('No se pudo cargar el historial. Verifica tu conexión.');
     } finally {
       setLoading(false);
     }
-  }, [token, doctorViewPatientId, filters]);
+  }, [token, doctorViewPatientId, filters, isOwnHistory, hasActiveFilters]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -630,8 +656,6 @@ export default function MedicalHistoryScreen() {
     setFilters(f);
     setShowFilters(false);
   };
-
-  const hasActiveFilters = filters.category_id || filters.date_from || filters.date_to || filters.visibility || filters.uploaded_by_me;
 
   const sections = groupByDocumentDate(records);
   const bg = isDark ? '#141414' : '#F5F5F5';
@@ -642,7 +666,9 @@ export default function MedicalHistoryScreen() {
     : 'Historial Médico';
   const headerSub = doctorViewPatientId
     ? 'Documentos compartidos del paciente'
-    : 'Todos tus exámenes y consultas';
+    : isPatient
+      ? 'Todos tus exámenes y consultas'
+      : 'Tus documentos y registros médicos personales';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={['top']}>
@@ -717,7 +743,7 @@ export default function MedicalHistoryScreen() {
           </View>
           <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827', textAlign: 'center', marginBottom: 8 }}>Error de conexión</Text>
           <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginBottom: 24, lineHeight: 18 }}>{error}</Text>
-          <Pressable onPress={load} style={{ backgroundColor: ACCENT, paddingHorizontal: 32, paddingVertical: 12, borderRadius: 24 }}>
+          <Pressable onPress={() => load()} style={{ backgroundColor: ACCENT, paddingHorizontal: 32, paddingVertical: 12, borderRadius: 24 }}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>Reintentar</Text>
           </Pressable>
         </View>
@@ -738,7 +764,7 @@ export default function MedicalHistoryScreen() {
           renderItem={({ item }) => (
             <RecordCard record={item} token={token!} isDark={isDark} />
           )}
-          contentContainerStyle={{ paddingBottom: isPatient && !doctorViewPatientId ? 100 : 48 }}
+          contentContainerStyle={{ paddingBottom: !doctorViewPatientId ? 100 : 48 }}
           showsVerticalScrollIndicator={false}
           stickySectionHeadersEnabled={false}
           ListEmptyComponent={
@@ -752,9 +778,9 @@ export default function MedicalHistoryScreen() {
               <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 18 }}>
                 {hasActiveFilters
                   ? 'Ningún registro coincide con los filtros aplicados.'
-                  : isPatient
-                    ? 'Sube tu primer documento con el botón +'
-                    : 'Los documentos compartidos del paciente aparecerán aquí.'}
+                  : doctorViewPatientId
+                    ? 'Los documentos compartidos del paciente aparecerán aquí.'
+                    : 'Sube tu primer documento con el botón +'}
               </Text>
               {hasActiveFilters && (
                 <Pressable onPress={() => setFilters(EMPTY_FILTERS)} style={{ marginTop: 16, backgroundColor: ACCENT, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 }}>
@@ -766,8 +792,8 @@ export default function MedicalHistoryScreen() {
         />
       )}
 
-      {/* FAB upload (patients, solo en su propio historial) */}
-      {isPatient && !doctorViewPatientId && !loading && (
+      {/* FAB upload — propio historial (pacientes y médicos) */}
+      {!doctorViewPatientId && !loading && (
         <Pressable
           onPress={() => router.push('/upload-document')}
           style={{
