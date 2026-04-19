@@ -215,10 +215,10 @@ export interface MedicalRecord {
   document_date: string | null;
   description: string | null;
   visibility: 'shared' | 'private';
-  storage_path: string | null;
   file_type: string | null;
   file_size_kb: number | null;
-  // Computed
+  // Computed (always present — backend appends them)
+  has_document: boolean;
   display_title: string;
   created_at: string;
   updated_at: string;

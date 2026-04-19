@@ -111,24 +111,21 @@ function FileItem({ file, recordId, token, isDark }: { file: MedicalRecordFile; 
 
 function DocumentFile({ record, token, isDark }: { record: MedicalRecord; token: string; isDark: boolean }) {
   const [opening, setOpening] = useState(false);
+  const [openError, setOpenError] = useState<string | null>(null);
 
   const handleOpen = async () => {
     setOpening(true);
+    setOpenError(null);
     try {
       const res = await medicalApi.getDocumentSignedUrl(token, record.id);
       const url = res.data?.url;
       if (!url) {
-        Alert.alert('Error', 'No se pudo obtener la URL del archivo.');
-        return;
-      }
-      const canOpen = await Linking.canOpenURL(url);
-      if (!canOpen) {
-        Alert.alert('Error', 'No se puede abrir este tipo de archivo en este dispositivo.');
+        setOpenError('No se pudo obtener la URL del archivo.');
         return;
       }
       await Linking.openURL(url);
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'No se pudo abrir el archivo.');
+      setOpenError(err?.message ?? 'No se pudo abrir el archivo.');
     } finally {
       setOpening(false);
     }
@@ -138,26 +135,33 @@ function DocumentFile({ record, token, isDark }: { record: MedicalRecord; token:
   const sizeLabel = record.file_size_kb ? `${record.file_size_kb} KB` : '';
 
   return (
-    <Pressable
-      onPress={handleOpen}
-      disabled={opening}
-      style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: isDark ? '#252525' : '#FFF1F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, opacity: opening ? 0.7 : 1 }}
-    >
-      <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-        <Ionicons name={record.file_type?.startsWith('image/') ? 'image-outline' : 'document-outline'} size={18} color={ACCENT} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 13, fontWeight: '700', color: ACCENT }}>
-          {opening ? 'Abriendo…' : 'Ver archivo adjunto'}
-        </Text>
-        {(sizeLabel || ext) && (
-          <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>
-            {[sizeLabel, ext].filter(Boolean).join(' · ')}
+    <>
+      <Pressable
+        onPress={handleOpen}
+        disabled={opening}
+        style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: isDark ? '#252525' : '#FFF1F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, opacity: opening ? 0.7 : 1 }}
+      >
+        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+          <Ionicons name={record.file_type?.startsWith('image/') ? 'image-outline' : 'document-outline'} size={18} color={ACCENT} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: ACCENT }}>
+            {opening ? 'Abriendo…' : 'Ver archivo adjunto'}
           </Text>
-        )}
-      </View>
-      <Ionicons name="open-outline" size={16} color={ACCENT} />
-    </Pressable>
+          {(sizeLabel || ext) && (
+            <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>
+              {[sizeLabel, ext].filter(Boolean).join(' · ')}
+            </Text>
+          )}
+        </View>
+        <Ionicons name="open-outline" size={16} color={ACCENT} />
+      </Pressable>
+      {openError && (
+        <View style={{ marginTop: 4, backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+          <Text style={{ fontSize: 11, color: '#EF4444' }}>{openError}</Text>
+        </View>
+      )}
+    </>
   );
 }
 
@@ -167,7 +171,7 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
   const [loadingDetail, setLoadingDetail] = useState(false);
   const chevron = useRef(new Animated.Value(0)).current;
 
-  const displayTitle = record.title ?? record.category?.name ?? 'Documento médico';
+  const displayTitle = record.display_title;
   const dateLabel = formatDate(record.document_date ?? record.created_at);
   const iconColor = record.category?.color ?? ACCENT;
 
@@ -199,7 +203,7 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: 14 }}>
         <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: iconColor + '20', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-          <Ionicons name={record.storage_path ? 'document-text-outline' : 'medkit-outline'} size={20} color={iconColor} />
+          <Ionicons name={record.has_document ? 'document-text-outline' : 'medkit-outline'} size={20} color={iconColor} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }} numberOfLines={2}>
@@ -255,7 +259,7 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
           )}
 
           {/* Archivo del documento subido */}
-          {record.storage_path && (
+          {record.has_document && (
             <DocumentFile record={record} token={token} isDark={isDark} />
           )}
 
@@ -296,7 +300,7 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
             </View>
           )}
 
-          {!loadingDetail && !record.description && !record.storage_path && !record.diagnosis && !vitals && (!detail?.files || detail.files.length === 0) && (
+          {!loadingDetail && !record.description && !record.has_document && !record.diagnosis && !vitals && (!detail?.files || detail.files.length === 0) && (
             <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 10, textAlign: 'center' }}>Sin detalles adicionales.</Text>
           )}
         </View>

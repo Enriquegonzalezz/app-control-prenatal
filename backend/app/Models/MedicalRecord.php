@@ -41,12 +41,26 @@ final class MedicalRecord extends Model
         'file_size_kb',
     ];
 
+    protected $hidden = [
+        'storage_path', // internal bucket path — never exposed to clients
+    ];
+
+    protected $appends = [
+        'has_document',
+        'display_title',
+    ];
+
     protected function casts(): array
     {
         return [
             'specialty_context' => 'array',
             'document_date'     => 'date:Y-m-d',
         ];
+    }
+
+    public function getHasDocumentAttribute(): bool
+    {
+        return !is_null($this->storage_path);
     }
 
     // ── Relationships ──────────────────────────────────────────
