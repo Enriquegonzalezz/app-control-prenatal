@@ -9,6 +9,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -17,28 +18,28 @@ const slides = [
     id: '1',
     title: 'Control Prenatal Inteligente',
     description: 'Gestiona tu embarazo de forma segura con seguimiento médico profesional',
-    emoji: '🤰',
+    icon: 'heart-circle-outline' as const,
     color: '#E8467C',
   },
   {
     id: '2',
     title: 'Conecta con Médicos',
     description: 'Accede a médicos verificados y especialistas en salud prenatal',
-    emoji: '👨‍⚕️',
+    icon: 'medkit-outline' as const,
     color: '#8B5CF6',
   },
   {
     id: '3',
     title: 'Historial Completo',
     description: 'Mantén un registro detallado de consultas, exámenes y evolución',
-    emoji: '📋',
+    icon: 'document-text-outline' as const,
     color: '#3B82F6',
   },
   {
     id: '4',
     title: 'Recordatorios y Citas',
     description: 'Nunca olvides una cita o medicamento con notificaciones inteligentes',
-    emoji: '🔔',
+    icon: 'calendar-outline' as const,
     color: '#10B981',
   },
 ];
@@ -112,7 +113,7 @@ export default function OnboardingScreen() {
               style={{ backgroundColor: item.color }}
               className="w-32 h-32 rounded-full items-center justify-center mb-8"
             >
-              <Text className="text-6xl">{item.emoji}</Text>
+              <Ionicons name={item.icon} size={64} color="#fff" />
             </View>
             <Text className="text-3xl font-bold text-neutral-900 dark:text-neutral-100 text-center mb-4">
               {item.title}
