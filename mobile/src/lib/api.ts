@@ -173,6 +173,7 @@ export interface MedicalRecordFilters {
   has_appointment?: 0 | 1;
   visibility?: 'shared' | 'private';
   uploaded_by_me?: 1;
+  scope?: 'patients';
 }
 
 export interface VitalSign {
