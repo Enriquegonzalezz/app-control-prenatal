@@ -122,7 +122,12 @@ final class DocumentUploadService
         }
 
         if ($role === 'doctor') {
-            // Doctor must have an active relationship with the patient
+            // Doctor uploading to their OWN personal medical history
+            if ((string) $uploader->id === $patientId) {
+                return;
+            }
+
+            // Doctor uploading to a patient's history — must have active relationship
             $exists = \App\Models\DoctorPatientRelationship::where('doctor_id', $uploader->id)
                 ->where('patient_id', $patientId)
                 ->where('status', \App\Enums\RelationshipStatus::ACTIVE->value)
