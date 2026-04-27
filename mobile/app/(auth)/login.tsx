@@ -16,6 +16,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
 import { authApi, ApiError } from '@/lib/api';
 import { colors } from '@/theme/colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -81,6 +82,11 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResetOnboarding = async () => {
+    await AsyncStorage.removeItem('hasSeenOnboarding');
+    router.replace('/onboarding');
   };
 
   return (
@@ -211,8 +217,8 @@ export default function LoginScreen() {
             </Pressable>
           </Animated.View>
 
-          <Animated.View 
-            className="flex-row justify-center mt-6 mb-8"
+          <Animated.View
+            className="flex-row justify-center mt-6 mb-4"
             style={{ opacity: fadeAnim }}
           >
             <Text className="text-neutral-500 dark:text-neutral-400 text-sm">
@@ -227,6 +233,18 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
           </Animated.View>
+
+          {/* Reset onboarding button (for testing) */}
+          <Pressable
+            onPress={handleResetOnboarding}
+            className="self-center mb-8"
+            accessibilityRole="button"
+            accessibilityLabel="Ver onboarding de nuevo"
+          >
+            <Text className="text-neutral-400 dark:text-neutral-600 text-xs">
+              Ver onboarding (test)
+            </Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
