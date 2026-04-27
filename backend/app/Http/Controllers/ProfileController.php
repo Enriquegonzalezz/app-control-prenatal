@@ -54,6 +54,11 @@ final class ProfileController extends Controller
             ->leftJoin('clinic_branches as cb', 'cb.id', '=', 'cd.branch_id')
             ->where('cd.doctor_id', $doctor->id)
             ->where('cd.is_active', true)
+            ->where('c.is_active', true)
+            ->where(function ($q) {
+                $q->whereNull('cb.id')
+                  ->orWhere('cb.is_active', true);
+            })
             ->select(
                 'c.id as clinic_id',
                 'c.name as clinic_name',

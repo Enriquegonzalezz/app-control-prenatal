@@ -16,7 +16,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
-import { directoryApi, chatApi, NearbyDoctor } from '@/lib/api';
+import { directoryApi, chatApi, experienceApi, NearbyDoctor, ExperienceBadge, Experience } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
 import { useCacheStore } from '@/store/cacheStore';
@@ -83,6 +83,9 @@ function DoctorProfileSheet({
   const userId = useAuthStore((s) => s.user?.id);
   const [chattingNow, setChattingNow] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [badges, setBadges] = useState<ExperienceBadge[]>([]);
+  const [testimonials, setTestimonials] = useState<Experience[]>([]);
+  const [expandedTestimonial, setExpandedTestimonial] = useState<string | null>(null);
 
   const sheetBg   = isDark ? '#1A1A1A' : '#FFFFFF';
   const labelColor = isDark ? '#9CA3AF' : '#6B7280';
@@ -92,8 +95,20 @@ function DoctorProfileSheet({
   const divider    = isDark ? '#2A2A2A' : '#F3F4F6';
 
   useEffect(() => {
-    if (!visible) setChatError(null);
+    if (!visible) {
+      setChatError(null);
+      setBadges([]);
+      setTestimonials([]);
+      setExpandedTestimonial(null);
+    }
   }, [visible]);
+
+  useEffect(() => {
+    if (!visible || !doctor) return;
+    const doctorUserId = doctor.user_id;
+    experienceApi.badges(doctorUserId).then((r) => setBadges(r.data ?? [])).catch(() => {});
+    experienceApi.listForDoctor(doctorUserId, 3).then((r) => setTestimonials(r.data ?? [])).catch(() => {});
+  }, [visible, doctor]);
 
   useEffect(() => {
     if (visible) {
@@ -275,6 +290,90 @@ function DoctorProfileSheet({
               <Text style={{ fontSize: 11, color: labelColor, marginTop: 2 }}>verificado</Text>
             </View>
           </View>
+
+          {/* ── Experiencias de pacientes ─────────────────── */}
+          {(badges.length > 0 || testimonials.length > 0) && (
+            <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+              <View style={{ height: 1, backgroundColor: divider, marginBottom: 20 }} />
+
+              {/* Badge pills */}
+              {badges.length > 0 && (
+                <>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: labelColor, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 }}>
+                    {testimonials.length} experiencia{testimonials.length !== 1 ? 's' : ''} compartida{testimonials.length !== 1 ? 's' : ''}
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                    {badges.map((badge) => (
+                      <View
+                        key={badge.id}
+                        style={{
+                          flexDirection: 'row', alignItems: 'center', gap: 5,
+                          backgroundColor: isDark ? '#1A0A24' : '#FAF5FF',
+                          borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+                          borderWidth: 1, borderColor: isDark ? '#A855F730' : '#E9D5FF',
+                        }}
+                      >
+                        <Ionicons name="pricetag-outline" size={11} color="#A855F7" />
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#D8B4FE' : '#7E22CE' }}>
+                          {badge.name} ({badge.count})
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {/* Testimonials */}
+              {testimonials.length > 0 && (
+                <>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: labelColor, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 }}>
+                    Lo que dicen las pacientes
+                  </Text>
+                  <View style={{ gap: 10 }}>
+                    {testimonials.map((t) => {
+                      const isExpanded = expandedTestimonial === t.id;
+                      const shortBody = t.body.length > 120 ? t.body.slice(0, 120) + '...' : t.body;
+                      return (
+                        <Pressable
+                          key={t.id}
+                          onPress={() => setExpandedTestimonial(isExpanded ? null : t.id)}
+                          style={{
+                            backgroundColor: isDark ? '#1A1A1A' : '#FAFAFA',
+                            borderRadius: 14, padding: 14,
+                            borderWidth: 1, borderColor: isDark ? '#2A2A2A' : '#F3F4F6',
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#A855F720', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                              <Ionicons name="person-outline" size={13} color="#A855F7" />
+                            </View>
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#D8B4FE' : '#7E22CE', flex: 1 }}>
+                              {t.patient?.name ?? 'Paciente anónimo'}
+                            </Text>
+                            {t.body.length > 120 && (
+                              <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={labelColor} />
+                            )}
+                          </View>
+                          <Text style={{ fontSize: 13, color: textColor, lineHeight: 19 }}>
+                            {isExpanded ? t.body : shortBody}
+                          </Text>
+                          {t.tags && t.tags.length > 0 && (
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+                              {t.tags.map((tag) => (
+                                <View key={tag.id} style={{ backgroundColor: isDark ? '#252525' : '#F3F4F6', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
+                                  <Text style={{ fontSize: 10, color: labelColor, fontWeight: '600' }}>{tag.name}</Text>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+            </View>
+          )}
 
           {/* ── CTA Buttons ──────────────────────────────────── */}
           <View style={{ paddingHorizontal: 24, gap: 10 }}>

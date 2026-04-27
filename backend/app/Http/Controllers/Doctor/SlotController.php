@@ -23,10 +23,25 @@ final class SlotController extends Controller
     {
         $doctor = $request->user()->doctorProfile;
 
+        $request->validate([
+            'from'        => ['nullable', 'date_format:Y-m-d'],
+            'until'       => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'schedule_id' => ['nullable', 'uuid'],
+            'status'      => ['nullable', 'string'],
+        ]);
+
+        $slots = $this->scheduleService->listUpcomingSlots(
+            $doctor,
+            $request->query('from'),
+            $request->query('until'),
+            $request->query('schedule_id'),
+            $request->query('status'),
+        );
+
         return response()->json([
             'status'  => 'success',
             'message' => 'Slots obtenidos correctamente.',
-            'data'    => $this->scheduleService->listUpcomingSlots($doctor),
+            'data'    => $slots,
         ]);
     }
 

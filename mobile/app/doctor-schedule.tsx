@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -10,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { scheduleApi, officeApi, Schedule, DoctorClinicInfo, DoctorOffice } from '@/lib/api';
+import { scheduleApi, officeApi, clinicDiscoveryApi, Schedule, DoctorClinicInfo, DoctorOffice, Slot, DiscoverableClinic } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
 
@@ -59,6 +60,39 @@ function estimateSlots(start: string, end: string, duration: number): number {
   const [eh, em] = end.split(':').map(Number);
   const mins = (eh * 60 + em) - (sh * 60 + sm);
   return mins > 0 ? Math.floor(mins / duration) : 0;
+}
+
+function startOfWeekPlusN(n: number): string {
+  const d = new Date();
+  const diff = d.getDay() === 0 ? -6 : 1 - d.getDay(); // shift to Monday
+  d.setDate(d.getDate() + diff + n * 7);
+  return d.toISOString().slice(0, 10);
+}
+
+function addWeeksTo(from: string, n: number): string {
+  const d = new Date(from);
+  d.setDate(d.getDate() + n * 7);
+  return d.toISOString().slice(0, 10);
+}
+
+function groupSlotsByDate(slots: Slot[]): [string, Slot[]][] {
+  const map = new Map<string, Slot[]>();
+  for (const s of slots) {
+    const k = s.starts_at.slice(0, 10);
+    const arr = map.get(k) ?? [];
+    arr.push(s);
+    map.set(k, arr);
+  }
+  return Array.from(map.entries());
+}
+
+function formatTime(iso: string): string {
+  return iso.slice(11, 16);
+}
+
+function formatDateHeader(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 // ── Pill selector ──────────────────────────────────────────────────────────────
@@ -153,9 +187,27 @@ export default function DoctorScheduleScreen() {
   // Animate form
   const formAnim = useRef(new Animated.Value(0)).current;
 
+  // Tab principal
+  const [activeTab, setActiveTab] = useState<'schedules' | 'agenda' | 'discover'>('schedules');
+
   // Generate slots
-  const [genWeeks, setGenWeeks]     = useState(4);
-  const [generating, setGenerating] = useState<string | null>(null);
+  const [genFromOffset, setGenFromOffset] = useState(0);
+  const [genWeeks, setGenWeeks]           = useState(4);
+  const [generating, setGenerating]       = useState<string | null>(null);
+
+  // Agenda
+  const [agendaSlots, setAgendaSlots]               = useState<Slot[]>([]);
+  const [agendaLoading, setAgendaLoading]           = useState(false);
+  const [agendaError, setAgendaError]               = useState<string | null>(null);
+  const [agendaWeeks, setAgendaWeeks]               = useState(2);
+  const [agendaStatusFilter, setAgendaStatusFilter] = useState<string | null>(null);
+
+  // Discover clinics
+  const [discoverSearch, setDiscoverSearch]       = useState('');
+  const [discoverResults, setDiscoverResults]     = useState<DiscoverableClinic[]>([]);
+  const [discoverLoading, setDiscoverLoading]     = useState(false);
+  const [discoverError, setDiscoverError]         = useState<string | null>(null);
+  const discoverDebounce                          = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -200,6 +252,57 @@ export default function DoctorScheduleScreen() {
   }, [token]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadAgenda = useCallback(async () => {
+    if (!token) return;
+    setAgendaLoading(true);
+    setAgendaError(null);
+    try {
+      const from  = startOfWeekPlusN(0);
+      const until = addWeeksTo(from, agendaWeeks);
+      const res = await scheduleApi.listSlots(token, {
+        from,
+        until,
+        status: agendaStatusFilter ?? undefined,
+      });
+      setAgendaSlots(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setAgendaError('No se pudieron cargar los slots. Verifica tu conexión.');
+    } finally {
+      setAgendaLoading(false);
+    }
+  }, [token, agendaWeeks, agendaStatusFilter]);
+
+  useEffect(() => {
+    if (activeTab === 'agenda') {
+      loadAgenda();
+    }
+  }, [activeTab, loadAgenda]);
+
+  const loadDiscover = useCallback(async (q: string) => {
+    if (!token) return;
+    setDiscoverLoading(true);
+    setDiscoverError(null);
+    try {
+      const res = await clinicDiscoveryApi.search(token, { search: q || undefined, per_page: 20 });
+      setDiscoverResults(res.data?.data ?? []);
+    } catch {
+      setDiscoverError('No se pudieron cargar las clínicas.');
+    } finally {
+      setDiscoverLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (activeTab !== 'discover') return;
+    if (discoverDebounce.current) clearTimeout(discoverDebounce.current);
+    discoverDebounce.current = setTimeout(() => {
+      loadDiscover(discoverSearch);
+    }, 400);
+    return () => {
+      if (discoverDebounce.current) clearTimeout(discoverDebounce.current);
+    };
+  }, [activeTab, discoverSearch, loadDiscover]);
 
   const toggleForm = (val: boolean) => {
     setShowForm(val);
@@ -297,8 +400,8 @@ export default function DoctorScheduleScreen() {
   const handleGenerate = async (schedule: Schedule) => {
     if (!token) return;
     setGenerating(schedule.id);
-    const from = todayStr();
-    const until = addWeeks(genWeeks);
+    const from  = startOfWeekPlusN(genFromOffset);
+    const until = addWeeksTo(from, genWeeks);
     try {
       const res = await scheduleApi.generateSlots(token, schedule.id, from, until);
       const count = res.data?.generated ?? 0;
@@ -389,6 +492,40 @@ export default function DoctorScheduleScreen() {
         </Pressable>
       </View>
 
+      {/* ── Tab switcher ────────────────────────────────────── */}
+      <View style={{
+        flexDirection: 'row', marginHorizontal: 16, marginBottom: 8, marginTop: 4,
+        backgroundColor: isDark ? '#1C1C1C' : '#F3F4F6',
+        borderRadius: 14, padding: 3,
+      }}>
+        {([
+          { key: 'schedules', label: 'Horarios' },
+          { key: 'agenda',    label: 'Agenda'   },
+          { key: 'discover',  label: 'Explorar' },
+        ] as const).map(({ key, label }) => {
+          const sel = activeTab === key;
+          return (
+            <Pressable
+              key={key}
+              onPress={() => setActiveTab(key)}
+              style={({ pressed }) => ({
+                flex: 1, paddingVertical: 9, borderRadius: 11, alignItems: 'center',
+                backgroundColor: sel ? (isDark ? '#2A2A2A' : '#fff') : 'transparent',
+                shadowColor: sel ? '#000' : 'transparent',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: sel ? 0.08 : 0,
+                shadowRadius: 4, elevation: sel ? 2 : 0,
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 12, fontWeight: sel ? '700' : '500', color: sel ? '#E8467C' : subColor }}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 60, paddingTop: 8 }}
@@ -396,7 +533,7 @@ export default function DoctorScheduleScreen() {
       >
 
         {/* ── Cómo funciona (banner) ───────────────────────────── */}
-        {schedules.length === 0 && !showForm && !loading && (
+        {activeTab === 'schedules' && schedules.length === 0 && !showForm && !loading && (
           <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
             <View style={{
               backgroundColor: isDark ? '#1A2535' : '#EFF6FF',
@@ -442,7 +579,7 @@ export default function DoctorScheduleScreen() {
         )}
 
         {/* ── Formulario nuevo horario ─────────────────────────── */}
-        {showForm && (
+        {activeTab === 'schedules' && showForm && (
           <View style={{
             marginHorizontal: 16, marginBottom: 20,
             backgroundColor: cardBg, borderRadius: 24, overflow: 'hidden',
@@ -782,12 +919,29 @@ export default function DoctorScheduleScreen() {
         )}
 
         {/* ── Selector de semanas para generar ────────────────── */}
-        {schedules.length > 0 && (
+        {activeTab === 'schedules' && schedules.length > 0 && (
           <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
               <Ionicons name="flash" size={14} color="#8B5CF6" />
               <Text style={{ fontSize: 12, fontWeight: '700', color: subColor, letterSpacing: 0.8, textTransform: 'uppercase' }}>
-                Generar slots para las próximas
+                Iniciar desde
+              </Text>
+            </View>
+            <PillRow
+              options={[
+                { value: 0, label: 'Esta semana' },
+                { value: 1, label: 'Próx. semana' },
+                { value: 2, label: 'En 2 semanas' },
+                { value: 3, label: 'En 3 semanas' },
+              ]}
+              value={genFromOffset}
+              onChange={setGenFromOffset}
+              isDark={isDark}
+            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, marginTop: 14 }}>
+              <Ionicons name="calendar-outline" size={14} color="#8B5CF6" />
+              <Text style={{ fontSize: 12, fontWeight: '700', color: subColor, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                Generar para
               </Text>
             </View>
             <PillRow
@@ -805,7 +959,7 @@ export default function DoctorScheduleScreen() {
         )}
 
         {/* ── Lista de horarios ────────────────────────────────── */}
-        <View style={{ paddingHorizontal: 16 }}>
+        {activeTab === 'schedules' && <View style={{ paddingHorizontal: 16 }}>
           {loading && (
             <View style={{ alignItems: 'center', paddingVertical: 40 }}>
               <Text style={{ fontSize: 13, color: subColor }}>Cargando horarios...</Text>
@@ -949,7 +1103,230 @@ export default function DoctorScheduleScreen() {
               </View>
             );
           })}
-        </View>
+        </View>}
+
+        {/* ── Tab Explorar Clínicas ───────────────────────────── */}
+        {activeTab === 'discover' && (
+          <View style={{ paddingHorizontal: 16 }}>
+            {/* Banner informativo */}
+            <View style={{ backgroundColor: isDark ? '#1A2535' : '#EFF6FF', borderRadius: 14, padding: 12, flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 14, borderWidth: 1, borderColor: isDark ? '#1E3A5F' : '#BFDBFE' }}>
+              <Ionicons name="information-circle" size={16} color="#3B82F6" style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#93C5FD' : '#1D4ED8', lineHeight: 17 }}>
+                Para atender en una clínica, comunícate con su administrador. Solo las clínicas pueden vincularte a su red.
+              </Text>
+            </View>
+
+            {/* Buscador */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: cardBg, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 14, borderWidth: 1, borderColor: isDark ? '#333' : '#E5E7EB' }}>
+              <Ionicons name="search" size={16} color={subColor} />
+              <TextInput
+                placeholder="Buscar clínicas..."
+                placeholderTextColor={subColor}
+                value={discoverSearch}
+                onChangeText={setDiscoverSearch}
+                style={{ flex: 1, fontSize: 14, color: textColor }}
+              />
+              {discoverSearch.length > 0 && (
+                <Pressable onPress={() => setDiscoverSearch('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={subColor} />
+                </Pressable>
+              )}
+            </View>
+
+            {discoverLoading && (
+              <View style={{ alignItems: 'center', paddingVertical: 30 }}>
+                <Text style={{ fontSize: 13, color: subColor }}>Buscando clínicas...</Text>
+              </View>
+            )}
+            {discoverError && !discoverLoading && (
+              <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 12, padding: 12, flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#FCA5A5' : '#991B1B' }}>{discoverError}</Text>
+              </View>
+            )}
+
+            {!discoverLoading && discoverResults.map((clinic) => (
+              <View
+                key={clinic.id}
+                style={{
+                  backgroundColor: cardBg, borderRadius: 16, padding: 14, marginBottom: 10,
+                  shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: isDark ? 0.15 : 0.05, shadowRadius: 4, elevation: 1,
+                  borderWidth: 1, borderColor: isDark ? '#272727' : '#F1F5F9',
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="business" size={18} color="#3B82F6" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: textColor }}>{clinic.name}</Text>
+                    <Text style={{ fontSize: 11, color: subColor, marginTop: 2 }}>
+                      {clinic.branch_count} sede{clinic.branch_count !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                </View>
+                {(clinic.phone || clinic.email) && (
+                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                    {clinic.phone && (
+                      <Pressable
+                        onPress={() => Linking.openURL(`tel:${clinic.phone}`)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: isDark ? '#0D2E1F' : '#F0FDF4', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 }}
+                      >
+                        <Ionicons name="call-outline" size={11} color="#10B981" />
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#10B981' }}>{clinic.phone}</Text>
+                      </Pressable>
+                    )}
+                    {clinic.email && (
+                      <Pressable
+                        onPress={() => Linking.openURL(`mailto:${clinic.email}`)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 }}
+                      >
+                        <Ionicons name="mail-outline" size={11} color="#3B82F6" />
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#3B82F6' }} numberOfLines={1}>{clinic.email}</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+              </View>
+            ))}
+
+            {!discoverLoading && !discoverError && discoverResults.length === 0 && (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <Ionicons name="business-outline" size={40} color={subColor} />
+                <Text style={{ fontSize: 14, fontWeight: '700', color: textColor, marginTop: 12 }}>
+                  {discoverSearch ? 'Sin resultados' : 'Escribe para buscar clínicas'}
+                </Text>
+                <Text style={{ fontSize: 12, color: subColor, marginTop: 4, textAlign: 'center' }}>
+                  {discoverSearch ? 'Intenta con otro nombre.' : 'Encuentra clínicas activas donde puedas atender.'}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── Tab Agenda ──────────────────────────────────────── */}
+        {activeTab === 'agenda' && (
+          <View style={{ paddingHorizontal: 16 }}>
+
+            {/* Filtro de duración */}
+            <View style={{ marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <Ionicons name="eye-outline" size={13} color={subColor} />
+                <Text style={{ fontSize: 11, fontWeight: '700', color: subColor, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                  Mostrar
+                </Text>
+              </View>
+              <PillRow
+                options={[
+                  { value: 1, label: '1 sem' },
+                  { value: 2, label: '2 sem' },
+                  { value: 4, label: '4 sem' },
+                  { value: 8, label: '8 sem' },
+                ]}
+                value={agendaWeeks}
+                onChange={setAgendaWeeks}
+                isDark={isDark}
+              />
+            </View>
+
+            {/* Filtro de estado */}
+            <View style={{ marginBottom: 16 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+                {([null, 'available', 'booked', 'blocked'] as const).map((s) => {
+                  const sel = agendaStatusFilter === s;
+                  const label = s === null ? 'Todos' : s === 'available' ? 'Disponibles' : s === 'booked' ? 'Reservados' : 'Bloqueados';
+                  const color = s === null ? '#6B7280' : s === 'available' ? '#10B981' : s === 'booked' ? '#E8467C' : '#F59E0B';
+                  return (
+                    <Pressable
+                      key={String(s)}
+                      onPress={() => setAgendaStatusFilter(s)}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+                        backgroundColor: sel ? color : (isDark ? '#2A2A2A' : '#F3F4F6'),
+                        borderWidth: 1.5, borderColor: sel ? color : (isDark ? '#3A3A3A' : '#E5E7EB'),
+                        opacity: pressed ? 0.75 : 1,
+                      })}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: sel ? '700' : '500', color: sel ? '#fff' : (isDark ? '#D1D5DB' : '#374151') }}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Loading / error */}
+            {agendaLoading && (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <Text style={{ fontSize: 13, color: subColor }}>Cargando agenda...</Text>
+              </View>
+            )}
+            {agendaError && !agendaLoading && (
+              <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 12, padding: 12, flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#FCA5A5' : '#991B1B' }}>{agendaError}</Text>
+                <Pressable onPress={loadAgenda} style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#EF4444', borderRadius: 10 }}>
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>Reintentar</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Slots agrupados por fecha */}
+            {!agendaLoading && !agendaError && groupSlotsByDate(agendaSlots).map(([date, daySlots]) => (
+              <View key={date} style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: subColor, textTransform: 'capitalize', marginBottom: 8, letterSpacing: 0.3 }}>
+                  {formatDateHeader(date)}
+                </Text>
+                {daySlots.map((slot) => {
+                  const statusColor = slot.status === 'available' ? '#10B981' : slot.status === 'booked' ? '#E8467C' : slot.status === 'blocked' ? '#F59E0B' : '#6B7280';
+                  const statusLabel = slot.status === 'available' ? 'Disponible' : slot.status === 'booked' ? 'Reservado' : slot.status === 'blocked' ? 'Bloqueado' : 'Cancelado';
+                  const locationName = slot.branch?.name ?? slot.office?.name ?? null;
+                  const locationIcon = slot.office?.type === 'home' ? 'home-outline' : slot.branch ? 'business-outline' : 'location-outline';
+                  return (
+                    <View
+                      key={slot.id}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 12,
+                        backgroundColor: cardBg, borderRadius: 14, padding: 12, marginBottom: 6,
+                        borderLeftWidth: 3, borderLeftColor: statusColor,
+                        shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: isDark ? 0.15 : 0.05, shadowRadius: 4, elevation: 1,
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: textColor }}>
+                          {formatTime(slot.starts_at)} – {formatTime(slot.ends_at)}
+                        </Text>
+                        {locationName && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                            <Ionicons name={locationIcon as any} size={11} color={subColor} />
+                            <Text style={{ fontSize: 11, color: subColor }} numberOfLines={1}>{locationName}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={{ backgroundColor: `${statusColor}20`, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: statusColor }}>{statusLabel}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+
+            {!agendaLoading && !agendaError && agendaSlots.length === 0 && (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <Ionicons name="calendar-outline" size={40} color={subColor} />
+                <Text style={{ fontSize: 14, fontWeight: '700', color: textColor, marginTop: 12 }}>Sin slots en este período</Text>
+                <Text style={{ fontSize: 12, color: subColor, marginTop: 4, textAlign: 'center' }}>
+                  Genera slots desde la pestaña Horarios para verlos aquí.
+                </Text>
+              </View>
+            )}
+
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>

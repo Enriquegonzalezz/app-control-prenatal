@@ -389,10 +389,15 @@ export interface Conversation {
 
 export interface Slot {
   id: string;
+  schedule_id: string | null;
+  doctor_id: string;
   starts_at: string;
   ends_at: string;
-  status: string;
-  branch_id: string;
+  status: 'available' | 'booked' | 'cancelled' | 'blocked';
+  branch_id: string | null;
+  office_id: string | null;
+  branch?: { id: string; name: string } | null;
+  office?: { id: string; name: string; type: string } | null;
 }
 
 export const appointmentApi = {
@@ -428,11 +433,11 @@ export const appointmentApi = {
       headers: { Authorization: `Bearer ${token}` },
     });
   },
-  async complete(token: string, id: string, notes?: string) {
+  async complete(token: string, id: string, doctorNotes?: string) {
     return request<{ status: string; data: Appointment }>(`/appointments/${id}/complete`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ notes: notes ?? null }),
+      body: JSON.stringify({ doctor_notes: doctorNotes ?? null }),
     });
   },
   async noShow(token: string, id: string) {
@@ -647,9 +652,125 @@ export const scheduleApi = {
       }
     );
   },
-  async listSlots(token: string) {
-    return request<{ status: string; data: Slot[] }>('/doctor/slots', {
+  async listSlots(
+    token: string,
+    params?: { from?: string; until?: string; schedule_id?: string; status?: string },
+  ) {
+    const qs = new URLSearchParams();
+    if (params?.from)        qs.set('from', params.from);
+    if (params?.until)       qs.set('until', params.until);
+    if (params?.schedule_id) qs.set('schedule_id', params.schedule_id);
+    if (params?.status)      qs.set('status', params.status);
+    const query = qs.toString();
+    return request<{ status: string; data: Slot[] }>(
+      `/doctor/slots${query ? `?${query}` : ''}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+  },
+};
+
+export interface DiscoverableClinic {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  phone: string | null;
+  email: string | null;
+  branch_count: number;
+}
+
+export const clinicDiscoveryApi = {
+  async search(
+    token: string,
+    params?: { search?: string; per_page?: number; page?: number },
+  ) {
+    const qs = new URLSearchParams();
+    if (params?.search)   qs.set('search', params.search);
+    if (params?.per_page) qs.set('per_page', String(params.per_page));
+    if (params?.page)     qs.set('page', String(params.page));
+    const query = qs.toString();
+    return request<{
+      status: string;
+      data: {
+        data: DiscoverableClinic[];
+        current_page: number;
+        last_page: number;
+        total: number;
+      };
+    }>(
+      `/doctor/clinics/discover${query ? `?${query}` : ''}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+  },
+};
+
+// ── Experience (Sprint 5) ─────────────────────────────────────────────────────
+
+export interface ExperienceTag {
+  id: string;
+  name: string;
+  icon: string | null;
+  is_active?: boolean;
+}
+
+export interface ExperienceBadge {
+  id: string;
+  name: string;
+  icon: string | null;
+  count: number;
+}
+
+export interface Experience {
+  id: string;
+  appointment_id: string;
+  patient_id: string;
+  doctor_id: string;
+  clinic_id: string;
+  body: string;
+  privacy: 'full_name' | 'partial' | 'anonymous';
+  status: 'pending' | 'published' | 'reported' | 'hidden';
+  published_at: string | null;
+  created_at: string;
+  tags: ExperienceTag[];
+  patient: { id: string; name: string } | null;
+  doctor: { id: string; name: string } | null;
+}
+
+export const experienceApi = {
+  async listForDoctor(doctorId: string, limit = 20) {
+    return request<{ status: string; data: Experience[] }>(
+      `/experiences?doctor_id=${doctorId}&limit=${limit}`,
+    );
+  },
+
+  async listForPatient(token: string) {
+    return request<{ status: string; data: Experience[] }>('/experiences', {
       headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  async listTags() {
+    return request<{ status: string; data: ExperienceTag[] }>('/experience-tags');
+  },
+
+  async badges(doctorId: string) {
+    return request<{ status: string; data: ExperienceBadge[] }>(
+      `/experience-badges?doctor_id=${doctorId}`,
+    );
+  },
+
+  async create(
+    token: string,
+    payload: {
+      appointment_id: string;
+      body: string;
+      privacy: 'full_name' | 'partial' | 'anonymous';
+      tag_ids?: string[];
+    },
+  ) {
+    return request<{ status: string; data: Experience }>('/experiences', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
     });
   },
 };
