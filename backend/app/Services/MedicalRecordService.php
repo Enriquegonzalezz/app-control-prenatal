@@ -49,19 +49,33 @@ final class MedicalRecordService
 
         } elseif ($role === 'doctor') {
             $patientId = $filters['patient_id'] ?? null;
+            $scope     = $filters['scope'] ?? null;
 
-            if ($patientId) {
+            // Doctor viewing a specific patient's history (requires active relationship)
+            if ($patientId && (string) $patientId !== (string) $user->id) {
                 $this->assertActiveRelationship($user, $patientId);
                 $query->where('patient_id', $patientId)
                       ->where('visibility', 'shared');
-            } else {
-                // Doctor sees all shared records of their active patients
+            } elseif ($scope === 'patients') {
+                // Doctor viewing aggregated shared records of ALL their active patients,
+                // grouped later in the UI by patient. Excludes the doctor's own records.
                 $activePatientIds = DoctorPatientRelationship::where('doctor_id', $user->id)
                     ->where('status', RelationshipStatus::ACTIVE->value)
                     ->pluck('patient_id');
 
                 $query->whereIn('patient_id', $activePatientIds)
+                      ->where('patient_id', '!=', $user->id)
                       ->where('visibility', 'shared');
+            } else {
+                // Doctor viewing their OWN personal medical history.
+                // Privacy critical: each user's history is strictly private to themselves,
+                // regardless of role. A doctor is also a person and their own records must
+                // never be mixed with their patients' records.
+                $query->where('patient_id', $user->id)
+                      ->where(function ($q) use ($user): void {
+                          $q->where('uploader_id', $user->id)
+                            ->orWhere('visibility', 'shared');
+                      });
             }
         } else {
             return collect();
@@ -180,16 +194,17 @@ final class MedicalRecordService
     {
         $role = $user->role->value;
 
-        // Patient: owns the record
-        if ($role === 'patient' && (string) $record->patient_id === (string) $user->id) {
-            // Private records: only the patient who uploaded can see
+        // Owner of the record (patient_id === user.id) — applies to any role.
+        // Every user's personal history is strictly private to themselves.
+        if ((string) $record->patient_id === (string) $user->id) {
+            // Private records: only the uploader can see (protects patient-uploaded private docs)
             if ($record->visibility === 'private' && (string) $record->uploader_id !== (string) $user->id) {
                 abort(403, 'Este registro es privado.');
             }
             return;
         }
 
-        // Doctor: must have active relationship + record must be shared
+        // Doctor viewing a patient's record: must have active relationship + record must be shared
         if ($role === 'doctor') {
             $hasRelationship = DoctorPatientRelationship::where('doctor_id', $user->id)
                 ->where('patient_id', $record->patient_id)
@@ -200,7 +215,7 @@ final class MedicalRecordService
                 return;
             }
 
-            // Doctor is the uploader of the record
+            // Doctor is the uploader of the record (clinical note they authored)
             if ((string) $record->uploader_id === (string) $user->id) {
                 return;
             }

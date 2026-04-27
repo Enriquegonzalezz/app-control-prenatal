@@ -234,79 +234,119 @@ function AppointmentCard({
         </View>
       )}
 
-      {/* ── Botones de acción (chat + reagendar) ── */}
-      <View style={{ marginTop: 10, gap: 8 }}>
-        {/* Chat */}
+      {/* ── Botones de acción — jerarquía: Chat primario (brand), resto secundarios outlined ── */}
+      <View style={{ marginTop: 12, gap: 8 }}>
+        {/* Chat — PRIMARY CTA (brand filled) */}
         {chatAvailable && (
           <Pressable
             onPress={() => onChat(appt)}
             disabled={isChatting}
             style={{
               flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-              backgroundColor: isDark ? '#1A2A3A' : '#EFF6FF',
-              borderRadius: 12, paddingVertical: 11,
-              borderWidth: 1, borderColor: isDark ? '#2563EB50' : '#BFDBFE',
+              backgroundColor: '#E8467C',
+              borderRadius: 12, paddingVertical: 12,
               opacity: isChatting ? 0.6 : 1,
+              shadowColor: '#E8467C',
+              shadowOpacity: isDark ? 0.25 : 0.2,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 2 },
+              elevation: 2,
             }}
             accessibilityRole="button" accessibilityLabel={chatLabel}
           >
-            <Ionicons name="chatbubble-ellipses" size={15} color="#3B82F6" />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#3B82F6' }}>
+            <Ionicons name="chatbubble-ellipses" size={16} color="#FFFFFF" />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>
               {isChatting ? 'Conectando...' : chatLabel}
             </Text>
           </Pressable>
         )}
 
-        {/* Reagendar — solo médico, solo en citas activas */}
-        {!isPatientView && RESCHEDULE_STATUSES.has(appt.status) && (
-          <Pressable
-            onPress={() => onReschedule(appt)}
-            style={{
-              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-              backgroundColor: isDark ? '#1A2D1A' : '#F0FDF4',
-              borderRadius: 12, paddingVertical: 11,
-              borderWidth: 1, borderColor: isDark ? '#16653050' : '#BBF7D0',
-            }}
-            accessibilityRole="button" accessibilityLabel="Reagendar cita"
-          >
-            <Ionicons name="calendar" size={15} color="#10B981" />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#10B981' }}>Reagendar</Text>
-          </Pressable>
-        )}
+        {/* Acciones secundarias en fila (2 columnas) cuando aplican */}
+        {(() => {
+          const secondaryActions: React.ReactNode[] = [];
 
-        {/* Adjuntar documento — disponible en citas activas o completadas */}
-        {ACTIVE_STATUSES.has(appt.status) || appt.status === 'completed' ? (
-          <Pressable
-            onPress={() => onAttachDocument(appt)}
-            style={{
-              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-              backgroundColor: isDark ? '#2D1A20' : '#FFF1F6',
-              borderRadius: 12, paddingVertical: 11,
-              borderWidth: 1, borderColor: isDark ? '#E8467C40' : '#FBCFE8',
-            }}
-            accessibilityRole="button" accessibilityLabel="Adjuntar documento"
-          >
-            <Ionicons name="attach" size={15} color="#E8467C" />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#E8467C' }}>Adjuntar documento</Text>
-          </Pressable>
-        ) : null}
+          // Reagendar — solo médico, solo en citas activas
+          if (!isPatientView && RESCHEDULE_STATUSES.has(appt.status)) {
+            secondaryActions.push(
+              <Pressable
+                key="reschedule"
+                onPress={() => onReschedule(appt)}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+                  borderRadius: 12, paddingVertical: 11, paddingHorizontal: 8,
+                  borderWidth: 1, borderColor: isDark ? '#2D2D2D' : '#E5E7EB',
+                }}
+                accessibilityRole="button" accessibilityLabel="Reagendar cita"
+              >
+                <Ionicons name="calendar-outline" size={15} color="#E8467C" />
+                <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }}>
+                  Reagendar
+                </Text>
+              </Pressable>
+            );
+          }
 
-        {/* Ver historial del paciente — solo médico, citas activas o completadas */}
-        {!isPatientView && (ACTIVE_STATUSES.has(appt.status) || appt.status === 'completed') && (
-          <Pressable
-            onPress={() => onViewPatientHistory(appt)}
-            style={{
-              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-              backgroundColor: isDark ? '#1E1A2D' : '#F5F3FF',
-              borderRadius: 12, paddingVertical: 11,
-              borderWidth: 1, borderColor: isDark ? '#8B5CF640' : '#DDD6FE',
-            }}
-            accessibilityRole="button" accessibilityLabel="Ver historial del paciente"
-          >
-            <Ionicons name="folder-open-outline" size={15} color="#8B5CF6" />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#8B5CF6' }}>Ver historial del paciente</Text>
-          </Pressable>
-        )}
+          // Adjuntar documento — citas activas o completadas
+          if (ACTIVE_STATUSES.has(appt.status) || appt.status === 'completed') {
+            secondaryActions.push(
+              <Pressable
+                key="attach"
+                onPress={() => onAttachDocument(appt)}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+                  borderRadius: 12, paddingVertical: 11, paddingHorizontal: 8,
+                  borderWidth: 1, borderColor: isDark ? '#2D2D2D' : '#E5E7EB',
+                }}
+                accessibilityRole="button" accessibilityLabel="Adjuntar documento"
+              >
+                <Ionicons name="attach-outline" size={15} color="#E8467C" />
+                <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }}>
+                  Adjuntar
+                </Text>
+              </Pressable>
+            );
+          }
+
+          // Ver historial — solo médico
+          if (!isPatientView && (ACTIVE_STATUSES.has(appt.status) || appt.status === 'completed')) {
+            secondaryActions.push(
+              <Pressable
+                key="history"
+                onPress={() => onViewPatientHistory(appt)}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+                  borderRadius: 12, paddingVertical: 11, paddingHorizontal: 8,
+                  borderWidth: 1, borderColor: isDark ? '#2D2D2D' : '#E5E7EB',
+                }}
+                accessibilityRole="button" accessibilityLabel="Ver historial del paciente"
+              >
+                <Ionicons name="folder-open-outline" size={15} color="#E8467C" />
+                <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }}>
+                  Historial
+                </Text>
+              </Pressable>
+            );
+          }
+
+          if (secondaryActions.length === 0) return null;
+          // Agrupar en filas de a 2 para no saturar el card
+          const rows: React.ReactNode[][] = [];
+          for (let i = 0; i < secondaryActions.length; i += 2) {
+            rows.push(secondaryActions.slice(i, i + 2));
+          }
+          return rows.map((row, idx) => (
+            <View key={`row-${idx}`} style={{ flexDirection: 'row', gap: 8 }}>
+              {row}
+              {row.length === 1 && <View style={{ flex: 1 }} />}
+            </View>
+          ));
+        })()}
 
         {/* Marcar como completada — solo médico, confirmadas/en curso */}
         {canComplete && (
