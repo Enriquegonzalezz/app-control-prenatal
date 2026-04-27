@@ -1,6 +1,6 @@
 # Sprint 5 — Chat + Experiencias + Referenciados
 **Semanas:** 11–12  
-**Estado:** 🔄 Backend completado — Chat ✅ funcional (cifrado OK), Reagendar ✅, Mensajes tab ✅ con caché, Experiencias pendientes
+**Estado:** ✅ COMPLETADO — Chat ✅, Reagendar ✅, Mensajes ✅, Experiencias ✅ (S5.9 + S5.10)
 
 ---
 
@@ -31,8 +31,38 @@ narrativas (que reemplaza ratings) y el módulo de referenciados entre pacientes
 | S5.8g | Citas se crean como `confirmed` al reservar (sin paso de confirmación) | Flujo simplificado; médico cancela/reagenda si hay imprevisto | ✅ |
 | S5.8h | Endpoint `POST /appointments/{id}/reschedule` — médico reagenda a nuevo slot | Slot anterior liberado, nuevo slot reservado | ✅ |
 | S5.8i | Modal "Reagendar" en pantalla Mis Citas (médico) con selector de slots | UX de reagendamiento inline | ✅ |
-| S5.9 | Pantalla: Escribir Experiencia post-consulta | Formulario narrativo con tags | ⏳ |
-| S5.10 | Visualización de experiencias en perfil del médico | Badges + testimonios renderizados | ⏳ |
+| S5.8j | **Bug fix reagendar a slot de consultorio propio** — `appointments.branch_id` nullable | Verificado en Supabase: `branch_id` IS NULL — OK | ✅ |
+| S5.9 | Pantalla: Escribir Experiencia post-consulta (`write-experience.tsx`) | Formulario narrativo con tags, privacidad, validación inline | ✅ |
+| S5.10 | Visualización de experiencias en perfil del médico | Badges + testimonios en `DoctorProfileSheet` | ✅ |
+
+### ✅ Bug resuelto: reagendar a slot de consultorio propio
+`appointments.branch_id` verificado como nullable en Supabase. El constraint NOT NULL ya no existe.
+
+### ✅ S5.9 — Pantalla "Escribir Experiencia" (`write-experience.tsx`) — Completado (Abril 2026)
+- [x] Formulario narrativo con validación de mínimo 50 / máximo 1000 caracteres
+- [x] Contador de caracteres en tiempo real con colores semánticos (rojo/verde/gris)
+- [x] Selector de tags en pills (carga desde `/experience-tags`) — ningún tag es obligatorio
+- [x] Selector de privacidad: Nombre completo / Nombre parcial / Anónimo
+- [x] Pantalla de éxito animada con mensaje contextual (nombre del médico)
+- [x] Validación inline sin Alert.alert — error debajo del botón
+- [x] Dark / Light mode completo con tokens semánticos
+- [x] Bug fix: `appointmentApi.complete` enviaba `notes` → corregido a `doctor_notes`
+
+### ✅ S5.10 — Experiencias en Perfil Médico (`DoctorProfileSheet`) — Completado (Abril 2026)
+- [x] Carga badges (`GET /experience-badges?doctor_id=`) al abrir el sheet
+- [x] Carga 3 testimonios recientes (`GET /experiences?doctor_id=&limit=3`)
+- [x] Badge pills con contador: "Trato humano (12)", "Puntual (8)" — color morado brand
+- [x] Tarjetas de testimonio expandibles (trunca a 120 chars, chevron toggle)
+- [x] Sección oculta si no hay experiencias (sin mensaje vacío intrusivo)
+- [x] Sin ninguna mención a "estrellas" o rating numérico
+
+### ✅ Flujo completo "Completar cita → Experiencia" — Completado (Abril 2026)
+- [x] **Médico en Mis Citas**: botón "Marcar como completada" (verde) en citas `confirmed`/`in_progress`
+- [x] **Modal de completar**: campo opcional de notas clínicas + confirmación explícita
+- [x] **Médico en Mis Citas**: botón "No asistió" (naranja) con modal de confirmación
+- [x] **Paciente en Mis Citas (Completadas)**: botón "Compartir experiencia" (morado)
+- [x] **Botón se oculta** una vez que ya escribió la experiencia (badge verde "Experiencia compartida")
+- [x] **Verificación anti-duplicado** en backend (UNIQUE en `appointment_id`) + en frontend (carga IDs de experiencias existentes del paciente)
 
 ### Decisiones de diseño del chat (actualizado)
 - El endpoint `POST /chat/with/{user}` crea la `DoctorPatientRelationship` como `active`
@@ -105,8 +135,9 @@ const channel = supabase.channel(`chat:${relationshipUuid}`)
 - [x] Citas se confirman automáticamente al reservar (sin estado pending)
 - [x] Médico puede reagendar citas desde "Mis Citas" (modal con selector de slots)
 - [x] **Zustand cache** en `messages.tsx`: cache-first, pull-to-refresh fuerza reload, sin re-fetch al navegar entre tabs
-- [ ] Paciente sin cita completada NO puede publicar experiencia (403)
-- [ ] Perfil del médico muestra experiencias SIN ninguna estrella
+- [x] Reagendar a slot de consultorio propio — `branch_id` nullable confirmado en Supabase ✅
+- [x] Paciente sin cita completada NO puede publicar experiencia (403 desde backend)
+- [x] Perfil del médico muestra experiencias SIN ninguna estrella — badges narrativos + testimonios
 - [ ] Sistema de referenciados con badge "Recomendado por [nombre]"
 
 ---

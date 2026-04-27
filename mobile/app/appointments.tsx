@@ -7,12 +7,13 @@ import {
   RefreshControl,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { appointmentApi, chatApi, scheduleApi, Appointment, Slot } from '@/lib/api';
+import { appointmentApi, chatApi, scheduleApi, experienceApi, Appointment, Slot } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
 import { useCacheStore } from '@/store/cacheStore';
@@ -36,6 +37,7 @@ const STATUS_CONFIG = {
 
 const CANCELLABLE = new Set<Appointment['status']>(['pending', 'confirmed']);
 const ACTIVE_STATUSES = new Set<Appointment['status']>(['pending', 'confirmed', 'in_progress']);
+const COMPLETABLE_STATUSES = new Set<Appointment['status']>(['confirmed', 'in_progress']);
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -108,7 +110,9 @@ function groupSlotsByDate(slots: Slot[]): { date: string; label: string; slots: 
 }
 
 function AppointmentCard({
-  appt, isDark, onCancel, cancelling, userRole, onChat, chatting, chatError, onReschedule, onAttachDocument, onViewPatientHistory,
+  appt, isDark, onCancel, cancelling, userRole, onChat, chatting, chatError,
+  onReschedule, onAttachDocument, onViewPatientHistory, onComplete, completing,
+  onNoShow, onWriteExperience, completedAppointmentIds,
 }: {
   appt: Appointment;
   isDark: boolean;
@@ -121,11 +125,17 @@ function AppointmentCard({
   onReschedule: (appt: Appointment) => void;
   onAttachDocument: (appt: Appointment) => void;
   onViewPatientHistory: (appt: Appointment) => void;
+  onComplete: (appt: Appointment) => void;
+  completing: string | null;
+  onNoShow: (appt: Appointment) => void;
+  onWriteExperience: (appt: Appointment) => void;
+  completedAppointmentIds: Set<string>;
 }) {
   const sc = STATUS_CONFIG[appt.status];
   const canCancel = CANCELLABLE.has(appt.status);
   const isCancelling = cancelling === appt.id;
   const isChatting = chatting === appt.id;
+  const isCompleting = completing === appt.id;
   const thisChatError = chatError?.id === appt.id ? chatError.msg : null;
 
   const isPatientView = userRole === 'patient';
@@ -135,6 +145,10 @@ function AppointmentCard({
 
   const chatAvailable = CHAT_ACTIVE_STATUSES.has(appt.status);
   const chatLabel     = isPatientView ? 'Hablar con médico' : 'Hablar con paciente';
+  const canComplete = !isPatientView && COMPLETABLE_STATUSES.has(appt.status);
+  const canNoShow   = !isPatientView && appt.status === 'confirmed';
+  const alreadyHasExperience = completedAppointmentIds.has(appt.id);
+  const canWriteExperience = isPatientView && appt.status === 'completed' && !alreadyHasExperience;
 
   return (
     <View style={{
@@ -293,6 +307,74 @@ function AppointmentCard({
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#8B5CF6' }}>Ver historial del paciente</Text>
           </Pressable>
         )}
+
+        {/* Marcar como completada — solo médico, confirmadas/en curso */}
+        {canComplete && (
+          <Pressable
+            onPress={() => onComplete(appt)}
+            disabled={isCompleting}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              backgroundColor: isDark ? '#0A1E14' : '#F0FDF4',
+              borderRadius: 12, paddingVertical: 11,
+              borderWidth: 1, borderColor: isDark ? '#10B98140' : '#BBF7D0',
+              opacity: isCompleting ? 0.6 : 1,
+            }}
+            accessibilityRole="button" accessibilityLabel="Marcar cita como completada"
+          >
+            <Ionicons name="checkmark-circle" size={15} color="#10B981" />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#10B981' }}>
+              {isCompleting ? 'Marcando...' : 'Marcar como completada'}
+            </Text>
+          </Pressable>
+        )}
+
+        {/* No asistió — solo médico, confirmadas */}
+        {canNoShow && (
+          <Pressable
+            onPress={() => onNoShow(appt)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              backgroundColor: isDark ? '#1A100A' : '#FFF7ED',
+              borderRadius: 12, paddingVertical: 11,
+              borderWidth: 1, borderColor: isDark ? '#F9731640' : '#FED7AA',
+            }}
+            accessibilityRole="button" accessibilityLabel="Marcar paciente como no asistió"
+          >
+            <Ionicons name="person-remove-outline" size={15} color="#F97316" />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#F97316' }}>No asistió</Text>
+          </Pressable>
+        )}
+
+        {/* Escribir experiencia — solo paciente, citas completadas sin experiencia previa */}
+        {canWriteExperience && (
+          <Pressable
+            onPress={() => onWriteExperience(appt)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              backgroundColor: isDark ? '#1A0A1E' : '#FDF4FF',
+              borderRadius: 12, paddingVertical: 11,
+              borderWidth: 1, borderColor: isDark ? '#A855F740' : '#E9D5FF',
+            }}
+            accessibilityRole="button" accessibilityLabel="Compartir tu experiencia"
+          >
+            <Ionicons name="star-half-outline" size={15} color="#A855F7" />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#A855F7' }}>Compartir experiencia</Text>
+          </Pressable>
+        )}
+
+        {/* Experiencia ya compartida — badge informativo */}
+        {isPatientView && appt.status === 'completed' && alreadyHasExperience && (
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+            backgroundColor: isDark ? '#0F1A10' : '#F0FDF4',
+            borderRadius: 12, paddingVertical: 11,
+            borderWidth: 1, borderColor: isDark ? '#16A34A40' : '#BBF7D0',
+          }}>
+            <Ionicons name="checkmark-circle" size={15} color="#16A34A" />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#16A34A' }}>Experiencia compartida</Text>
+          </View>
+        )}
       </View>
 
       {/* Inline chat error */}
@@ -338,6 +420,17 @@ export default function AppointmentsScreen() {
   const [rescheduling, setRescheduling] = useState(false);
   const [rescheduleError, setRescheduleError] = useState<string | null>(null);
   const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState<Slot | null>(null);
+
+  // Complete appointment state
+  const [completeTarget, setCompleteTarget] = useState<Appointment | null>(null);
+  const [completeNotes, setCompleteNotes] = useState('');
+  const [completing, setCompleting] = useState<string | null>(null);
+  const [completeError, setCompleteError] = useState<string | null>(null);
+  // No-show confirmation state
+  const [noShowTarget, setNoShowTarget] = useState<Appointment | null>(null);
+  const [noShowing, setNoShowing] = useState(false);
+  // Patient's already-written experience appointment IDs
+  const [writtenExperienceIds, setWrittenExperienceIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(async (force = false) => {
     if (!token) return;
@@ -441,6 +534,58 @@ export default function AppointmentsScreen() {
       params: { patient_id: appt.patient_id ?? '', patient_name: appt.patient?.name ?? 'Paciente' },
     });
   };
+
+  const handleCompleteConfirm = async () => {
+    if (!token || !completeTarget) return;
+    setCompleting(completeTarget.id);
+    setCompleteError(null);
+    try {
+      await appointmentApi.complete(token, completeTarget.id, completeNotes.trim() || undefined);
+      setCompleteTarget(null);
+      setCompleteNotes('');
+      useCacheStore.getState().invalidate('appointments');
+      await load(true);
+    } catch (err: any) {
+      setCompleteError(err?.message ?? 'No se pudo completar la cita.');
+    } finally {
+      setCompleting(null);
+    }
+  };
+
+  const handleNoShowConfirm = async () => {
+    if (!token || !noShowTarget) return;
+    setNoShowing(true);
+    try {
+      await appointmentApi.noShow(token, noShowTarget.id);
+      setNoShowTarget(null);
+      useCacheStore.getState().invalidate('appointments');
+      await load(true);
+    } catch {
+      // error silenciado — el usuario puede reintentar
+    } finally {
+      setNoShowing(false);
+    }
+  };
+
+  const handleWriteExperience = (appt: Appointment) => {
+    router.push({
+      pathname: '/write-experience',
+      params: {
+        appointment_id: appt.id,
+        doctor_name: appt.doctor?.name ?? 'el médico',
+        doctor_id: appt.doctor_id,
+      },
+    });
+  };
+
+  // Load written experience IDs for the patient so we know which completed appointments already have one
+  useEffect(() => {
+    if (!token || userRole !== 'patient') return;
+    experienceApi.listForPatient(token).then((res) => {
+      const ids = new Set((res.data ?? []).map((e) => e.appointment_id));
+      setWrittenExperienceIds(ids);
+    }).catch(() => {});
+  }, [token, userRole, appointments]);
 
     const handleCancelConfirm = async (id: string) => {
     if (!token) return;
@@ -548,6 +693,11 @@ export default function AppointmentsScreen() {
                 onReschedule={handleReschedule}
                 onAttachDocument={handleAttachDocument}
                 onViewPatientHistory={handleViewPatientHistory}
+                onComplete={(a) => { setCompleteTarget(a); setCompleteNotes(''); setCompleteError(null); }}
+                completing={completing}
+                onNoShow={(a) => setNoShowTarget(a)}
+                onWriteExperience={handleWriteExperience}
+                completedAppointmentIds={writtenExperienceIds}
               />
               {/* Confirmación de cancelación inline */}
               {confirmingCancel === item.id && (
@@ -593,6 +743,144 @@ export default function AppointmentsScreen() {
           }
         />
       )}
+
+      {/* ── Modal Marcar como Completada ── */}
+      <Modal
+        visible={completeTarget !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setCompleteTarget(null); setCompleteNotes(''); setCompleteError(null); }}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
+          <View style={{
+            backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
+            borderTopLeftRadius: 24, borderTopRightRadius: 24,
+            padding: 24, paddingBottom: 36,
+          }}>
+            <View style={{ alignItems: 'center', marginBottom: 16 }}>
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? '#3D3D3D' : '#D1D5DB' }} />
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F0FDF4', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Ionicons name="checkmark-circle" size={22} color="#10B981" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }}>Marcar como completada</Text>
+                <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
+                  {completeTarget?.patient?.name ?? 'Paciente'}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={{ fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 12, lineHeight: 18 }}>
+              Esto permitirá al paciente compartir su experiencia de esta consulta.
+            </Text>
+
+            {/* Optional notes */}
+            <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#D1D5DB' : '#374151', marginBottom: 6 }}>
+              Notas clínicas (opcional)
+            </Text>
+            <TextInput
+              multiline
+              numberOfLines={4}
+              placeholder="Diagnóstico, indicaciones, seguimiento..."
+              placeholderTextColor={isDark ? '#4B5563' : '#9CA3AF'}
+              value={completeNotes}
+              onChangeText={setCompleteNotes}
+              style={{
+                backgroundColor: isDark ? '#252525' : '#F9FAFB',
+                borderRadius: 12, borderWidth: 1,
+                borderColor: isDark ? '#333' : '#E5E7EB',
+                padding: 12, fontSize: 13, color: isDark ? '#F9FAFB' : '#111827',
+                minHeight: 90, textAlignVertical: 'top', marginBottom: 12,
+              }}
+            />
+
+            {completeError && (
+              <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 10, padding: 10, marginBottom: 12 }}>
+                <Text style={{ fontSize: 12, color: '#EF4444' }}>{completeError}</Text>
+              </View>
+            )}
+
+            <Pressable
+              onPress={handleCompleteConfirm}
+              disabled={completing !== null}
+              style={({ pressed }) => ({
+                backgroundColor: completing !== null ? '#9CA3AF' : '#10B981',
+                borderRadius: 20, paddingVertical: 16, alignItems: 'center',
+                opacity: pressed ? 0.88 : 1,
+                marginBottom: 10,
+              })}
+            >
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
+                {completing !== null ? 'Completando...' : 'Confirmar consulta completada'}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { setCompleteTarget(null); setCompleteNotes(''); setCompleteError(null); }}
+              style={({ pressed }) => ({
+                borderRadius: 20, paddingVertical: 14, alignItems: 'center',
+                borderWidth: 1, borderColor: isDark ? '#3A3A3A' : '#E5E7EB',
+                backgroundColor: isDark ? '#252525' : '#F9FAFB',
+                opacity: pressed ? 0.75 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#9CA3AF' : '#6B7280' }}>Cancelar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal No Asistió ── */}
+      <Modal
+        visible={noShowTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNoShowTarget(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <View style={{
+            backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
+            borderRadius: 24, padding: 24,
+          }}>
+            <View style={{ alignItems: 'center', marginBottom: 16 }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Ionicons name="person-remove" size={26} color="#F97316" />
+              </View>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827', textAlign: 'center' }}>
+                ¿El paciente no asistió?
+              </Text>
+              <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
+                El slot se marcará como no-show.{'\n'}Esta acción no se puede deshacer.
+              </Text>
+            </View>
+            <Pressable
+              onPress={handleNoShowConfirm}
+              disabled={noShowing}
+              style={({ pressed }) => ({
+                backgroundColor: noShowing ? '#9CA3AF' : '#F97316',
+                borderRadius: 20, paddingVertical: 14, alignItems: 'center', marginBottom: 10,
+                opacity: pressed ? 0.88 : 1,
+              })}
+            >
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
+                {noShowing ? 'Marcando...' : 'Sí, no asistió'}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setNoShowTarget(null)}
+              style={({ pressed }) => ({
+                borderRadius: 20, paddingVertical: 14, alignItems: 'center',
+                borderWidth: 1, borderColor: isDark ? '#3A3A3A' : '#E5E7EB',
+                backgroundColor: isDark ? '#252525' : '#F9FAFB',
+                opacity: pressed ? 0.75 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#9CA3AF' : '#6B7280' }}>Cancelar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Modal Reagendar ── */}
       <Modal

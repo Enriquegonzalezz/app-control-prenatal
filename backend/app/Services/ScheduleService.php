@@ -134,13 +134,34 @@ final class ScheduleService
     /**
      * @return Collection<int, Slot>
      */
-    public function listUpcomingSlots(DoctorProfile $doctor, int $limit = 50): Collection
-    {
-        return $doctor->slots()
-            ->where('starts_at', '>=', now())
-            ->orderBy('starts_at')
-            ->limit($limit)
-            ->get();
+    public function listUpcomingSlots(
+        DoctorProfile $doctor,
+        ?string $from = null,
+        ?string $until = null,
+        ?string $scheduleId = null,
+        ?string $status = null,
+        int $limit = 200,
+    ): Collection {
+        $query = $doctor->slots()
+            ->with(['branch:id,name', 'office:id,name,type'])
+            ->orderBy('starts_at');
+
+        $query->where('starts_at', '>=', $from
+            ? CarbonImmutable::parse($from)->startOfDay()
+            : now()
+        );
+
+        if ($until !== null) {
+            $query->where('starts_at', '<=', CarbonImmutable::parse($until)->endOfDay());
+        }
+        if ($scheduleId !== null) {
+            $query->where('schedule_id', $scheduleId);
+        }
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        return $query->limit($limit)->get();
     }
 
     public function updateSlotStatus(Slot $slot, SlotStatus $status): Slot

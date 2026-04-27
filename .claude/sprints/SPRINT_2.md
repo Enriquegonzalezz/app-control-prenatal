@@ -151,6 +151,43 @@ export const darkMapStyle = [
   - Paciente ve nombre del doctor, doctor ve nombre del paciente
   - No hay cross-visibility entre pacientes diferentes
 
+### ✅ Módulo de Slots Mejorado (Abril 2026)
+
+#### Backend
+- [x] **Bug fix crítico: reagendamiento con `branch_id NULL`** — `appointments.branch_id` debe ser nullable.
+  - Migración creada: `supabase/migrations/s2_fix_appointments_branch_nullable.sql`
+  - **⚠️ PENDIENTE EJECUCIÓN MANUAL en Supabase Dashboard** (`ALTER TABLE appointments ALTER COLUMN branch_id DROP NOT NULL;`)
+  - Verificado con `php artisan db:table appointments`: aún aparece como NOT NULL hasta ejecutar la migración
+- [x] **`ProfileController::doctorClinicInfo`** — Filtra clínicas inactivas (`c.is_active = true`) y sedes inactivas (`cb.is_active = true`); clínicas suspendidas no aparecen en el selector del médico
+- [x] **`StoreScheduleRequest`** — Closure que valida que la clínica padre de la sede esté activa; rechaza sedes de clínicas suspendidas
+- [x] **`UpdateScheduleRequest`** — Misma validación de clínica padre activa aplicada al actualizar horarios
+- [x] **`ScheduleService::listUpcomingSlots`** — Firma extendida con parámetros `from`, `until`, `scheduleId`, `status`, `limit`; eager-load de `branch:id,name` y `office:id,name,type`
+- [x] **`SlotController::index`** — Acepta query params `from`, `until`, `schedule_id`, `status` y los pasa al service
+- [x] **`ClinicDiscoveryController`** (nuevo) — `GET /api/v1/doctor/clinics/discover?search=&per_page=15`; excluye clínicas ya vinculadas al médico, filtra `is_active = true`, paginado con branch_count
+- [x] **Ruta `/api/v1/doctor/clinics/discover`** registrada en `api.php` dentro del grupo `doctor_verified`
+
+#### DB verificada (Supabase — `php artisan db:table`)
+| Tabla | Campo | Estado |
+|-------|-------|--------|
+| `slots` | `branch_id` | nullable ✓ |
+| `slots` | `office_id` | nullable ✓ |
+| `schedules` | `branch_id` | nullable ✓ |
+| `schedules` | `office_id` | nullable ✓ |
+| `doctor_offices` | `is_active` | default `true` ✓ |
+| `clinics` | `is_active` | default `false`, índice ✓ |
+| `clinic_branches` | `is_active` | default `true`, índice ✓ |
+| `appointments` | `branch_id` | ✅ nullable — migración aplicada |
+
+#### Frontend
+- [x] **`api.ts` — Interface `Slot` extendida** — `branch_id`, `office_id` nullable; relaciones `branch` y `office` tipadas
+- [x] **`api.ts` — `scheduleApi.listSlots`** — Acepta parámetros opcionales `{ from, until, schedule_id, status }` con `URLSearchParams`
+- [x] **`api.ts` — `DiscoverableClinic` + `clinicDiscoveryApi.search()`** — Nuevo tipo e interfaz de API para descubrimiento de clínicas
+- [x] **`doctor-schedule.tsx` — Rediseño mayor con 3 tabs:**
+  - **Tab "Horarios"**: funcionalidad existente + week picker de 2 controles (desde qué semana + cuántas semanas)
+  - **Tab "Agenda"**: slots agrupados por fecha con filtros de duración y estado (Todos/Disponibles/Reservados/Bloqueados); color-coded por estado
+  - **Tab "Explorar Clínicas"**: búsqueda con debounce 400ms; tarjetas con `Linking.openURL` para teléfono/email; banner informativo sobre el flujo de vinculación
+- [x] **Helpers nuevos**: `startOfWeekPlusN(n)`, `addWeeksTo(from, n)`, `groupSlotsByDate(slots)`, `formatTime(iso)`, `formatDateHeader(dateStr)`
+
 ### ⏳ Pendiente
 - [ ] S2.5 - Vista Mapa con marcadores dinámicos
 - [ ] Dark map style para modo oscuro
@@ -166,3 +203,6 @@ export const darkMapStyle = [
 - [x] Vista Lista con filtros (distancia, disponibilidad, clínica) + infinite scroll
 - [x] Perfil de médico sin ninguna mención a "estrellas" o "rating"
 - [ ] Dark map style aplicado cuando el tema es oscuro
+- [x] Módulo de slots mejorado: vista agenda, week picker, explorar clínicas
+- [x] Validación de clínica activa en creación y actualización de horarios
+- [x] `ClinicDiscoveryController` + ruta `GET /api/v1/doctor/clinics/discover`

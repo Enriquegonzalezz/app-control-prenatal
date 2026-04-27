@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Directory\DirectoryController;
+use App\Http\Controllers\Doctor\ClinicDiscoveryController;
 use App\Http\Controllers\Doctor\DoctorOfficeController;
 use App\Http\Controllers\Doctor\ScheduleController;
 use App\Http\Controllers\Doctor\SlotController;
@@ -84,6 +85,8 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('/slots',                  [SlotController::class, 'index'])->name('doctor.slots.index');
                 Route::patch('/slots/{slot}/status',  [SlotController::class, 'updateStatus'])->name('doctor.slots.update-status');
                 Route::delete('/slots/{slot}',        [SlotController::class, 'destroy'])->name('doctor.slots.destroy');
+
+                Route::get('/clinics/discover', [ClinicDiscoveryController::class, 'index'])->name('doctor.clinics.discover');
             });
         });
 
