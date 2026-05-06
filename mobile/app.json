@@ -7,11 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "control-prenatal",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#E8467C"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -35,19 +30,20 @@
       "tsconfigPaths": true
     },
     "plugins": [
-      "expo-router",
       [
         "expo-splash-screen",
         {
           "backgroundColor": "#E8467C",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
+          "resizeMode": "contain",
           "dark": {
             "image": "./assets/images/splash-icon-dark.png",
             "backgroundColor": "#202020"
           }
         }
-      ]
+      ],
+      "expo-router"
     ],
     "extra": {
       "router": {},
