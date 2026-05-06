@@ -23,7 +23,10 @@ export default function RootLayout() {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        await checkAuth();
+        await Promise.all([
+          checkAuth(),
+          new Promise((resolve) => setTimeout(resolve, 1500)),
+        ]);
       } catch (error) {
         console.log('Init auth error:', error);
       } finally {
