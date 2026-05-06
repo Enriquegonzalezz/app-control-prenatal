@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#E8467C"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.controlprenatal.app"
@@ -46,6 +48,12 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b685b777-e12d-41f5-86ae-6d82b1c6101d"
+      }
+    }
   }
 }
