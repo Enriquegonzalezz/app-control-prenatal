@@ -332,15 +332,21 @@ function DoctorDashboard({ isDark }: { isDark: boolean }) {
 
           {/* ── Unverified warning ── */}
           {!isVerified && (
-            <View style={{ marginHorizontal: 16, marginTop: 12, backgroundColor: isDark ? '#2D1F00' : '#FFFBEB', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderColor: isDark ? '#92400E40' : '#FDE68A' }}>
+            <Pressable
+              onPress={() => router.push('/doctor-verify')}
+              style={{ marginHorizontal: 16, marginTop: 12, backgroundColor: isDark ? '#2D1F00' : '#FFFBEB', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderColor: isDark ? '#92400E40' : '#FDE68A' }}
+              accessibilityRole="button"
+              accessibilityLabel="Verificar cuenta médico"
+            >
               <Ionicons name="alert-circle-outline" size={18} color="#F59E0B" style={{ marginRight: 10, marginTop: 1 }} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FCD34D' : '#92400E' }}>Verificación pendiente</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FCD34D' : '#92400E' }}>Verificación pendiente — Toca para verificarte</Text>
                 <Text style={{ fontSize: 11, color: isDark ? '#D97706' : '#B45309', marginTop: 2, lineHeight: 16 }}>
                   Completa la verificación OTP para activar la gestión de horarios y agenda.
                 </Text>
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={16} color="#F59E0B" style={{ marginTop: 2 }} />
+            </Pressable>
           )}
 
           {/* ── Section header ── */}
