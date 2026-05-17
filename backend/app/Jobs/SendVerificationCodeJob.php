@@ -9,29 +9,18 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 final class SendVerificationCodeJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /**
-     * Reintentos en caso de fallo (p.ej. Edge Function no disponible).
-     */
     public int $tries = 3;
-
-    /**
-     * Espera 60 segundos entre reintentos.
-     */
     public int $backoff = 60;
 
-    /**
-     * @param string $code        Código OTP en texto plano (6 dígitos).
-     * @param string $channel     Canal de envío: 'email' | 'sms'.
-     * @param string $destination Destino real sin enmascarar.
-     * @param string $doctorName  Nombre completo del médico para personalizar.
-     */
     public function __construct(
         private readonly string $code,
         private readonly string $channel,
@@ -49,6 +38,40 @@ final class SendVerificationCodeJob implements ShouldQueue
     }
 
     private function sendEmail(): void
+    {
+        // OTP_EMAIL_TRANSPORT controla qué transporte usar:
+        //   - "smtp"   → Laravel Mail (Gmail SMTP) — fase intermedia mientras Resend no tiene DNS
+        //   - "resend" → Edge Function `resend-email` (producción, requiere dominio verificado)
+        $transport = (string) env('OTP_EMAIL_TRANSPORT', 'smtp');
+
+        if ($transport === 'resend') {
+            $this->sendViaResendEdgeFunction();
+            return;
+        }
+
+        $this->sendViaSmtp();
+    }
+
+    private function sendViaSmtp(): void
+    {
+        $subject     = 'Código de verificación médica — Control Prenatal';
+        $html        = $this->buildEmailHtml();
+        $text        = $this->buildEmailText();
+        $destination = $this->destination;
+
+        Mail::html($html, function (Message $message) use ($destination, $subject, $text): void {
+            $message->to($destination)
+                ->subject($subject)
+                ->text($text);
+        });
+
+        Log::info('SendVerificationCodeJob: email enviado via Laravel Mail (SMTP).', [
+            'destination' => substr($this->destination, 0, 3) . '***',
+            'transport'   => 'smtp',
+        ]);
+    }
+
+    private function sendViaResendEdgeFunction(): void
     {
         $url = rtrim((string) env('SUPABASE_URL'), '/') . '/functions/v1/resend-email';
 
@@ -72,15 +95,15 @@ final class SendVerificationCodeJob implements ShouldQueue
             );
         }
 
-        Log::info('SendVerificationCodeJob: email enviado via Resend.', [
+        Log::info('SendVerificationCodeJob: email enviado via Resend Edge Function.', [
             'resend_id'   => $response->json('id'),
             'destination' => substr($this->destination, 0, 3) . '***',
+            'transport'   => 'resend',
         ]);
     }
 
     private function sendSms(): void
     {
-        // TODO: Integrar proveedor SMS (Twilio, AWS SNS, etc.)
         Log::warning('SendVerificationCodeJob: canal SMS no configurado.', [
             'destination' => substr($this->destination, 0, 4) . '***',
             'channel'     => 'sms',
@@ -105,14 +128,12 @@ final class SendVerificationCodeJob implements ShouldQueue
             <tr>
               <td align="center">
                 <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
-                  <!-- Header -->
                   <tr>
                     <td style="background:#0f172a;padding:28px 40px;text-align:center;">
                       <p style="margin:0;color:#94a3b8;font-size:13px;letter-spacing:1px;text-transform:uppercase;">Control Prenatal</p>
                       <h1 style="margin:6px 0 0;color:#f8fafc;font-size:20px;font-weight:600;">Verificación Médica</h1>
                     </td>
                   </tr>
-                  <!-- Body -->
                   <tr>
                     <td style="padding:36px 40px;">
                       <p style="margin:0 0 16px;color:#334155;font-size:15px;">Hola, <strong>Dr(a). {$name}</strong>:</p>
@@ -120,25 +141,17 @@ final class SendVerificationCodeJob implements ShouldQueue
                         Recibimos una solicitud para verificar tu cuenta como médico en la plataforma.
                         Usa el código a continuación para completar tu verificación.
                       </p>
-                      <!-- OTP Box -->
                       <div style="background:#f8fafc;border:2px dashed #e2e8f0;border-radius:8px;padding:24px;text-align:center;margin:0 0 24px;">
                         <p style="margin:0 0 8px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Tu código</p>
                         <p style="margin:0;color:#0f172a;font-size:40px;font-weight:700;letter-spacing:12px;">{$code}</p>
                       </div>
-                      <p style="margin:0 0 8px;color:#64748b;font-size:13px;">
-                        ⏱ Este código expira en <strong>15 minutos</strong>.
-                      </p>
-                      <p style="margin:0;color:#64748b;font-size:13px;">
-                        Si no solicitaste este código, ignora este mensaje.
-                      </p>
+                      <p style="margin:0 0 8px;color:#64748b;font-size:13px;">⏱ Este código expira en <strong>15 minutos</strong>.</p>
+                      <p style="margin:0;color:#64748b;font-size:13px;">Si no solicitaste este código, ignora este mensaje.</p>
                     </td>
                   </tr>
-                  <!-- Footer -->
                   <tr>
                     <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;text-align:center;">
-                      <p style="margin:0;color:#94a3b8;font-size:12px;">
-                        Equipo Control Prenatal — Universidad José Antonio Páez
-                      </p>
+                      <p style="margin:0;color:#94a3b8;font-size:12px;">Equipo Control Prenatal — Universidad José Antonio Páez</p>
                     </td>
                   </tr>
                 </table>

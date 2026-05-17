@@ -23,7 +23,8 @@ independiente de médicos via OTP (Δ-5). Al finalizar este sprint:
 | S1.2 | Tabla clinic_doctors (junction N:M clínica-médico solo para vinculación) | Relación N:M funcional | ✅ |
 | S1.3 | Flujo registro unificado: cédula → verified_doctors → role automático | Auto-registro con detección de rol | ✅ |
 | S1.4 | Middleware Laravel: EnsureIsDoctor, EnsureIsPatient, EnsureIsClinicAdmin, EnsureDoctorVerified | Rutas protegidas por rol | ✅ |
-| S1.5a | Panel clínica: vincular médicos ya verificados (clinic_doctors) | Vinculación funcional | ⏳ |
+| ~~S1.5a~~ | ~~Panel clínica: vincular médicos~~ — **Descartado en Δ-6**. Reemplazado por S1.5d (médico se auto-vincula). | n/a | 🚫 |
+| S1.5d | Doctor self-link a clínica (`DoctorClinicLinkController` + endpoints `GET/POST/DELETE /doctor/clinics`) [Δ-6] | Médico se vincula desde la app | ✅ |
 | S1.5b | Verificación OTP de médicos: `doctor_verification_codes`, `DoctorVerificationService`, endpoints request/verify | Médico pasa de `is_verified=false` a `true` via OTP | ✅ |
 | S1.5c | Password Reset: endpoints forgot/reset con OTP, bypass en modo debug | Recuperación de contraseña funcional | ✅ |
 | S1.6 | RLS en todas las tablas con clinic scope | Tests de acceso no autorizado fallando | ✅ |
@@ -76,8 +77,16 @@ independiente de médicos via OTP (Δ-5). Al finalizar este sprint:
 - [x] S1.5c - Link "¿Olvidaste tu contraseña?" en `login.tsx`
 - [x] S1.5c - Funciona para cualquier usuario (verificado o no)
 
-### ⏳ Panel Clínica (Pendiente)
-- [ ] S1.5a - Vincular médicos verificados a clínicas (backend + frontend admin)
+### ✅ Vinculación Doctor → Clínica (Δ-6, mayo 2026)
+- [x] S1.5d - `DoctorClinicLinkController` (index/store/destroy)
+- [x] S1.5d - Rutas `GET/POST/DELETE /api/v1/doctor/clinics[/{clinic}/link]` bajo middleware `doctor_verified`
+- [x] S1.5d - Bug fix: `clinic_doctors.doctor_id` referencia `users.id` (no `doctor_profiles.id`)
+- [x] S1.5d - Idempotencia: si ya existe vínculo, se reactiva en vez de duplicar
+- [x] S1.5d - Validación: clínica activa + sede (opcional) pertenece a la clínica + sede activa
+- [ ] S1.5d - Frontend: pantalla mobile para que el médico seleccione clínica(s) (pendiente)
+
+> **S1.5a fue descartado**: en el modelo Δ-6 las clínicas ya no registran ni
+> vinculan médicos. El médico se auto-vincula tras verificarse via OTP.
 
 ### ✅ Frontend Mobile (Completado)
 - [x] S1.7 - Pantallas de autenticación: `login.tsx`, `register.tsx`, `forgot-password.tsx`, `reset-password.tsx`
@@ -151,12 +160,14 @@ next_available_slot TIMESTAMPTZ
 ```
 > `experience_count` reemplaza `rating_avg`. NUNCA agregar `rating_avg`.
 
-### clinic_doctors [Junction N:M — Solo Vinculación]
+### clinic_doctors [Junction N:M — Vinculación auto-iniciada por médico (Δ-6)]
 ```
-clinic_id FK, doctor_id FK, branch_id FK, is_active, joined_at
+clinic_id FK → clinics.id, doctor_id FK → users.id, branch_id FK → clinic_branches.id (nullable),
+is_active, joined_at
 PRIMARY KEY (clinic_id, doctor_id)
 ```
-> Esta tabla solo VINCULA médicos ya registrados a clínicas. No verifica médicos.
+> **Δ-6**: la inserción la inicia el médico desde la app, no la clínica.
+> **Importante**: `doctor_id` referencia `users.id` (NO `doctor_profiles.id`).
 
 ---
 
@@ -182,11 +193,14 @@ PRIMARY KEY (clinic_id, doctor_id)
 
 **Rate limits:** máx 5 solicitudes/día, cooldown 60s, código expira en 15 min, máx 3 intentos.
 
-### Vinculación de Médicos a Clínicas:
-- Un `clinic_admin` puede vincular **solo médicos con `is_verified = true`** a su clínica
-- Se crea registro en `clinic_doctors` con `branch_id` y `is_active = true`
+### Vinculación de Médicos a Clínicas (Δ-6 — actualizado):
+- El **médico verificado** (`is_verified = true`) se vincula **desde la app** a una o más clínicas
+- Endpoint: `POST /api/v1/doctor/clinics/{clinic}/link` con body opcional `{ branch_id }`
+- Idempotente: si el vínculo ya existe, se reactiva (`is_active=true`)
 - El médico puede estar vinculado a múltiples clínicas (N:M)
-- **La clínica nunca puede cambiar `is_verified`**
+- El médico puede **desvincularse** vía `DELETE /api/v1/doctor/clinics/{clinic}/link`
+- Las **clínicas no intervienen** en la vinculación. Solo aportan la
+  infraestructura (sedes, ubicaciones).
 
 **Importante:** Solo el super-admin puede agregar cédulas a `verified_doctors`.
 Los médicos se auto-registran, pero su rol y verificación se validan contra la tabla maestra.
@@ -316,9 +330,17 @@ GET  /api/v1/doctor/verification/status             - Estado de verificación [�
 GET  /api/v1/patient/profile  - Perfil completo de paciente
 ```
 
+### Doctor — Vinculación a Clínicas (Δ-6, middleware: doctor_verified)
+```
+GET    /api/v1/doctor/clinics/discover          - Listar clínicas disponibles (no vinculadas)
+GET    /api/v1/doctor/clinics                   - Listar clínicas a las que el médico está vinculado
+POST   /api/v1/doctor/clinics/{clinic}/link     - Vincularse a una clínica (body opcional: branch_id)
+DELETE /api/v1/doctor/clinics/{clinic}/link     - Desvincularse de una clínica
+```
+
 ### Clínica Admin (Protegido - middleware: clinic_admin)
 ```
-/api/v1/clinic/*              - Rutas de administración (pendiente S1.5)
+/api/v1/clinic/*              - Rutas reservadas para futuros features (no incluye gestión de médicos)
 ```
 
 ### Utilidad

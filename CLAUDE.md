@@ -15,8 +15,18 @@ Autores: Samuel Molina Pacheco & Enrique González Castelli.
 ## Modelo de Negocio
 B2B: las clínicas son el cliente principal (tenant). Los médicos se
 **auto-registran de forma independiente** y se verifican via **OTP** contra
-la tabla maestra `verified_doctors`. Las clínicas **NO verifican médicos**;
-solo vinculan médicos que ya estén verificados en la plataforma.
+la tabla maestra `verified_doctors`.
+
+**Vinculación médico↔clínica (Δ-6, actualizado mayo 2026):**
+- Las clínicas **NO registran ni vinculan médicos**.
+- Cada médico, después de verificarse via OTP, **selecciona desde la app**
+  la(s) clínica(s) donde atiende, opcionalmente eligiendo la sede.
+- La vinculación es **unilateral por parte del médico** (no requiere aprobación
+  de la clínica). Endpoint: `POST /api/v1/doctor/clinics/{clinic}/link`.
+- Las clínicas continúan siendo tenant que provee la infraestructura
+  (sedes, ubicaciones GPS, datos administrativos), pero ya no controlan
+  qué médicos atienden en ellas.
+
 Las pacientes acceden al directorio de especialistas verificados.
 
 ## Principios Arquitectónicos Clave
@@ -102,13 +112,25 @@ APP_KEY=               ← generar con artisan
 EXPO_PUBLIC_SUPABASE_URL=https://sdcvmigvumhtorhzobjj.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=   ← anon key únicamente
 ```
-### Supabase Secrets (Edge Functions)
+### Transporte de OTP — Toggle (Δ-6)
+El job `SendVerificationCodeJob` soporta dos transportes via la env var
+`OTP_EMAIL_TRANSPORT`:
+
 ```
-RESEND_API_KEY=re_xxx           ← API key de resend.com (configurar via Dashboard o CLI)
-RESEND_FROM_ADDRESS=...         ← Dirección FROM verificada en Resend
+OTP_EMAIL_TRANSPORT=smtp    ← Gmail SMTP (transición, sin DNS Resend)
+OTP_EMAIL_TRANSPORT=resend  ← Edge Function resend-email (producción, dominio verificado)
 ```
-> Emails transaccionales (OTP) se envían via Edge Function `resend-email` + Resend API.
-> No se usa SMTP directo.
+
+**Modo `smtp` (transición):** usa `Mail::html()` de Laravel + credenciales
+de Gmail (`MAIL_*`). Requiere App Password de Google (2FA activado).
+
+**Modo `resend` (producción):** llama a la Edge Function `resend-email`
+en Supabase, que enrouta al servicio Resend. Requiere:
+
+```
+RESEND_API_KEY=re_xxx           ← Configurar en Supabase Dashboard → Settings → Edge Functions → Secrets
+RESEND_FROM_ADDRESS=...         ← Dirección FROM verificada en Resend (dominio propio con DNS configurado)
+```
 
 ## Referencia de Tablas (Sprint 1 en adelante)
 Las migraciones nuevas SIEMPRE van numeradas: `s1_`, `s2_`, etc.
@@ -120,8 +142,8 @@ Nunca modificar una migración ya ejecutada. Crear siempre una nueva.
 - ❌ URLs públicas para archivos médicos — siempre Signed URLs (15 min)
 - ❌ Lógica de negocio en Controllers — va en Services
 - ❌ Exponer `service_role` key en el frontend
-- ❌ Que una clínica verifique médicos — las clínicas solo VINCULAN médicos ya verificados (Δ-5)
+- ❌ Que una clínica registre, verifique o vincule médicos — los médicos se auto-registran y se auto-vinculan a clínicas (Δ-6)
 - ❌ Asignar `is_verified = true` al registrar un médico — la verificación es via OTP posterior (Δ-5)
 - ❌ Enviar el OTP al email de registro del usuario — siempre al email/teléfono de `verified_doctors` (Δ-5)
 - ❌ Guardar el código OTP en plaintext — siempre hash bcrypt en `doctor_verification_codes` (Δ-5)
-- ❌ Usar `Mail::` facade o SMTP directo para emails — siempre via Edge Function `resend-email`
+- ❌ Usar `clinic_doctors.doctor_id` como FK a `doctor_profiles.id` — la FK apunta a `users.id` (corregido Δ-6)

@@ -18,12 +18,13 @@ final class ClinicDiscoveryController extends Controller
             'per_page' => ['nullable', 'integer', 'min:5', 'max:50'],
         ]);
 
-        $doctor  = $request->user()->doctorProfile;
+        $userId  = $request->user()->id;
         $search  = $request->query('search');
         $perPage = (int) ($request->query('per_page', 15));
 
+        // clinic_doctors.doctor_id referencia users.id (no doctor_profiles.id)
         $linkedIds = DB::table('clinic_doctors')
-            ->where('doctor_id', $doctor->id)
+            ->where('doctor_id', $userId)
             ->pluck('clinic_id');
 
         $query = DB::table('clinics as c')

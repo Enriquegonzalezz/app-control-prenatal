@@ -254,19 +254,22 @@ updated_at  TIMESTAMPTZ DEFAULT NOW()
 
 ---
 
-### 11. `clinic_doctors` ⚠️ Cambio conceptual (Δ-5)
+### 11. `clinic_doctors` ⚠️ Cambio conceptual (Δ-6)
 ```
 clinic_id   UUID FK → clinics.id       ← PK compuesta
-doctor_id   UUID FK → users.id         ← PK compuesta
-branch_id   UUID FK → clinic_branches.id
+doctor_id   UUID FK → users.id         ← PK compuesta (NO doctor_profiles.id)
+branch_id   UUID FK → clinic_branches.id (nullable)
 is_active   BOOLEAN DEFAULT true
 joined_at   TIMESTAMPTZ DEFAULT NOW()
 created_at  TIMESTAMPTZ DEFAULT NOW()
 updated_at  TIMESTAMPTZ DEFAULT NOW()
 ```
-**Cambio Δ-5:** Esta tabla ahora es **solo para vinculación**. La clínica NO verifica
-al médico; solo puede vincular médicos que ya tengan `is_verified = true` en su
-`doctor_profile`. La verificación es independiente via OTP.
+**Cambio Δ-6 (mayo 2026):** La inserción la inicia **el propio médico** desde
+la app, no la clínica. La clínica solo aporta infraestructura (sedes).
+Endpoint: `POST /api/v1/doctor/clinics/{clinic}/link`.
+
+**Nota crítica:** `doctor_id` referencia `users.id` (NO `doctor_profiles.id`).
+Todo código que consulte esta tabla debe usar `user_id`, no `doctor_profile.id`.
 
 ---
 

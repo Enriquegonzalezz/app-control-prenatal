@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Directory\DirectoryController;
 use App\Http\Controllers\Doctor\ClinicDiscoveryController;
+use App\Http\Controllers\Doctor\DoctorClinicLinkController;
 use App\Http\Controllers\Doctor\DoctorOfficeController;
 use App\Http\Controllers\Doctor\ScheduleController;
 use App\Http\Controllers\Doctor\SlotController;
@@ -87,6 +88,11 @@ Route::prefix('v1')->group(function (): void {
                 Route::delete('/slots/{slot}',        [SlotController::class, 'destroy'])->name('doctor.slots.destroy');
 
                 Route::get('/clinics/discover', [ClinicDiscoveryController::class, 'index'])->name('doctor.clinics.discover');
+
+                // Vinculación auto-iniciada del médico a una clínica
+                Route::get('/clinics',                  [DoctorClinicLinkController::class, 'index'])->name('doctor.clinics.index');
+                Route::post('/clinics/{clinic}/link',   [DoctorClinicLinkController::class, 'store'])->name('doctor.clinics.link');
+                Route::delete('/clinics/{clinic}/link', [DoctorClinicLinkController::class, 'destroy'])->name('doctor.clinics.unlink');
             });
         });
 
