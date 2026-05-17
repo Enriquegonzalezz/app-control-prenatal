@@ -31,6 +31,39 @@ Route::prefix('v1')->group(function (): void {
         ]);
     });
 
+    // ── TEMPORAL: test SMTP — eliminar antes de producción ──────────
+    Route::get('/_debug/mail-test', function (\Illuminate\Http\Request $request) {
+        if ($request->query('token') !== env('DEBUG_TOKEN', 'prenatal-debug-2026')) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
+        $to = $request->query('to', config('mail.from.address'));
+
+        $config = [
+            'MAIL_MAILER'        => config('mail.default'),
+            'MAIL_HOST'          => config('mail.mailers.smtp.host'),
+            'MAIL_PORT'          => config('mail.mailers.smtp.port'),
+            'MAIL_SCHEME'        => config('mail.mailers.smtp.scheme') ?? '(none)',
+            'MAIL_USERNAME'      => config('mail.mailers.smtp.username'),
+            'MAIL_PASSWORD_LEN'  => strlen((string) config('mail.mailers.smtp.password')) . ' chars',
+            'MAIL_FROM_ADDRESS'  => config('mail.from.address'),
+            'MAIL_EHLO_DOMAIN'   => config('mail.mailers.smtp.local_domain') ?? '(none)',
+            'OTP_TRANSPORT'      => env('OTP_EMAIL_TRANSPORT', '(not set)'),
+        ];
+
+        try {
+            \Illuminate\Support\Facades\Mail::html(
+                '<h1>Test OK ✓</h1><p>SMTP funciona correctamente desde Railway.</p>',
+                function (\Illuminate\Mail\Message $msg) use ($to): void {
+                    $msg->to($to)->subject('[Control Prenatal] SMTP Test — ' . now());
+                }
+            );
+            return response()->json(['status' => 'ok', 'sent_to' => $to, 'config' => $config]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage(), 'config' => $config], 500);
+        }
+    });
+
     Route::post('/auth/register', RegisterController::class)->name('auth.register');
     Route::post('/auth/login', LoginController::class)->name('auth.login');
     
