@@ -776,6 +776,33 @@ export const experienceApi = {
   },
 };
 
+export const verificationApi = {
+  async requestCode(token: string) {
+    return request<{ status: string; message: string; data: { expires_at: string } }>(
+      '/doctor/verification/request-code',
+      { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
+    );
+  },
+  async verifyCode(token: string, code: string) {
+    return request<{ status: string; message: string; data: { is_verified: boolean } }>(
+      '/doctor/verification/verify-code',
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code }),
+      },
+    );
+  },
+  async status(token: string) {
+    return request<{
+      status: string;
+      data: { is_verified: boolean; has_pending_code: boolean; expires_at: string | null };
+    }>('/doctor/verification/status', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+};
+
 export const passwordApi = {
   async requestReset(email: string) {
     return request<{ status: string; message: string; data?: { email: string; debug_code?: string } }>(

@@ -53,9 +53,15 @@ final class DoctorProfile extends Model
         return $this->belongsTo(Specialty::class);
     }
 
+    /**
+     * Clínicas a las que el médico se ha vinculado.
+     *
+     * NOTA: clinic_doctors.doctor_id referencia users.id (no doctor_profiles.id),
+     * por eso se usa user_id como parentKey local.
+     */
     public function clinics(): BelongsToMany
     {
-        return $this->belongsToMany(Clinic::class, 'clinic_doctors', 'doctor_id', 'clinic_id')
+        return $this->belongsToMany(Clinic::class, 'clinic_doctors', 'doctor_id', 'clinic_id', 'user_id', 'id')
             ->withPivot(['branch_id', 'is_active', 'joined_at'])
             ->withTimestamps();
     }

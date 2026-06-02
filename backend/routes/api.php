@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Directory\DirectoryController;
 use App\Http\Controllers\Doctor\ClinicDiscoveryController;
+use App\Http\Controllers\Doctor\DoctorClinicLinkController;
 use App\Http\Controllers\Doctor\DoctorOfficeController;
 use App\Http\Controllers\Doctor\ScheduleController;
 use App\Http\Controllers\Doctor\SlotController;
@@ -28,6 +29,59 @@ Route::prefix('v1')->group(function (): void {
             'message' => 'API is running',
             'timestamp' => now(),
         ]);
+    });
+
+    // ── TEMPORAL: test de email — eliminar antes de producción ──────
+    Route::get('/_debug/mail-test', function (\Illuminate\Http\Request $request) {
+        if ($request->query('token') !== env('DEBUG_TOKEN', 'prenatal-debug-2026')) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
+        $to        = $request->query('to', config('mail.from.address'));
+        $transport = $request->query('transport', env('OTP_EMAIL_TRANSPORT', 'smtp'));
+
+        $config = [
+            'OTP_TRANSPORT'      => env('OTP_EMAIL_TRANSPORT', '(not set)'),
+            'MAIL_HOST'          => config('mail.mailers.smtp.host'),
+            'MAIL_PORT'          => config('mail.mailers.smtp.port'),
+            'MAIL_SCHEME'        => config('mail.mailers.smtp.scheme') ?? '(none)',
+            'MAIL_USERNAME'      => config('mail.mailers.smtp.username'),
+            'MAIL_PASSWORD_LEN'  => strlen((string) config('mail.mailers.smtp.password')) . ' chars',
+            'SUPABASE_URL'       => env('SUPABASE_URL') ? 'set' : 'NOT SET',
+            'SUPABASE_KEY'       => env('SUPABASE_KEY') ? 'set' : 'NOT SET',
+        ];
+
+        if ($transport === 'resend') {
+            $url = rtrim((string) env('SUPABASE_URL'), '/') . '/functions/v1/resend-email';
+            try {
+                $response = \Illuminate\Support\Facades\Http::withToken((string) env('SUPABASE_KEY'))
+                    ->timeout(15)
+                    ->post($url, [
+                        'to'      => $to,
+                        'subject' => '[Control Prenatal] Resend Test — ' . now(),
+                        'html'    => '<h1>Test OK ✓</h1><p>Resend via Edge Function funciona correctamente.</p>',
+                    ]);
+                $body = $response->json();
+                if ($response->successful()) {
+                    return response()->json(['status' => 'ok', 'transport' => 'resend', 'sent_to' => $to, 'resend_id' => $body['id'] ?? null, 'config' => $config]);
+                }
+                return response()->json(['status' => 'error', 'transport' => 'resend', 'message' => 'Edge Function returned ' . $response->status(), 'body' => $body, 'config' => $config], 500);
+            } catch (\Throwable $e) {
+                return response()->json(['status' => 'error', 'transport' => 'resend', 'message' => $e->getMessage(), 'config' => $config], 500);
+            }
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::html(
+                '<h1>Test OK ✓</h1><p>SMTP funciona correctamente desde Railway.</p>',
+                function (\Illuminate\Mail\Message $msg) use ($to): void {
+                    $msg->to($to)->subject('[Control Prenatal] SMTP Test — ' . now());
+                }
+            );
+            return response()->json(['status' => 'ok', 'transport' => 'smtp', 'sent_to' => $to, 'config' => $config]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'transport' => 'smtp', 'message' => $e->getMessage(), 'config' => $config], 500);
+        }
     });
 
     Route::post('/auth/register', RegisterController::class)->name('auth.register');
@@ -87,6 +141,11 @@ Route::prefix('v1')->group(function (): void {
                 Route::delete('/slots/{slot}',        [SlotController::class, 'destroy'])->name('doctor.slots.destroy');
 
                 Route::get('/clinics/discover', [ClinicDiscoveryController::class, 'index'])->name('doctor.clinics.discover');
+
+                // Vinculación auto-iniciada del médico a una clínica
+                Route::get('/clinics',                  [DoctorClinicLinkController::class, 'index'])->name('doctor.clinics.index');
+                Route::post('/clinics/{clinic}/link',   [DoctorClinicLinkController::class, 'store'])->name('doctor.clinics.link');
+                Route::delete('/clinics/{clinic}/link', [DoctorClinicLinkController::class, 'destroy'])->name('doctor.clinics.unlink');
             });
         });
 
