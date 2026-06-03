@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCacheStore } from '@/store/cacheStore';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -178,6 +179,7 @@ export default function UploadDocumentScreen() {
         doctor_id: doctorId || undefined,
       });
       setSubmitted(true);
+      useCacheStore.getState().invalidate('medicalRecords');
     } catch (err: any) {
       const fieldErrors = err?.errors
         ? Object.entries(err.errors as Record<string, string[]>)
@@ -248,7 +250,7 @@ export default function UploadDocumentScreen() {
         </View>
 
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

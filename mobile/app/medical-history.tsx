@@ -764,7 +764,7 @@ export default function MedicalHistoryScreen() {
           renderItem={({ item }) => (
             <RecordCard record={item} token={token!} isDark={isDark} />
           )}
-          contentContainerStyle={{ paddingBottom: !doctorViewPatientId ? 100 : 48 }}
+          contentContainerStyle={{ paddingBottom: !doctorViewPatientId ? 140 : 48 }}
           showsVerticalScrollIndicator={false}
           stickySectionHeadersEnabled={false}
           ListEmptyComponent={

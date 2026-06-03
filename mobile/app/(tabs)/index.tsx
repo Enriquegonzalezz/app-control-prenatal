@@ -450,7 +450,7 @@ function PatientHome({ isDark }: { isDark: boolean }) {
   const tip = tips[tipIndex] ?? null;
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ fontSize: 24, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827', marginRight: 8 }}>
