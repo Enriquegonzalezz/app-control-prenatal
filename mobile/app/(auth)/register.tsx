@@ -12,20 +12,83 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
 import { authApi, ApiError } from '@/lib/api';
 import { colors } from '@/theme/colors';
 
+type PasswordRule = { label: string; test: (p: string) => boolean };
+
+const PASSWORD_RULES: PasswordRule[] = [
+  { label: 'Mínimo 8 caracteres',        test: (p) => p.length >= 8 },
+  { label: 'Una letra mayúscula',         test: (p) => /[A-Z]/.test(p) },
+  { label: 'Una letra minúscula',         test: (p) => /[a-z]/.test(p) },
+  { label: 'Un número',                   test: (p) => /[0-9]/.test(p) },
+  { label: 'Un carácter especial (!@#$…)',test: (p) => /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(p) },
+];
+
+function getStrength(password: string): { score: number; label: string; color: string } {
+  const passed = PASSWORD_RULES.filter((r) => r.test(password)).length;
+  if (passed <= 1) return { score: passed,  label: 'Muy débil', color: '#EF4444' };
+  if (passed === 2) return { score: passed, label: 'Débil',     color: '#F97316' };
+  if (passed === 3) return { score: passed, label: 'Media',     color: '#F59E0B' };
+  if (passed === 4) return { score: passed, label: 'Fuerte',    color: '#22C55E' };
+  return              { score: passed,      label: 'Muy fuerte', color: '#10B981' };
+}
+
+function PasswordStrengthIndicator({ password, isDark }: { password: string; isDark: boolean }) {
+  const { score, label, color } = getStrength(password);
+  if (!password) return null;
+  return (
+    <View className="mt-2">
+      {/* Progress bar */}
+      <View style={{ flexDirection: 'row', gap: 4, marginBottom: 4 }}>
+        {PASSWORD_RULES.map((_, i) => (
+          <View
+            key={i}
+            style={{
+              flex: 1, height: 4, borderRadius: 2,
+              backgroundColor: i < score ? color : (isDark ? '#374151' : '#E5E7EB'),
+            }}
+          />
+        ))}
+      </View>
+      <Text style={{ fontSize: 11, color, fontWeight: '600', marginBottom: 6 }}>{label}</Text>
+      {/* Rule list */}
+      {PASSWORD_RULES.map((rule) => {
+        const ok = rule.test(password);
+        return (
+          <View key={rule.label} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2, gap: 6 }}>
+            <Ionicons
+              name={ok ? 'checkmark-circle' : 'ellipse-outline'}
+              size={13}
+              color={ok ? '#22C55E' : (isDark ? '#6B7280' : '#9CA3AF')}
+            />
+            <Text style={{ fontSize: 11, color: ok ? (isDark ? '#86EFAC' : '#16A34A') : (isDark ? '#6B7280' : '#9CA3AF') }}>
+              {rule.label}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function RegisterScreen() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
   const theme = useEffectiveTheme();
+  const isDark = theme === 'dark';
   const c = colors[theme];
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [cedula, setCedula] = useState('');
+
+  const handleCedulaChange = (text: string) => {
+    setCedula(text.toUpperCase());
+  };
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -67,8 +130,25 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres');
+    const failedRules = PASSWORD_RULES.filter((r) => !r.test(password));
+    if (failedRules.length > 0) {
+      setError(`Contraseña insegura: ${failedRules[0].label.toLowerCase()}`);
+      return;
+    }
+
+    if (!cedula.trim().toUpperCase().startsWith('V')) {
+      setError('La cédula debe comenzar con la letra V');
+      return;
+    }
+
+    if (cedula.trim().length > 9) {
+      setError('La cédula debe tener máximo 9 caracteres (V + 8 dígitos)');
+      return;
+    }
+
+    const cedulaWithoutV = cedula.trim().toUpperCase().slice(1);
+    if (!/^\d+$/.test(cedulaWithoutV) || cedulaWithoutV.length === 0) {
+      setError('La cédula debe tener el formato V seguido de dígitos (ej: V12345678)');
       return;
     }
 
@@ -164,10 +244,11 @@ export default function RegisterScreen() {
               </Text>
               <TextInput
                 value={cedula}
-                onChangeText={setCedula}
+                onChangeText={handleCedulaChange}
                 placeholder="V12345678"
                 placeholderTextColor={c.placeholder}
                 autoCapitalize="characters"
+                maxLength={9}
                 className="bg-surface-light dark:bg-surface-dark border border-subtle-light dark:border-subtle-dark rounded-xl px-4 py-3.5 text-base text-neutral-900 dark:text-neutral-100"
                 accessibilityLabel="Cédula de identidad"
               />
@@ -243,6 +324,7 @@ export default function RegisterScreen() {
                   </Text>
                 </Pressable>
               </View>
+              <PasswordStrengthIndicator password={password} isDark={isDark} />
               {fieldErrors.password ? (
                 <Text className="text-red-500 text-xs mt-1">{fieldErrors.password[0]}</Text>
               ) : null}

@@ -3,13 +3,18 @@
     "appVersionSource": "local"
   },
   "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
     "preview": {
       "android": {
         "buildType": "apk"
       },
       "env": {
         "EXPO_USE_FAST_RESOLVER": "1"
-      }
+      },
+      "node": "22.14.0"
     },
     "preview2": {
       "android": {

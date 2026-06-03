@@ -19,6 +19,7 @@ use App\Http\Controllers\Experience\ReferralController;
 use App\Http\Controllers\MedicalRecord\MedicalFileController;
 use App\Http\Controllers\MedicalRecord\MedicalRecordController;
 use App\Http\Controllers\MedicalRecord\VitalSignController;
+use App\Http\Controllers\HealthTipController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -90,6 +91,10 @@ Route::prefix('v1')->group(function (): void {
     // Password reset — público, no requiere autenticación
     Route::post('/password/forgot', [PasswordResetController::class, 'requestReset'])->name('password.forgot');
     Route::post('/password/reset',  [PasswordResetController::class, 'resetPassword'])->name('password.reset');
+
+    // Tips de salud — públicos, sin autenticación
+    Route::get('/health-tips',        [HealthTipController::class, 'index'])->name('health-tips.index');
+    Route::get('/health-tips/weekly', [HealthTipController::class, 'weeklyTip'])->name('health-tips.weekly');
 
     // Directorio público: lista todos los médicos activos (sin geo)
     Route::get('/doctors', [DirectoryController::class, 'index'])->name('doctors.index');

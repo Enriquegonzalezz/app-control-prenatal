@@ -803,6 +803,28 @@ export const verificationApi = {
   },
 };
 
+// ── Health Tips ──────────────────────────────────────────────────────────────
+
+export interface HealthTip {
+  id: number;
+  title: string;
+  content: string;
+  category: string;
+  icon: string;
+  color: string;
+  is_active: boolean;
+  display_order: number;
+}
+
+export const healthTipApi = {
+  async list() {
+    return request<{ data: HealthTip[] }>('/health-tips');
+  },
+  async weekly() {
+    return request<{ data: HealthTip | null }>('/health-tips/weekly');
+  },
+};
+
 export const passwordApi = {
   async requestReset(email: string) {
     return request<{ status: string; message: string; data?: { email: string; debug_code?: string } }>(

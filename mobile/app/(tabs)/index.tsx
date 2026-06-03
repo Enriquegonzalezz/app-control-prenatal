@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Pressable,
   RefreshControl,
@@ -14,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
 import { useCacheStore } from '@/store/cacheStore';
-import { appointmentApi, Appointment } from '@/lib/api';
+import { appointmentApi, Appointment, healthTipApi, HealthTip } from '@/lib/api';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -417,6 +418,37 @@ function PatientHome({ isDark }: { isDark: boolean }) {
 
   const firstName = user?.name?.split(' ')[0] ?? 'Paciente';
 
+  // ── Dynamic tips ────────────────────────────────────────────────────────
+  const [tips, setTips] = useState<HealthTip[]>([]);
+  const [tipIndex, setTipIndex] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    healthTipApi.list().then((res) => {
+      if (res.data?.length) {
+        setTips(res.data);
+        // Start at this week's tip (same rotation as backend)
+        const week = Math.ceil(
+          (new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 604800000
+        );
+        setTipIndex((week - 1) % res.data.length);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const animateToTip = (nextIndex: number) => {
+    Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
+    ]).start();
+    setTimeout(() => setTipIndex(nextIndex), 180);
+  };
+
+  const goNext = () => animateToTip((tipIndex + 1) % tips.length);
+  const goPrev = () => animateToTip((tipIndex - 1 + tips.length) % tips.length);
+
+  const tip = tips[tipIndex] ?? null;
+
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
@@ -478,24 +510,83 @@ function PatientHome({ isDark }: { isDark: boolean }) {
           </View>
         </View>
 
-        {/* Tips */}
+        {/* Dynamic Tips */}
         <View style={{ paddingHorizontal: 16 }}>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827', marginBottom: 12 }}>Tips de salud</Text>
-        {[
-          { icon: 'water' as const,     color: '#3B82F6', title: 'Hidratación',           body: 'Bebe al menos 8 vasos de agua al día.' },
-          { icon: 'nutrition' as const, color: '#10B981', title: 'Alimentación balanceada', body: 'Incluye frutas, verduras y proteínas en cada comida.' },
-          { icon: 'walk' as const,      color: '#F59E0B', title: 'Actividad suave',         body: 'Caminar 20 min al día mejora tu circulación.' },
-        ].map((tip) => (
-          <View key={tip.title} style={{ backgroundColor: cardBg, borderRadius: 14, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderColor: isDark ? '#2D2D2D' : '#F3F4F6' }}>
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: tip.color + '18', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-              <Ionicons name={tip.icon} size={18} color={tip.color} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }}>{tip.title}</Text>
-              <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2, lineHeight: 17 }}>{tip.body}</Text>
+          {/* Header row */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }}>Tips de salud</Text>
+            {tips.length > 0 && (
+              <Text style={{ fontSize: 11, color: '#9CA3AF' }}>{tipIndex + 1} / {tips.length}</Text>
+            )}
+          </View>
+
+          {tip ? (
+            <Animated.View style={{ opacity: fadeAnim }}>
+              <View style={{
+                backgroundColor: cardBg,
+                borderRadius: 16,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: isDark ? '#2D2D2D' : '#F3F4F6',
+                borderLeftWidth: 4,
+                borderLeftColor: tip.color,
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: tip.color + '18', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                    <Ionicons name={tip.icon as any} size={20} color={tip.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }}>{tip.title}</Text>
+                    <Text style={{ fontSize: 11, color: tip.color, fontWeight: '600', marginTop: 1, textTransform: 'uppercase', letterSpacing: 0.5 }}>{tip.category}</Text>
+                  </View>
+                </View>
+                <Text style={{ fontSize: 13, color: isDark ? '#CBD5E1' : '#4B5563', lineHeight: 20 }}>{tip.content}</Text>
+
+                {/* Navigation row */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+                  <Pressable
+                    onPress={goPrev}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: isDark ? '#2A2A2A' : '#F3F4F6' }}
+                    accessibilityRole="button" accessibilityLabel="Tip anterior"
+                  >
+                    <Ionicons name="chevron-back" size={14} color={isDark ? '#CBD5E1' : '#6B7280'} />
+                    <Text style={{ fontSize: 12, color: isDark ? '#CBD5E1' : '#6B7280', fontWeight: '600' }}>Anterior</Text>
+                  </Pressable>
+
+                  {/* Dot indicators (max 7 visible) */}
+                  <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                    {tips.slice(Math.max(0, tipIndex - 3), Math.min(tips.length, tipIndex + 4)).map((_, i) => {
+                      const realI = Math.max(0, tipIndex - 3) + i;
+                      return (
+                        <View
+                          key={realI}
+                          style={{
+                            width: realI === tipIndex ? 8 : 5,
+                            height: realI === tipIndex ? 8 : 5,
+                            borderRadius: 4,
+                            backgroundColor: realI === tipIndex ? tip.color : (isDark ? '#374151' : '#D1D5DB'),
+                          }}
+                        />
+                      );
+                    })}
+                  </View>
+
+                  <Pressable
+                    onPress={goNext}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: tip.color + '18' }}
+                    accessibilityRole="button" accessibilityLabel="Siguiente tip"
+                  >
+                    <Text style={{ fontSize: 12, color: tip.color, fontWeight: '600' }}>Siguiente</Text>
+                    <Ionicons name="chevron-forward" size={14} color={tip.color} />
+                  </Pressable>
+                </View>
               </View>
+            </Animated.View>
+          ) : (
+            <View style={{ backgroundColor: cardBg, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: isDark ? '#2D2D2D' : '#F3F4F6', alignItems: 'center', paddingVertical: 28 }}>
+              <ActivityIndicator color="#E8467C" />
             </View>
-          ))}
+          )}
         </View>
     </ScrollView>
   );
