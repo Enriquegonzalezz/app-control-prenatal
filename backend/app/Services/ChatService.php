@@ -16,6 +16,7 @@ final class ChatService
 {
     public function __construct(
         private readonly ChatEncryptionService $encryption,
+        private readonly SupabaseRealtimeService $realtime,
     ) {}
 
     /**
@@ -110,7 +111,22 @@ final class ChatService
 
         $message->load('sender:id,name,avatar_url');
 
-        return $this->decryptMessage($message);
+        $decrypted = $this->decryptMessage($message);
+
+        // Realtime: empuja el mensaje ya descifrado al canal de la conversación
+        // y avisa al receptor para que su lista de conversaciones se reordene.
+        $this->realtime->broadcast("chat:{$relationship->id}", 'new_message', $decrypted);
+
+        $recipientId = $sender->id === $relationship->doctor_id
+            ? $relationship->patient_id
+            : $relationship->doctor_id;
+
+        $this->realtime->broadcast("user:{$recipientId}", 'conversation_bumped', [
+            'relationship_id' => $relationship->id,
+            'sender_id'       => $sender->id,
+        ]);
+
+        return $decrypted;
     }
 
     /**
@@ -120,10 +136,22 @@ final class ChatService
     {
         $this->assertParticipant($reader, $relationship);
 
-        return Message::where('relationship_id', $relationship->id)
+        $readAt = now();
+
+        $count = Message::where('relationship_id', $relationship->id)
             ->where('sender_id', '!=', $reader->id)
             ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+            ->update(['read_at' => $readAt]);
+
+        // Realtime: notifica al emisor para que sus ✓ pasen a ✓✓ en vivo.
+        if ($count > 0) {
+            $this->realtime->broadcast("chat:{$relationship->id}", 'message_read', [
+                'reader_id' => $reader->id,
+                'read_at'   => $readAt->toIso8601String(),
+            ]);
+        }
+
+        return $count;
     }
 
     // ── helpers ──────────────────────────────────────────────

@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { chatApi, Conversation } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
 import { useCacheStore } from '@/store/cacheStore';
+import { useConversationsRealtime } from '@/hooks/useChatRealtime';
 
 function formatRelativeTime(iso: string | undefined): string {
   if (!iso) return '';
@@ -117,6 +118,7 @@ export default function MessagesScreen() {
   const theme = useEffectiveTheme();
   const isDark = theme === 'dark';
   const token = useAuthStore((s) => s.token);
+  const userId = useAuthStore((s) => s.user?.id);
 
   const [conversations, setConversations] = useState<Conversation[]>(
     () => (useCacheStore.getState().conversations?.data as Conversation[]) ?? []
@@ -149,6 +151,12 @@ export default function MessagesScreen() {
   }, [token]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Refresca al volver a la pestaña (p. ej. tras salir de un chat).
+  useFocusEffect(useCallback(() => { load(true); }, [load]));
+
+  // Realtime: cuando llega un mensaje en cualquier conversación, reordena la lista.
+  useConversationsRealtime(userId, useCallback(() => { load(true); }, [load]));
 
   const totalUnread = conversations.reduce((s: number, c: Conversation) => s + c.unread_count, 0);
 

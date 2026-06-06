@@ -23,7 +23,7 @@ const storage = Platform.OS === 'web'
   : AsyncStorage;
 
 interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
   cedula: string;
