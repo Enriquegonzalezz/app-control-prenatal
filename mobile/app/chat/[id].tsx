@@ -10,13 +10,61 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { chatApi, ChatMessage } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
+import { useChatRealtime } from '@/hooks/useChatRealtime';
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+}
+
+function startOfDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+function formatDayLabel(iso: string): string {
+  const today = startOfDay(new Date());
+  const day = startOfDay(new Date(iso));
+  const diffDays = Math.round((today - day) / 86400000);
+  if (diffDays === 0) return 'Hoy';
+  if (diffDays === 1) return 'Ayer';
+  return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+type Row =
+  | { kind: 'sep'; id: string; label: string }
+  | { kind: 'msg'; id: string; msg: ChatMessage };
+
+/** Intercala separadores de fecha entre mensajes (orden cronológico ascendente). */
+function buildRows(messages: ChatMessage[]): Row[] {
+  const rows: Row[] = [];
+  let lastDay = '';
+  for (const m of messages) {
+    const dayKey = new Date(m.created_at).toDateString();
+    if (dayKey !== lastDay) {
+      rows.push({ kind: 'sep', id: `sep-${dayKey}`, label: formatDayLabel(m.created_at) });
+      lastDay = dayKey;
+    }
+    rows.push({ kind: 'msg', id: m.id, msg: m });
+  }
+  return rows;
+}
+
+function DaySeparator({ label, isDark }: { label: string; isDark: boolean }) {
+  return (
+    <View style={{ alignItems: 'center', marginVertical: 10 }}>
+      <View style={{
+        backgroundColor: isDark ? '#2A2A2A' : '#E5E7EB',
+        paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12,
+      }}>
+        <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? '#D1D5DB' : '#6B7280' }}>
+          {label}
+        </Text>
+      </View>
+    </View>
+  );
 }
 
 function MessageBubble({ msg, isMe, isDark }: { msg: ChatMessage; isMe: boolean; isDark: boolean }) {
@@ -43,6 +91,21 @@ function MessageBubble({ msg, isMe, isDark }: { msg: ChatMessage; isMe: boolean;
           {formatTime(msg.created_at)}
           {isMe && msg.read_at ? ' ✓✓' : isMe ? ' ✓' : ''}
         </Text>
+      </View>
+    </View>
+  );
+}
+
+/** Burbuja "escribiendo…" estilo tres puntos. */
+function TypingBubble({ isDark }: { isDark: boolean }) {
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'flex-start', marginHorizontal: 16, marginBottom: 6 }}>
+      <View style={{
+        backgroundColor: isDark ? '#2A2A2A' : '#F0F0F0',
+        borderRadius: 18, borderBottomLeftRadius: 4,
+        paddingHorizontal: 16, paddingVertical: 11,
+      }}>
+        <Text style={{ fontSize: 13, color: '#9CA3AF', fontStyle: 'italic' }}>escribiendo…</Text>
       </View>
     </View>
   );
@@ -75,6 +138,41 @@ export default function ChatRoomScreen() {
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
+  // Red de seguridad: si el socket estuvo caído, recarga el historial al volver.
+  useFocusEffect(useCallback(() => { loadMessages(); }, [loadMessages]));
+
+  // ── Realtime ──────────────────────────────────────────────
+  const handleNewMessage = useCallback((msg: ChatMessage) => {
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+    // El otro nos escribió → marcar como leído (dispara message_read en el backend).
+    if (token && id && msg.sender_id !== userId) {
+      chatApi.markRead(token, id).catch(() => {});
+    }
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+  }, [token, id, userId]);
+
+  const handleMessageRead = useCallback((payload: { reader_id: string; read_at: string }) => {
+    // El otro leyó MIS mensajes → actualizar ✓✓.
+    if (payload.reader_id === userId) return;
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.sender_id === userId && !m.read_at ? { ...m, read_at: payload.read_at } : m,
+      ),
+    );
+  }, [userId]);
+
+  const { isOtherOnline, otherTyping, sendTyping } = useChatRealtime({
+    relationshipId: id,
+    myUserId: userId,
+    onNewMessage: handleNewMessage,
+    onMessageRead: handleMessageRead,
+  });
+
+  const handleChangeText = (value: string) => {
+    setText(value);
+    if (value.trim()) sendTyping();
+  };
+
   const handleSend = async () => {
     const content = text.trim();
     if (!content || !token || !id || sending) return;
@@ -83,7 +181,7 @@ export default function ChatRoomScreen() {
     inputRef.current?.clear();
     try {
       const res = await chatApi.send(token, id, content);
-      setMessages((prev) => [...prev, res.data]);
+      setMessages((prev) => (prev.some((m) => m.id === res.data.id) ? prev : [...prev, res.data]));
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     } catch {
       setText(content);
@@ -95,6 +193,11 @@ export default function ChatRoomScreen() {
   const bg        = isDark ? '#141414' : '#EFEFEF';
   const headerBg  = isDark ? '#1E1E1E' : '#FFFFFF';
   const inputText = isDark ? '#F9FAFB' : '#111827';
+
+  const statusLabel = otherTyping ? 'escribiendo…' : isOtherOnline ? 'En línea' : 'Desconectado';
+  const statusColor = otherTyping ? '#E8467C' : isOtherOnline ? '#10B981' : '#9CA3AF';
+
+  const rows = buildRows(messages);
 
   return (
     // KAV envuelve TODO (incluyendo header) — patrón WhatsApp
@@ -129,7 +232,7 @@ export default function ChatRoomScreen() {
           <Text style={{ fontSize: 15, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }} numberOfLines={1}>
             {name ?? 'Conversación'}
           </Text>
-          <Text style={{ fontSize: 11, color: '#10B981' }}>En línea</Text>
+          <Text style={{ fontSize: 11, color: statusColor }}>{statusLabel}</Text>
         </View>
       </View>
 
@@ -141,14 +244,19 @@ export default function ChatRoomScreen() {
       ) : (
         <FlatList
           ref={listRef}
-          data={messages}
+          data={rows}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <MessageBubble msg={item} isMe={item.sender_id === userId} isDark={isDark} />
-          )}
+          renderItem={({ item }) =>
+            item.kind === 'sep' ? (
+              <DaySeparator label={item.label} isDark={isDark} />
+            ) : (
+              <MessageBubble msg={item.msg} isMe={item.msg.sender_id === userId} isDark={isDark} />
+            )
+          }
           contentContainerStyle={{ paddingTop: 12, paddingBottom: 8 }}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          ListFooterComponent={otherTyping ? <TypingBubble isDark={isDark} /> : null}
           ListEmptyComponent={
             <View style={{ alignItems: 'center', paddingTop: 80 }}>
               <Ionicons name="chatbubbles-outline" size={48} color="#E8467C" />
@@ -186,7 +294,7 @@ export default function ChatRoomScreen() {
           <TextInput
             ref={inputRef}
             value={text}
-            onChangeText={setText}
+            onChangeText={handleChangeText}
             placeholder="Escribe un mensaje..."
             placeholderTextColor="#9CA3AF"
             style={{ fontSize: 15, color: inputText, maxHeight: 120, lineHeight: 20 }}

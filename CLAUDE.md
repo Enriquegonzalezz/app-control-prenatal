@@ -48,6 +48,25 @@ Las pacientes acceden al directorio de especialistas verificados.
   `missingProfileFields()` son la fuente de verdad y se exponen en
   `DoctorProfileResource` (`is_profile_complete`, `missing_fields`).
 
+**Mensajería en tiempo real (Δ-8, junio 2026):**
+- El chat NO usa `postgres_changes` de Supabase. Los mensajes están **cifrados en
+  servidor** (`messages.content_encrypted`, llave solo en Laravel) y la app móvil
+  se autentica con **Sanctum** (sin JWT de Supabase, solo anon key) → RLS bloquearía
+  esa escucha y la fila cruda sería ilegible.
+- Patrón **híbrido**: Laravel persiste y luego empuja el payload **ya descifrado** a un
+  canal **Broadcast** público de Supabase Realtime vía `SupabaseRealtimeService`
+  (`POST {SUPABASE_URL}/realtime/v1/api/broadcast`, reusa `config('services.supabase')`).
+  Topics: `chat:{relationship_id}` (eventos `new_message`, `message_read`) y
+  `user:{userId}` (evento `conversation_bumped`). Se emite en `ChatService::send()` y
+  `markRead()`; es **best-effort** (try/catch que loguea, nunca rompe la petición).
+- Cliente: `mobile/src/lib/supabase.ts` (anon key, sin sesión) + hook
+  `mobile/src/hooks/useChatRealtime.ts` (Broadcast + **Presence** para "en línea" real +
+  `typing`). REST sigue siendo la **fuente de verdad** del historial (`useFocusEffect`
+  recarga como red de seguridad). Requiere `EXPO_PUBLIC_SUPABASE_URL` y
+  `EXPO_PUBLIC_SUPABASE_ANON_KEY` en `mobile/.env`.
+- Fase 2 (opcional, pre-producción): canales **privados** con JWT firmado por Supabase
+  emitido desde Laravel + RLS sobre `realtime.messages` para autorización real.
+
 ## Principios Arquitectónicos Clave
 1. **Multi-especialidad desde el día 1:** Ningún campo hace referencia
    hardcoded a "ginecobstetricia". Todo usa `specialty_id` + JSONB.
@@ -169,3 +188,5 @@ Nunca modificar una migración ya ejecutada. Crear siempre una nueva.
 - ❌ Permitir crear horarios/slots con consultorio propio o clínica escrita a mano — `branch_id` (sede de clínica verificada) es obligatorio (Δ-7)
 - ❌ Mostrar en el directorio a un médico sin vínculo a clínica activa, aunque esté verificado (Δ-7)
 - ❌ `clinic_doctors` NO tiene columna `id` (PK compuesta clinic_id+doctor_id); `clinics.is_active` default es `false` (setear true al sembrar)
+- ❌ Suscribir el chat a `postgres_changes` de Supabase ni enviar la llave de cifrado al cliente — usar el patrón Broadcast del backend (Δ-8)
+- ❌ Que el broadcast de Realtime rompa el guardado del mensaje — siempre best-effort (try/catch), el dato ya está en BD
