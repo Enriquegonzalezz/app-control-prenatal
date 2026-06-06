@@ -415,7 +415,6 @@ export default function DoctorScheduleScreen() {
         <Pressable
           onPress={() => toggleForm(!showForm)}
           style={({ pressed }) => ({
-            flexDirection: 'row', alignItems: 'center', gap: 6,
             backgroundColor: showForm ? (isDark ? '#2A2A2A' : '#F1F5F9') : '#E8467C',
             paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24,
             opacity: pressed ? 0.8 : 1,
@@ -425,42 +424,58 @@ export default function DoctorScheduleScreen() {
           })}
           accessibilityRole="button"
         >
-          <Ionicons name={showForm ? 'close' : 'add'} size={16} color={showForm ? subColor : '#fff'} />
-          <Text style={{ fontSize: 13, fontWeight: '700', color: showForm ? subColor : '#fff' }}>
-            {showForm ? 'Cancelar' : 'Agregar'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name={showForm ? 'close' : 'add'} size={16} color={showForm ? subColor : '#fff'} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: showForm ? subColor : '#fff' }}>
+              {showForm ? 'Cancelar' : 'Agregar'}
+            </Text>
+          </View>
         </Pressable>
       </View>
 
       {/* ── Tab switcher ────────────────────────────────────── */}
       <View style={{
-        flexDirection: 'row', marginHorizontal: 16, marginBottom: 8, marginTop: 4,
+        flexDirection: 'row', marginHorizontal: 16, marginBottom: 4, marginTop: 4,
         backgroundColor: isDark ? '#1C1C1C' : '#F3F4F6',
-        borderRadius: 14, padding: 3,
+        borderRadius: 14, padding: 12, gap: 4,
+        justifyContent: 'space-around'
       }}>
         {([
-          { key: 'schedules', label: 'Horarios' },
-          { key: 'agenda',    label: 'Agenda'   },
-          { key: 'discover',  label: 'Explorar' },
-        ] as const).map(({ key, label }) => {
+          { key: 'schedules', label: 'Horarios', icon: 'time',    iconOff: 'time-outline'     },
+          { key: 'agenda',    label: 'Agenda',   icon: 'calendar', iconOff: 'calendar-outline' },
+          { key: 'discover',  label: 'Explorar', icon: 'compass',  iconOff: 'compass-outline'  },
+        ] as const).map(({ key, label, icon, iconOff }) => {
           const sel = activeTab === key;
           return (
             <Pressable
               key={key}
               onPress={() => setActiveTab(key)}
               style={({ pressed }) => ({
-                flex: 1, paddingVertical: 9, borderRadius: 11, alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 11,
                 backgroundColor: sel ? (isDark ? '#2A2A2A' : '#fff') : 'transparent',
                 shadowColor: sel ? '#000' : 'transparent',
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: sel ? 0.08 : 0,
                 shadowRadius: 4, elevation: sel ? 2 : 0,
                 opacity: pressed ? 0.8 : 1,
+                minHeight: 44,
               })}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: sel }}
+              accessibilityLabel={label}
             >
-              <Text style={{ fontSize: 12, fontWeight: sel ? '700' : '500', color: sel ? '#E8467C' : subColor }}>
-                {label}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons
+                  name={sel ? icon : iconOff}
+                  size={16}
+                  color={sel ? '#E8467C' : subColor}
+                />
+                <Text style={{ fontSize: 12, fontWeight: sel ? '700' : '500', color: sel ? '#E8467C' : subColor }}>
+                  {label}
+                </Text>
+              </View>
             </Pressable>
           );
         })}
@@ -507,12 +522,14 @@ export default function DoctorScheduleScreen() {
                 style={({ pressed }) => ({
                   marginTop: 16, backgroundColor: '#3B82F6',
                   borderRadius: 16, paddingVertical: 13,
-                  alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
+                  alignItems: 'center', justifyContent: 'center',
                   opacity: pressed ? 0.85 : 1,
                 })}
               >
-                <Ionicons name="add-circle" size={18} color="#fff" />
-                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Crear primer horario</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="add-circle" size={18} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Crear primer horario</Text>
+                </View>
               </Pressable>
             </View>
           </View>
@@ -580,25 +597,27 @@ export default function DoctorScheduleScreen() {
                     <Pressable
                       onPress={() => setClinicPickerOpen((v) => !v)}
                       style={({ pressed }) => ({
-                        flexDirection: 'row', alignItems: 'center', gap: 12,
+                        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                         backgroundColor: isDark ? '#252525' : '#F8FAFC',
-                        borderRadius: 14, padding: 14,
-                        borderWidth: 1.5, borderColor: selectedClinic ? '#E8467C' : (isDark ? '#333' : '#E5E7EB'),
+                        borderRadius: 16, padding: 16,
+                        borderWidth: 2, borderColor: selectedClinic ? '#E8467C' : (isDark ? '#333' : '#E5E7EB'),
                         opacity: pressed ? 0.8 : 1,
                       })}
                     >
-                      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#3B82F620', alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name="business" size={16} color="#3B82F6" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: '700', color: selectedClinic ? textColor : subColor }} numberOfLines={1}>
-                          {selectedClinic ? selectedClinic.name : 'Selecciona una clínica'}
-                        </Text>
-                        <Text style={{ fontSize: 11, color: subColor, marginTop: 1 }}>
+                      <View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#3B82F620', alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="business" size={18} color="#3B82F6" />
+                          </View>
+                          <Text style={{ fontSize: 15, fontWeight: '700', color: selectedClinic ? textColor : subColor }} numberOfLines={1}>
+                            {selectedClinic ? selectedClinic.name : 'Selecciona una clínica'}
+                          </Text>
+                        </View>
+                        <Text style={{ fontSize: 12, color: subColor, marginTop: 2 }}>
                           {catalog.length} clínica{catalog.length !== 1 ? 's' : ''} verificada{catalog.length !== 1 ? 's' : ''}
                         </Text>
                       </View>
-                      <Ionicons name={clinicPickerOpen ? 'chevron-up' : 'chevron-down'} size={18} color={subColor} />
+                      <Ionicons name={clinicPickerOpen ? 'chevron-up' : 'chevron-down'} size={20} color={subColor} />
                     </Pressable>
 
                     {/* Dropdown con buscador */}
@@ -771,30 +790,32 @@ export default function DoctorScheduleScreen() {
               <Pressable
                 onPress={() => setSelAutoExtend((v) => !v)}
                 style={({ pressed }) => ({
-                  flexDirection: 'row', alignItems: 'center', gap: 12,
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                   backgroundColor: selAutoExtend ? '#E8467C12' : (isDark ? '#252525' : '#F8FAFC'),
-                  borderRadius: 14, padding: 14,
-                  borderWidth: 1.5, borderColor: selAutoExtend ? '#E8467C' : (isDark ? '#333' : '#E5E7EB'),
+                  borderRadius: 16, padding: 16,
+                  borderWidth: 2, borderColor: selAutoExtend ? '#E8467C' : (isDark ? '#333' : '#E5E7EB'),
                   opacity: pressed ? 0.85 : 1,
                 })}
                 accessibilityRole="switch"
                 accessibilityState={{ checked: selAutoExtend }}
               >
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="infinite" size={18} color="#E8467C" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: textColor }}>Agenda indefinida</Text>
-                  <Text style={{ fontSize: 11, color: subColor, marginTop: 1, lineHeight: 15 }}>
+                <View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="infinite" size={20} color="#E8467C" />
+                    </View>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: textColor }}>Agenda indefinida</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: subColor, marginTop: 2, lineHeight: 16 }}>
                     Mantiene tus cupos generados automáticamente cada semana, sin tener que regenerarlos.
                   </Text>
                 </View>
                 <View style={{
-                  width: 44, height: 26, borderRadius: 13, padding: 3,
+                  width: 48, height: 28, borderRadius: 14, padding: 3,
                   backgroundColor: selAutoExtend ? '#E8467C' : (isDark ? '#3A3A3A' : '#D1D5DB'),
                   alignItems: selAutoExtend ? 'flex-end' : 'flex-start', justifyContent: 'center',
                 }}>
-                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' }} />
+                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' }} />
                 </View>
               </Pressable>
 
@@ -840,22 +861,30 @@ export default function DoctorScheduleScreen() {
                 onPress={handleCreate}
                 disabled={creating}
                 style={({ pressed }) => ({
-                  backgroundColor: creating ? '#9CA3AF' : '#E8467C',
-                  borderRadius: 18, paddingVertical: 16,
-                  alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10,
-                  opacity: pressed ? 0.85 : 1,
+                  backgroundColor: '#E8467C',
+                  borderRadius: 16,
+                  paddingVertical: 16,
+                  paddingHorizontal: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 2,
+                  borderColor: '#C73E6B',
+                  opacity: creating ? 0.5 : (pressed ? 0.85 : 1),
                   shadowColor: '#E8467C',
                   shadowOffset: { width: 0, height: 6 },
                   shadowOpacity: creating ? 0 : 0.35,
-                  shadowRadius: 12, elevation: creating ? 0 : 6,
+                  shadowRadius: 12,
+                  elevation: creating ? 0 : 6,
                 })}
                 accessibilityRole="button"
                 accessibilityLabel="Guardar horario"
               >
-                <Ionicons name={creating ? 'hourglass-outline' : 'checkmark-circle'} size={20} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
-                  {creating ? 'Guardando...' : 'Guardar Horario'}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#E8467C', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 20 }}>
+                  <Ionicons name={creating ? 'hourglass-outline' : 'checkmark-circle'} size={20} color="#fff" />
+                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+                    {creating ? 'Guardando...' : 'Guardar Horario'}
+                  </Text>
+                </View>
               </Pressable>
 
             </View>
@@ -1028,25 +1057,34 @@ export default function DoctorScheduleScreen() {
                     onPress={() => handleGenerate(sched)}
                     disabled={isGen}
                     style={({ pressed }) => ({
-                      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      backgroundColor: isGen ? (isDark ? '#252525' : '#F3F4F6') : '#E8467C',
-                      borderRadius: 16, paddingVertical: 13,
-                      opacity: pressed ? 0.8 : 1,
-                      shadowColor: isGen ? 'transparent' : '#E8467C',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: '#E8467C',
+                      borderRadius: 14,
+                      paddingVertical: 13,
+                      paddingHorizontal: 16,
+                      borderWidth: 2,
+                      borderColor: '#C73E6B',
+                      opacity: isGen ? 0.5 : (pressed ? 0.8 : 1),
+                      shadowColor: '#E8467C',
                       shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.3, shadowRadius: 8, elevation: isGen ? 0 : 4,
+                      shadowOpacity: isGen ? 0 : 0.3,
+                      shadowRadius: 8,
+                      elevation: isGen ? 0 : 4,
                     })}
                     accessibilityRole="button"
                     accessibilityLabel={`Generar slots para ${dayLabel(sched.day_of_week)}`}
                   >
-                    <Ionicons
-                      name={isGen ? 'hourglass-outline' : 'flash'}
-                      size={16}
-                      color={isGen ? subColor : '#fff'}
-                    />
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: isGen ? subColor : '#fff' }}>
-                      {isGen ? 'Generando...' : `Generar slots (${genWeeks} semanas)`}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#E8467C', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 16 }}>
+                      <Ionicons
+                        name={isGen ? 'hourglass-outline' : 'flash'}
+                        size={16}
+                        color={isGen ? subColor : '#fff'}
+                      />
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: isGen ? subColor : '#fff' }}>
+                        {isGen ? 'Generando...' : `Generar slots (${genWeeks} semanas)`}
+                      </Text>
+                    </View>
                   </Pressable>
                 </View>
               </View>

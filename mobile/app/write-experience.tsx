@@ -32,7 +32,6 @@ function TagPill({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        flexDirection: 'row', alignItems: 'center', gap: 6,
         paddingHorizontal: 14, paddingVertical: 9,
         borderRadius: 20, borderWidth: 1.5,
         backgroundColor: selected ? '#A855F7' : (isDark ? '#1E1E1E' : '#FFFFFF'),
@@ -41,17 +40,19 @@ function TagPill({
         margin: 4,
       })}
     >
-      <Ionicons
-        name="pricetag-outline"
-        size={12}
-        color={selected ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')}
-      />
-      <Text style={{
-        fontSize: 12, fontWeight: '600',
-        color: selected ? '#FFFFFF' : (isDark ? '#D1D5DB' : '#374151'),
-      }}>
-        {tag.name}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Ionicons
+          name="pricetag-outline"
+          size={12}
+          color={selected ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')}
+        />
+        <Text style={{
+          fontSize: 12, fontWeight: '600',
+          color: selected ? '#FFFFFF' : (isDark ? '#D1D5DB' : '#374151'),
+        }}>
+          {tag.name}
+        </Text>
+      </View>
     </Pressable>
   );
 }
