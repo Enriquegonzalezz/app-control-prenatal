@@ -12,6 +12,7 @@ export default function ProfileScreen() {
   const token = useAuthStore((s) => s.token);
   const logout = useAuthStore((s) => s.logout);
   const { mode, setMode } = useThemeStore();
+  const isDark = mode === 'dark';
 
   // Completitud del perfil profesional (solo médicos) — controla visibilidad ante pacientes
   const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
@@ -30,19 +31,19 @@ export default function ProfileScreen() {
   useFocusEffect(useCallback(() => { loadProfileStatus(); }, [loadProfileStatus]));
 
   const cycleTheme = () => {
-    const next = mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light';
+    const next = mode === 'light' ? 'dark' : 'light';
     setMode(next);
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-surface-light dark:bg-surface-dark" edges={['top']}>
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#141414' : '#F0F4F8' }} edges={['top']}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
-        <View className="px-6 pt-6 pb-4">
-          <Text className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+        <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 }}>
+          <Text style={{ fontSize: 24, fontWeight: '800', color: isDark ? '#F9FAFB' : '#0F172A' }}>
             Mi Perfil
           </Text>
-          <Text className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+          <Text style={{ fontSize: 14, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 4 }}>
             Gestiona tu cuenta y preferencias
           </Text>
         </View>
@@ -75,18 +76,18 @@ export default function ProfileScreen() {
         )}
 
         {/* User Info Card */}
-        <View className="px-6 mb-6">
-          <View className="bg-card-light dark:bg-card-dark rounded-2xl p-5">
+        <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+          <View style={{ backgroundColor: isDark ? '#1C1C1C' : '#FFFFFF', borderRadius: 16, padding: 20 }}>
             <View className="items-center mb-4">
               <View className="w-20 h-20 rounded-full bg-brand-500 items-center justify-center mb-3">
                 <Text className="text-white text-3xl font-bold">
                   {user?.name?.charAt(0).toUpperCase() || 'U'}
                 </Text>
               </View>
-              <Text className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+              <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#F9FAFB' : '#0F172A' }}>
                 {user?.name || 'Usuario'}
               </Text>
-              <Text className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+              <Text style={{ fontSize: 14, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 4 }}>
                 {user?.email}
               </Text>
               {user?.role && (
@@ -102,15 +103,15 @@ export default function ProfileScreen() {
 
         {/* Herramientas del médico */}
         {user?.role === 'doctor' && (
-          <View className="px-6 mb-6">
-            <Text className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-4">
+          <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#F9FAFB' : '#0F172A', marginBottom: 16 }}>
               Mi Práctica
             </Text>
 
             {/* Perfil profesional */}
             <Pressable
               onPress={() => router.push('/doctor-profile-edit')}
-              className="bg-card-light dark:bg-card-dark rounded-xl p-4 mb-3 active:opacity-70"
+              style={{ backgroundColor: isDark ? '#1C1C1C' : '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 12 }}
               accessibilityRole="button"
               accessibilityLabel="Editar perfil profesional"
             >
@@ -119,9 +120,9 @@ export default function ProfileScreen() {
                   <View className="w-10 h-10 rounded-xl bg-pink-50 dark:bg-pink-900/20 items-center justify-center mr-3">
                     <Ionicons name="person-circle-outline" size={20} color="#E8467C" />
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Perfil Profesional</Text>
-                    <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Experiencia, precio y descripción</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F9FAFB' : '#0F172A' }}>Perfil Profesional</Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 2 }}>Experiencia, precio y descripción</Text>
                   </View>
                 </View>
                 {profileComplete === true ? (
@@ -139,7 +140,7 @@ export default function ProfileScreen() {
 
             <Pressable
               onPress={() => router.push('/appointments')}
-              className="bg-card-light dark:bg-card-dark rounded-xl p-4 mb-3 active:opacity-70"
+              style={{ backgroundColor: isDark ? '#1C1C1C' : '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 12 }}
               accessibilityRole="button"
               accessibilityLabel="Ver agenda de citas"
             >
@@ -149,8 +150,8 @@ export default function ProfileScreen() {
                     <Ionicons name="calendar" size={20} color="#3B82F6" />
                   </View>
                   <View>
-                    <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Agenda de Citas</Text>
-                    <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Ver, confirmar y completar</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F9FAFB' : '#0F172A' }}>Agenda de Citas</Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 2 }}>Ver, confirmar y completar</Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -159,7 +160,7 @@ export default function ProfileScreen() {
 
             <Pressable
               onPress={() => router.push('/(tabs)/messages')}
-              className="bg-card-light dark:bg-card-dark rounded-xl p-4 mb-3 active:opacity-70"
+              style={{ backgroundColor: isDark ? '#1C1C1C' : '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 12 }}
               accessibilityRole="button"
               accessibilityLabel="Mensajes con pacientes"
             >
@@ -169,8 +170,8 @@ export default function ProfileScreen() {
                     <Ionicons name="chatbubbles" size={20} color="#E8467C" />
                   </View>
                   <View>
-                    <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mensajes</Text>
-                    <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Conversaciones con pacientes</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F9FAFB' : '#0F172A' }}>Mensajes</Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 2 }}>Conversaciones con pacientes</Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -179,7 +180,7 @@ export default function ProfileScreen() {
 
             <Pressable
               onPress={() => router.push('/patients-records')}
-              className="bg-card-light dark:bg-card-dark rounded-xl p-4 mb-3 active:opacity-70"
+              style={{ backgroundColor: isDark ? '#1C1C1C' : '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 12 }}
               accessibilityRole="button"
               accessibilityLabel="Historial de mis pacientes"
             >
@@ -189,8 +190,8 @@ export default function ProfileScreen() {
                     <Ionicons name="people-outline" size={20} color="#E8467C" />
                   </View>
                   <View>
-                    <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Historial de Pacientes</Text>
-                    <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Documentos compartidos por paciente</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F9FAFB' : '#0F172A' }}>Historial de Pacientes</Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 2 }}>Documentos compartidos por paciente</Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -199,7 +200,7 @@ export default function ProfileScreen() {
 
             <Pressable
               onPress={() => router.push('/medical-history')}
-              className="bg-card-light dark:bg-card-dark rounded-xl p-4 active:opacity-70"
+              style={{ backgroundColor: isDark ? '#1C1C1C' : '#FFFFFF', borderRadius: 12, padding: 16 }}
               accessibilityRole="button"
               accessibilityLabel="Mi historial médico personal"
             >
@@ -209,8 +210,8 @@ export default function ProfileScreen() {
                     <Ionicons name="documents-outline" size={20} color="#E8467C" />
                   </View>
                   <View>
-                    <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mi Historial Médico</Text>
-                    <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Tus documentos y registros personales</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F9FAFB' : '#0F172A' }}>Mi Historial Médico</Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 2 }}>Tus documentos y registros personales</Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -221,13 +222,13 @@ export default function ProfileScreen() {
 
         {/* Historial Médico — solo pacientes */}
         {user?.role === 'patient' && (
-          <View className="px-6 mb-6">
-            <Text className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-4">
+          <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#F9FAFB' : '#0F172A', marginBottom: 16 }}>
               Mi Salud
             </Text>
             <Pressable
               onPress={() => router.push('/medical-history')}
-              className="bg-card-light dark:bg-card-dark rounded-xl p-4 mb-3 active:opacity-70"
+              style={{ backgroundColor: isDark ? '#1C1C1C' : '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 12 }}
               accessibilityRole="button"
               accessibilityLabel="Ver historial médico"
             >
@@ -237,10 +238,10 @@ export default function ProfileScreen() {
                     <Ionicons name="documents-outline" size={20} color="#E8467C" />
                   </View>
                   <View>
-                    <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F9FAFB' : '#0F172A' }}>
                       Historial Médico
                     </Text>
-                    <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 2 }}>
                       Exámenes, consultas y archivos
                     </Text>
                   </View>
@@ -251,7 +252,7 @@ export default function ProfileScreen() {
 
             <Pressable
               onPress={() => router.push('/appointments')}
-              className="bg-card-light dark:bg-card-dark rounded-xl p-4 active:opacity-70"
+              style={{ backgroundColor: isDark ? '#1C1C1C' : '#FFFFFF', borderRadius: 12, padding: 16 }}
               accessibilityRole="button"
               accessibilityLabel="Ver mis citas"
             >
@@ -261,10 +262,10 @@ export default function ProfileScreen() {
                     <Ionicons name="calendar-outline" size={20} color="#3B82F6" />
                   </View>
                   <View>
-                    <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F9FAFB' : '#0F172A' }}>
                       Mis Citas
                     </Text>
-                    <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 2 }}>
                       Reservadas, activas y canceladas
                     </Text>
                   </View>
@@ -276,31 +277,31 @@ export default function ProfileScreen() {
         )}
 
         {/* Settings */}
-        <View className="px-6 mb-6">
-          <Text className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-4">
+        <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#F9FAFB' : '#0F172A', marginBottom: 16 }}>
             Configuración
           </Text>
 
           {/* Theme Toggle */}
           <Pressable
             onPress={cycleTheme}
-            className="bg-card-light dark:bg-card-dark rounded-xl p-4 mb-3 active:opacity-70"
+            style={{ backgroundColor: isDark ? '#1C1C1C' : '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 12 }}
             accessibilityRole="button"
           >
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center">
                 <Ionicons 
-                  name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'settings'} 
+                  name={mode === 'light' ? 'sunny' : 'moon'} 
                   size={24} 
                   color="#E8467C" 
                   style={{ marginRight: 12 }} 
                 />
                 <View>
-                  <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F9FAFB' : '#0F172A' }}>
                     Tema
                   </Text>
-                  <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-                    {mode === 'light' ? 'Claro' : mode === 'dark' ? 'Oscuro' : 'Sistema'}
+                  <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 2 }}>
+                    {mode === 'light' ? 'Claro' : 'Oscuro'}
                   </Text>
                 </View>
               </View>
@@ -308,41 +309,22 @@ export default function ProfileScreen() {
             </View>
           </Pressable>
 
-          {/* Notifications */}
+          {/* Terms */}
           <Pressable
-            className="bg-card-light dark:bg-card-dark rounded-xl p-4 mb-3 active:opacity-70"
+            onPress={() => router.push('/terms')}
+            style={{ backgroundColor: isDark ? '#1C1C1C' : '#FFFFFF', borderRadius: 12, padding: 16 }}
             accessibilityRole="button"
+            accessibilityLabel="Ver términos y condiciones"
           >
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center">
-                <Ionicons name="notifications" size={24} color="#E8467C" style={{ marginRight: 12 }} />
+                <Ionicons name="document-text" size={24} color="#E8467C" style={{ marginRight: 12 }} />
                 <View>
-                  <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                    Notificaciones
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F9FAFB' : '#0F172A' }}>
+                    Términos y Condiciones
                   </Text>
-                  <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-                    Gestiona tus alertas
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </View>
-          </Pressable>
-
-          {/* Privacy */}
-          <Pressable
-            className="bg-card-light dark:bg-card-dark rounded-xl p-4 active:opacity-70"
-            accessibilityRole="button"
-          >
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Ionicons name="lock-closed" size={24} color="#E8467C" style={{ marginRight: 12 }} />
-                <View>
-                  <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                    Privacidad
-                  </Text>
-                  <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-                    Seguridad y datos
+                  <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 2 }}>
+                    Uso de la plataforma
                   </Text>
                 </View>
               </View>

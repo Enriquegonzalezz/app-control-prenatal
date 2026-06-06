@@ -484,7 +484,6 @@ function DoctorProfileSheet({
                   disabled={chattingNow}
                   style={({ pressed }) => ({
                     marginTop: 10,
-                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
                     backgroundColor: isDark ? '#1A2A3A' : '#EFF6FF',
                     borderRadius: 20, paddingVertical: 16, paddingHorizontal: 24,
                     borderWidth: 1.5, borderColor: isDark ? '#2563EB50' : '#BFDBFE',
@@ -498,22 +497,26 @@ function DoctorProfileSheet({
                   accessibilityRole="button"
                   accessibilityLabel="Enviar mensaje al médico"
                 >
-                  <View style={{
-                    width: 38, height: 38, borderRadius: 19,
-                    backgroundColor: isDark ? '#2563EB25' : '#DBEAFE',
-                    alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Ionicons name="chatbubble-ellipses" size={18} color="#3B82F6" />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View style={{
+                          width: 38, height: 38, borderRadius: 19,
+                          backgroundColor: isDark ? '#2563EB25' : '#DBEAFE',
+                          alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <Ionicons name="chatbubble-ellipses" size={18} color="#3B82F6" />
+                        </View>
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: isDark ? '#93C5FD' : '#1D4ED8' }}>
+                          {chattingNow ? 'Conectando...' : 'Enviar mensaje'}
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 11, color: isDark ? '#60A5FA' : '#3B82F6', marginTop: 2 }}>
+                        Consulta rápida con tu médico
+                      </Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={16} color="#3B82F6" />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: isDark ? '#93C5FD' : '#1D4ED8' }}>
-                      {chattingNow ? 'Conectando...' : 'Enviar mensaje'}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: isDark ? '#60A5FA' : '#3B82F6', marginTop: 1 }}>
-                      Consulta rápida con tu médico
-                    </Text>
-                  </View>
-                  <Ionicons name="arrow-forward" size={16} color="#3B82F6" />
                 </Pressable>
                 {chatError && (
                   <View style={{ marginTop: 8, backgroundColor: isDark ? '#2D1F10' : '#FFF7ED', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: isDark ? '#92400E50' : '#FED7AA' }}>

@@ -378,24 +378,34 @@ export default function DoctorProfileEditScreen() {
               onPress={handleSubmit}
               disabled={saving || saved}
               style={({ pressed }) => ({
-                backgroundColor: saving || saved ? '#9CA3AF' : '#E8467C',
-                borderRadius: 18, paddingVertical: 16,
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-                opacity: pressed ? 0.9 : 1, marginTop: 4,
-                shadowColor: '#E8467C', shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: saving || saved ? 0 : 0.35, shadowRadius: 12, elevation: saving || saved ? 0 : 6,
+                backgroundColor: '#E8467C',
+                borderRadius: 16,
+                paddingVertical: 16,
+                paddingHorizontal: 20,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 2,
+                borderColor: '#C73E6B',
+                opacity: saving || saved ? 0.5 : (pressed ? 0.85 : 1),
+                shadowColor: '#E8467C',
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: saving || saved ? 0 : 0.35,
+                shadowRadius: 12,
+                elevation: saving || saved ? 0 : 6,
               })}
               accessibilityRole="button"
               accessibilityLabel="Guardar perfil profesional"
             >
-              {saving ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Ionicons name={saved ? 'checkmark-circle' : 'save-outline'} size={20} color="#fff" />
-              )}
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
-                {saving ? 'Guardando...' : saved ? 'Guardado' : 'Guardar perfil'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#E8467C', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 20 }}>
+                {saving ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Ionicons name={saved ? 'checkmark-circle' : 'save-outline'} size={20} color="#fff" />
+                )}
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+                  {saving ? 'Guardando...' : saved ? 'Guardado' : 'Guardar perfil'}
+                </Text>
+              </View>
             </Pressable>
           </ScrollView>
         </KeyboardAvoidingView>

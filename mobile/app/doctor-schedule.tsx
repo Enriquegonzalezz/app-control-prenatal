@@ -597,27 +597,28 @@ export default function DoctorScheduleScreen() {
                     <Pressable
                       onPress={() => setClinicPickerOpen((v) => !v)}
                       style={({ pressed }) => ({
-                        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                         backgroundColor: isDark ? '#252525' : '#F8FAFC',
                         borderRadius: 16, padding: 16,
                         borderWidth: 2, borderColor: selectedClinic ? '#E8467C' : (isDark ? '#333' : '#E5E7EB'),
                         opacity: pressed ? 0.8 : 1,
                       })}
                     >
-                      <View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#3B82F620', alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name="business" size={18} color="#3B82F6" />
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#3B82F620', alignItems: 'center', justifyContent: 'center' }}>
+                              <Ionicons name="business" size={18} color="#3B82F6" />
+                            </View>
+                            <Text style={{ fontSize: 15, fontWeight: '700', color: selectedClinic ? textColor : subColor }} numberOfLines={1}>
+                              {selectedClinic ? selectedClinic.name : 'Selecciona una clínica'}
+                            </Text>
                           </View>
-                          <Text style={{ fontSize: 15, fontWeight: '700', color: selectedClinic ? textColor : subColor }} numberOfLines={1}>
-                            {selectedClinic ? selectedClinic.name : 'Selecciona una clínica'}
+                          <Text style={{ fontSize: 12, color: subColor, marginTop: 2 }}>
+                            {catalog.length} clínica{catalog.length !== 1 ? 's' : ''} verificada{catalog.length !== 1 ? 's' : ''}
                           </Text>
                         </View>
-                        <Text style={{ fontSize: 12, color: subColor, marginTop: 2 }}>
-                          {catalog.length} clínica{catalog.length !== 1 ? 's' : ''} verificada{catalog.length !== 1 ? 's' : ''}
-                        </Text>
+                        <Ionicons name={clinicPickerOpen ? 'chevron-up' : 'chevron-down'} size={20} color={subColor} />
                       </View>
-                      <Ionicons name={clinicPickerOpen ? 'chevron-up' : 'chevron-down'} size={20} color={subColor} />
                     </Pressable>
 
                     {/* Dropdown con buscador */}
@@ -790,7 +791,6 @@ export default function DoctorScheduleScreen() {
               <Pressable
                 onPress={() => setSelAutoExtend((v) => !v)}
                 style={({ pressed }) => ({
-                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                   backgroundColor: selAutoExtend ? '#E8467C12' : (isDark ? '#252525' : '#F8FAFC'),
                   borderRadius: 16, padding: 16,
                   borderWidth: 2, borderColor: selAutoExtend ? '#E8467C' : (isDark ? '#333' : '#E5E7EB'),
@@ -799,26 +799,28 @@ export default function DoctorScheduleScreen() {
                 accessibilityRole="switch"
                 accessibilityState={{ checked: selAutoExtend }}
               >
-                <View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="infinite" size={20} color="#E8467C" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="infinite" size={20} color="#E8467C" />
+                      </View>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: textColor }}>Agenda indefinida</Text>
                     </View>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: textColor }}>Agenda indefinida</Text>
+                    <Text style={{ fontSize: 12, color: subColor, marginTop: 2, lineHeight: 16 }}>
+                      Mantiene tus cupos generados automáticamente cada semana, sin tener que regenerarlos.
+                    </Text>
                   </View>
-                  <Text style={{ fontSize: 12, color: subColor, marginTop: 2, lineHeight: 16 }}>
-                    Mantiene tus cupos generados automáticamente cada semana, sin tener que regenerarlos.
-                  </Text>
-                </View>
-                <View style={{
-                  width: 48, height: 28, borderRadius: 14, padding: 3,
-                  backgroundColor: selAutoExtend ? '#E8467C' : (isDark ? '#3A3A3A' : '#D1D5DB'),
-                  alignItems: selAutoExtend ? 'flex-end' : 'flex-start', justifyContent: 'center',
-                }}>
-                  <View style={{ 
-                    width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff',
-                    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 2,
-                  }} />
+                  <View style={{
+                    width: 48, height: 28, borderRadius: 14, padding: 3,
+                    backgroundColor: selAutoExtend ? '#E8467C' : (isDark ? '#3A3A3A' : '#D1D5DB'),
+                    alignItems: selAutoExtend ? 'flex-end' : 'flex-start', justifyContent: 'center',
+                  }}>
+                    <View style={{ 
+                      width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff',
+                      shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 2,
+                    }} />
+                  </View>
                 </View>
               </Pressable>
 
