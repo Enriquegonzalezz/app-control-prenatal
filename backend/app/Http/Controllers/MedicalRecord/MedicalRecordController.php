@@ -174,6 +174,26 @@ final class MedicalRecordController extends Controller
         ]);
     }
 
+    /**
+     * DELETE /medical-records/{medicalRecord}
+     * Soft-delete: oculta el registro del historial conservando el archivo en Storage.
+     * Solo quien subió el documento puede eliminarlo.
+     */
+    public function destroy(Request $request, MedicalRecord $medicalRecord): JsonResponse
+    {
+        try {
+            $this->medicalRecordService->delete($request->user(), $medicalRecord);
+        } catch (RuntimeException $e) {
+            return $this->errorResponse($e->getMessage(), Response::HTTP_FORBIDDEN);
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Documento eliminado del historial.',
+            'data'    => null,
+        ]);
+    }
+
     private function errorResponse(string $message, int $status): JsonResponse
     {
         return response()->json([

@@ -345,6 +345,14 @@ export const medicalApi = {
       { headers: { Authorization: `Bearer ${token}` } },
     );
   },
+
+  /** Elimina (oculta) un documento del historial. Solo quien lo subió. */
+  async deleteRecord(token: string, recordId: string) {
+    return request<{ status: string; data: null }>(
+      `/medical-records/${recordId}`,
+      { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+    );
+  },
 };
 
 export interface Appointment {

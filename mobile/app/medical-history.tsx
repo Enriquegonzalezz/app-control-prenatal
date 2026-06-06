@@ -299,7 +299,13 @@ function DocumentFile({ record, token, isDark }: { record: MedicalRecord; token:
   );
 }
 
-function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: string; isDark: boolean }) {
+function RecordCard({ record, token, isDark, currentUserId, onRequestDelete }: {
+  record: MedicalRecord;
+  token: string;
+  isDark: boolean;
+  currentUserId?: string;
+  onRequestDelete: (r: MedicalRecord) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState<MedicalRecord | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -308,6 +314,11 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
   const displayTitle = record.display_title;
   const dateLabel = formatDate(record.document_date ?? record.created_at);
   const iconColor = record.category?.color ?? ACCENT;
+
+  // Solo quien subió el documento puede eliminarlo (Δ-11).
+  const canDelete = record.uploader_id
+    ? record.uploader_id === currentUserId
+    : (record.patient_id === currentUserId || record.doctor_id === currentUserId);
 
   const toggle = useCallback(async () => {
     const next = !expanded;
@@ -436,6 +447,24 @@ function RecordCard({ record, token, isDark }: { record: MedicalRecord; token: s
 
           {!loadingDetail && !record.description && !record.has_document && !record.diagnosis && !vitals && (!detail?.files || detail.files.length === 0) && (
             <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 10, textAlign: 'center' }}>Sin detalles adicionales.</Text>
+          )}
+
+          {/* Eliminar documento — solo quien lo subió */}
+          {canDelete && (
+            <Pressable
+              onPress={() => onRequestDelete(record)}
+              style={({ pressed }) => ({
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                marginTop: 14, paddingVertical: 11, borderRadius: 12,
+                backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2',
+                borderWidth: 1, borderColor: isDark ? '#7F1D1D' : '#FECACA',
+                opacity: pressed ? 0.8 : 1,
+              })}
+              accessibilityRole="button" accessibilityLabel="Eliminar documento"
+            >
+              <Ionicons name="trash-outline" size={15} color="#EF4444" />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#EF4444' }}>Eliminar documento</Text>
+            </Pressable>
           )}
         </View>
       )}
@@ -609,6 +638,11 @@ export default function MedicalHistoryScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [categories, setCategories] = useState<RecordCategory[]>([]);
 
+  // Eliminación de documentos
+  const [deleteTarget, setDeleteTarget] = useState<MedicalRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Fetch catalog categories for the filter modal
   useEffect(() => {
     if (!token) return;
@@ -655,6 +689,22 @@ export default function MedicalHistoryScreen() {
   const applyFilters = (f: Filters) => {
     setFilters(f);
     setShowFilters(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!token || !deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await medicalApi.deleteRecord(token, deleteTarget.id);
+      setRecords((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+      useCacheStore.getState().invalidate('medicalRecords');
+      setDeleteTarget(null);
+    } catch (err: any) {
+      setDeleteError(err?.message ?? 'No se pudo eliminar el documento.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const sections = groupByDocumentDate(records);
@@ -762,7 +812,13 @@ export default function MedicalHistoryScreen() {
             </View>
           )}
           renderItem={({ item }) => (
-            <RecordCard record={item} token={token!} isDark={isDark} />
+            <RecordCard
+              record={item}
+              token={token!}
+              isDark={isDark}
+              currentUserId={user?.id}
+              onRequestDelete={setDeleteTarget}
+            />
           )}
           contentContainerStyle={{ paddingBottom: !doctorViewPatientId ? 140 : 48 }}
           showsVerticalScrollIndicator={false}
@@ -819,6 +875,64 @@ export default function MedicalHistoryScreen() {
         isPatient={isPatient}
         isDark={isDark}
       />
+
+      {/* ── Modal Eliminar documento ── */}
+      <Modal
+        visible={deleteTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!deleting) { setDeleteTarget(null); setDeleteError(null); } }}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <View style={{ backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', borderRadius: 24, padding: 24 }}>
+            <View style={{ alignItems: 'center', marginBottom: 16 }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: isDark ? '#2D0A0A' : '#FEE2E2', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Ionicons name="trash-outline" size={26} color="#EF4444" />
+              </View>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827', textAlign: 'center' }}>
+                ¿Eliminar documento?
+              </Text>
+              <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginTop: 6, lineHeight: 18 }} numberOfLines={3}>
+                «{deleteTarget?.display_title ?? 'Documento'}» se eliminará de tu historial médico.{'\n'}Esta acción no se puede deshacer.
+              </Text>
+            </View>
+
+            {deleteError && (
+              <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 10, padding: 10, marginBottom: 12 }}>
+                <Text style={{ fontSize: 12, color: '#EF4444', textAlign: 'center' }}>{deleteError}</Text>
+              </View>
+            )}
+
+            <Pressable
+              onPress={handleDeleteConfirm}
+              disabled={deleting}
+              style={({ pressed }) => ({
+                backgroundColor: deleting ? '#9CA3AF' : '#EF4444',
+                borderRadius: 20, paddingVertical: 14, alignItems: 'center', marginBottom: 10,
+                opacity: pressed ? 0.88 : 1,
+              })}
+              accessibilityRole="button" accessibilityLabel="Confirmar eliminación"
+            >
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
+                {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { if (!deleting) { setDeleteTarget(null); setDeleteError(null); } }}
+              disabled={deleting}
+              style={({ pressed }) => ({
+                borderRadius: 20, paddingVertical: 14, alignItems: 'center',
+                borderWidth: 1, borderColor: isDark ? '#3A3A3A' : '#E5E7EB',
+                backgroundColor: isDark ? '#252525' : '#F9FAFB',
+                opacity: pressed ? 0.75 : 1,
+              })}
+              accessibilityRole="button" accessibilityLabel="Cancelar"
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#9CA3AF' : '#6B7280' }}>Cancelar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -104,6 +104,8 @@ Las pacientes acceden al directorio de especialistas verificados.
 - s3_add_auto_extend_to_schedules (schedules.auto_extend bool — agenda indefinida) — **Δ-7**
 - s4_seed_curated_clinics_venezuela (30 clínicas reales con sede + ubicación GPS; desactiva catálogo previo) — **Δ-7**
 - s5_nearby_doctors_require_complete_profile (RPC get_nearby_doctors exige perfil profesional completo) — **Δ-7**
+- s6_seed_additional_clinics_venezuela (29 clínicas adicionales con sede + GPS)
+- s6_add_soft_delete_to_medical_records (medical_records.deleted_at + deleted_by; soft-delete) — **Δ-11**
 
 ## Estructura de Carpetas
 
@@ -213,3 +215,5 @@ Nunca modificar una migración ya ejecutada. Crear siempre una nueva.
 - ❌ Poner las credenciales Firebase en el .env de Laravel — viven como Supabase Secret `FIREBASE_CREDENTIALS_JSON` (Δ-9)
 - ❌ Esperar que el push funcione en Expo Go — requiere build de desarrollo/preview + `google-services.json` (Δ-9)
 - ❌ Usar `getExpoPushTokenAsync()` para el push — el backend usa FCM v1, se necesita `getDevicePushTokenAsync()` (token FCM nativo) (Δ-9)
+- ❌ Generar slots en UTC — la hora del médico es hora local de Caracas (`ScheduleService::CLINIC_TIMEZONE` = `America/Caracas`); en UTC los cupos quedan corridos −4h y los de hoy desaparecen del filtro `starts_at >= now()` (Δ-10)
+- ❌ Usar la palabra "slot" en la UI para médicos — en la interfaz un cupo se llama **"cupo"** (bloque agendable) y el horario semanal recurrente se llama **"horario"** (Δ-10)

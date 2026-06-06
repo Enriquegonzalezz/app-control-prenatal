@@ -26,6 +26,14 @@ final class ScheduleService
     ];
 
     /**
+     * Zona horaria de las clínicas. La hora de pared elegida por el médico
+     * (ej. "08:00") se interpreta en esta zona, no en UTC. Sin esto los slots
+     * quedaban corridos −4h (08:00 → 04:00 Caracas) y los de "hoy" desaparecían
+     * del filtro `starts_at >= now()`.
+     */
+    public const CLINIC_TIMEZONE = 'America/Caracas';
+
+    /**
      * @return Collection<int, Schedule>
      */
     public function listForDoctor(DoctorProfile $doctor): Collection
@@ -156,9 +164,11 @@ final class ScheduleService
             [$startH, $startM] = array_map('intval', explode(':', substr((string) $schedule->start_time, 0, 5)));
             [$endH, $endM]     = array_map('intval', explode(':', substr((string) $schedule->end_time, 0, 5)));
 
-            $cursor = CarbonImmutable::parse($day->toDateString())
+            // La hora del médico es hora local de la clínica (Caracas), no UTC.
+            // Carbon convierte el instante a UTC al persistir en la columna timestamptz.
+            $cursor = CarbonImmutable::parse($day->toDateString(), self::CLINIC_TIMEZONE)
                 ->setTime($startH, $startM, 0);
-            $end = CarbonImmutable::parse($day->toDateString())
+            $end = CarbonImmutable::parse($day->toDateString(), self::CLINIC_TIMEZONE)
                 ->setTime($endH, $endM, 0);
 
             while ($cursor->addMinutes($schedule->slot_duration_minutes)->lte($end)) {

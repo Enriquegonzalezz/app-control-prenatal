@@ -238,7 +238,7 @@ export default function DoctorScheduleScreen() {
       });
       setAgendaSlots(Array.isArray(res.data) ? res.data : []);
     } catch {
-      setAgendaError('No se pudieron cargar los slots. Verifica tu conexión.');
+      setAgendaError('No se pudieron cargar los cupos. Verifica tu conexión.');
     } finally {
       setAgendaLoading(false);
     }
@@ -505,7 +505,7 @@ export default function DoctorScheduleScreen() {
               </View>
               {[
                 { icon: 'calendar-outline', text: 'Crea un horario semanal (ej: Lunes de 08:00 a 12:00)' },
-                { icon: 'flash-outline', text: 'Genera los slots para las próximas semanas con un tap' },
+                { icon: 'flash-outline', text: 'Genera los cupos para las próximas semanas con un tap' },
                 { icon: 'people-outline', text: 'Los pacientes verán y reservarán esos horarios' },
               ].map((step, i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: i < 2 ? 10 : 0 }}>
@@ -1028,7 +1028,7 @@ export default function DoctorScheduleScreen() {
                     }}>
                       <Ionicons name={generateMsg.isError ? 'alert-circle' : 'checkmark-circle'} size={16} color={generateMsg.isError ? '#EF4444' : '#10B981'} />
                       <Text style={{ flex: 1, fontSize: 12, color: generateMsg.isError ? (isDark ? '#FCA5A5' : '#991B1B') : (isDark ? '#6EE7B7' : '#065F46'), lineHeight: 16 }}>
-                        {generateMsg.count === -1 ? 'Error al generar slots.' : generateMsg.count === 0 ? 'Ya existen slots para ese período.' : `Se crearon ${generateMsg.count} slots disponibles.`}
+                        {generateMsg.count === -1 ? 'Error al generar cupos.' : generateMsg.count === 0 ? 'Ya existen cupos para ese período.' : `Se crearon ${generateMsg.count} cupos disponibles.`}
                       </Text>
                     </View>
                   )}
@@ -1038,7 +1038,7 @@ export default function DoctorScheduleScreen() {
                     <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 12, padding: 12, marginBottom: 10, flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                       <Ionicons name="warning" size={18} color="#F59E0B" />
                       <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#FCD34D' : '#92400E', lineHeight: 16 }}>
-                        ¿Eliminar horario del {dayLabel(sched.day_of_week)}? No se borrarán slots ya generados.
+                        ¿Eliminar horario del {dayLabel(sched.day_of_week)}? No se borrarán cupos ya generados.
                       </Text>
                       <Pressable onPress={() => setConfirmingDelete(null)} style={{ paddingHorizontal: 10, paddingVertical: 5, backgroundColor: isDark ? '#374151' : '#E5E7EB', borderRadius: 8 }}>
                         <Text style={{ fontSize: 11, fontWeight: '600', color: subColor }}>Cancelar</Text>
@@ -1078,7 +1078,7 @@ export default function DoctorScheduleScreen() {
                       elevation: isGen ? 0 : 4,
                     })}
                     accessibilityRole="button"
-                    accessibilityLabel={`Generar slots para ${dayLabel(sched.day_of_week)}`}
+                    accessibilityLabel={`Generar cupos para ${dayLabel(sched.day_of_week)}`}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#E8467C', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 16 }}>
                       <Ionicons
@@ -1087,7 +1087,7 @@ export default function DoctorScheduleScreen() {
                         color={isGen ? subColor : '#fff'}
                       />
                       <Text style={{ fontSize: 14, fontWeight: '700', color: isGen ? subColor : '#fff' }}>
-                        {isGen ? 'Generando...' : `Generar slots (${genWeeks} semanas)`}
+                        {isGen ? 'Generando...' : `Generar cupos (${genWeeks} semanas)`}
                       </Text>
                     </View>
                   </Pressable>
@@ -1311,9 +1311,9 @@ export default function DoctorScheduleScreen() {
             {!agendaLoading && !agendaError && agendaSlots.length === 0 && (
               <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                 <Ionicons name="calendar-outline" size={40} color={subColor} />
-                <Text style={{ fontSize: 14, fontWeight: '700', color: textColor, marginTop: 12 }}>Sin slots en este período</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: textColor, marginTop: 12 }}>Sin cupos en este período</Text>
                 <Text style={{ fontSize: 12, color: subColor, marginTop: 4, textAlign: 'center' }}>
-                  Genera slots desde la pestaña Horarios para verlos aquí.
+                  Genera cupos desde la pestaña Horarios para verlos aquí.
                 </Text>
               </View>
             )}

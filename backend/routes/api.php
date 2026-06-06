@@ -220,6 +220,7 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/',                                         [MedicalRecordController::class, 'store'])->name('medical-records.store');
             Route::get('/{medicalRecord}',                           [MedicalRecordController::class, 'show'])->name('medical-records.show');
             Route::patch('/{medicalRecord}',                         [MedicalRecordController::class, 'update'])->name('medical-records.update');
+            Route::delete('/{medicalRecord}',                        [MedicalRecordController::class, 'destroy'])->name('medical-records.destroy');
 
             // Signed URL for document-type records
             Route::get('/{medicalRecord}/signed-url',                [MedicalRecordController::class, 'signedUrl'])->name('medical-records.signed-url');

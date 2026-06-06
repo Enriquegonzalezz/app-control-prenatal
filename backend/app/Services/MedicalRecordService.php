@@ -188,6 +188,40 @@ final class MedicalRecordService
         return $record->fresh(['doctor', 'patient', 'specialty', 'category', 'subcategory', 'tags']);
     }
 
+    /**
+     * Soft-delete de un registro médico (Δ-11). El archivo en Storage se conserva.
+     * Solo quien subió el documento puede eliminarlo.
+     */
+    public function delete(User $user, MedicalRecord $record): void
+    {
+        $this->authorizeDeletion($user, $record);
+
+        $record->deleted_by = $user->id;
+        $record->save();
+        $record->delete(); // soft delete → setea deleted_at
+    }
+
+    private function authorizeDeletion(User $user, MedicalRecord $record): void
+    {
+        $uid = (string) $user->id;
+
+        // Caso normal: solo quien lo subió puede borrarlo
+        // (el paciente borra sus subidas; el médico borra las notas/documentos que él subió).
+        if ($record->uploader_id !== null) {
+            if ((string) $record->uploader_id === $uid) {
+                return;
+            }
+            throw new RuntimeException('Solo quien subió el documento puede eliminarlo.');
+        }
+
+        // Registros legados sin uploader_id: el paciente dueño o el médico autor.
+        if ((string) $record->patient_id === $uid || (string) $record->doctor_id === $uid) {
+            return;
+        }
+
+        throw new RuntimeException('No tienes permiso para eliminar este registro.');
+    }
+
     // ── Helpers ───────────────────────────────────────────────
 
     public function authorizeAccess(User $user, MedicalRecord $record): void

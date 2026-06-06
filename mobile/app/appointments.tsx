@@ -51,6 +51,17 @@ function formatDateTime(iso: string): string {
   }).format(d);
 }
 
+/** True si la fecha ISO cae en el día calendario local de hoy. */
+function isToday(iso: string): boolean {
+  const d = new Date(iso);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
 function SkeletonCard({ isDark }: { isDark: boolean }) {
   const anim = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
@@ -275,17 +286,18 @@ function AppointmentCard({
               <Pressable
                 key="reschedule"
                 onPress={() => onReschedule(appt)}
-                style={{
+                style={({ pressed }) => ({
                   flex: 1,
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+                  backgroundColor: isDark ? '#3A1424' : '#FCE7F3',
                   borderRadius: 12, paddingVertical: 11, paddingHorizontal: 8,
-                  borderWidth: 1, borderColor: isDark ? '#2D2D2D' : '#E5E7EB',
-                }}
+                  borderWidth: 1, borderColor: isDark ? '#E8467C55' : '#F9A8D4',
+                  opacity: pressed ? 0.8 : 1,
+                })}
                 accessibilityRole="button" accessibilityLabel="Reagendar cita"
               >
                 <Ionicons name="calendar-outline" size={15} color="#E8467C" />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#E8467C' }}>
                   Reagendar
                 </Text>
               </Pressable>
@@ -826,6 +838,37 @@ export default function AppointmentsScreen() {
                   Esto permitirá al paciente compartir su experiencia de esta consulta.
                 </Text>
 
+                {/* Advertencia: completar antes de la fecha programada */}
+                {completeTarget && !isToday(completeTarget.scheduled_at) && (
+                  <View style={{
+                    flexDirection: 'row', gap: 10, alignItems: 'flex-start',
+                    backgroundColor: isDark ? '#2D1F05' : '#FFFBEB',
+                    borderWidth: 1, borderColor: isDark ? '#92400E60' : '#FDE68A',
+                    borderRadius: 12, padding: 12, marginBottom: 14,
+                  }}>
+                    <Ionicons name="warning" size={18} color="#F59E0B" style={{ marginTop: 1 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#FCD34D' : '#92400E', marginBottom: 6, lineHeight: 16 }}>
+                        Estás marcando esta cita como completada antes de su fecha programada.
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                        <Ionicons name="calendar-outline" size={13} color={isDark ? '#FCD34D' : '#92400E'} />
+                        <Text style={{ fontSize: 12, color: isDark ? '#FCD34D' : '#92400E' }}>
+                          Fecha de la cita: <Text style={{ fontWeight: '700' }}>{formatDateTime(completeTarget.scheduled_at)}</Text>
+                        </Text>
+                      </View>
+                      {completeTarget.confirmed_at && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="checkmark-circle-outline" size={13} color={isDark ? '#FCD34D' : '#92400E'} />
+                          <Text style={{ fontSize: 12, color: isDark ? '#FCD34D' : '#92400E' }}>
+                            Aprobada el: <Text style={{ fontWeight: '700' }}>{formatDateTime(completeTarget.confirmed_at)}</Text>
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                )}
+
                 {/* Optional notes */}
                 <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#D1D5DB' : '#374151', marginBottom: 6 }}>
                   Notas clínicas (opcional)
@@ -903,7 +946,7 @@ export default function AppointmentsScreen() {
                 ¿El paciente no asistió?
               </Text>
               <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
-                El slot se marcará como no-show.{'\n'}Esta acción no se puede deshacer.
+La cita quedará marcada como no asistida.{'\n'}Esta acción no se puede deshacer.
               </Text>
             </View>
             <Pressable
@@ -982,7 +1025,7 @@ export default function AppointmentsScreen() {
               <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 }}>
                 <Ionicons name="calendar-outline" size={36} color="#9CA3AF" />
                 <Text style={{ color: '#9CA3AF', marginTop: 8, textAlign: 'center' }}>
-                  No tienes horarios disponibles.{'\n'}Genera nuevos slots desde tu agenda.
+                  No tienes cupos disponibles.{'\n'}Genera nuevos cupos desde tu agenda.
                 </Text>
               </View>
             ) : (

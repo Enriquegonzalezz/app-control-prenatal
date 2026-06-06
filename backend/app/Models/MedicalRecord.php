@@ -10,10 +10,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 final class MedicalRecord extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, SoftDeletes;
 
     protected $table = 'medical_records';
 
@@ -39,6 +40,7 @@ final class MedicalRecord extends Model
         'storage_path',
         'file_type',
         'file_size_kb',
+        'deleted_by',
     ];
 
     protected $hidden = [
