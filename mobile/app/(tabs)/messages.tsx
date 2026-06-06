@@ -52,7 +52,11 @@ function ConversationRow({ conv, isDark }: { conv: Conversation; isDark: boolean
     <Pressable
       onPress={() => router.push({
         pathname: '/chat/[id]',
-        params: { id: conv.relationship_id, name: conv.other_party.name },
+        params: {
+          id: conv.relationship_id,
+          name: conv.other_party.name,
+          doctorUserId: conv.other_party.id,
+        },
       })}
       style={{
         flexDirection: 'row', alignItems: 'center',

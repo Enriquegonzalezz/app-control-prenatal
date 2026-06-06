@@ -544,6 +544,12 @@ export const directoryApi = {
       data: { doctors: NearbyDoctor[]; meta: { count: number; lat: number; lng: number; radius_m: number } };
     }>(`/doctors/nearby?${query}`);
   },
+  async getByUserId(userId: string) {
+    return request<{
+      status: string;
+      data: { doctors: NearbyDoctor[]; pagination: object };
+    }>(`/doctors?user_id=${userId}&per_page=1`);
+  },
 };
 
 export interface DoctorClinicInfo {

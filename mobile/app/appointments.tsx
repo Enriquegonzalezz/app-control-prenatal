@@ -519,7 +519,11 @@ export default function AppointmentsScreen() {
       const res = await chatApi.startConversation(token, otherId);
       router.push({
         pathname: '/chat/[id]',
-        params: { id: res.data.relationship_id, name: otherName ?? '' },
+        params: {
+          id: res.data.relationship_id,
+          name: otherName ?? '',
+          doctorUserId: userRole === 'patient' ? otherId : undefined,
+        },
       });
     } catch {
       setChatError({ id: appt.id, msg: 'Error de conexión. Intenta de nuevo.' });

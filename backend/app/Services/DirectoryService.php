@@ -32,6 +32,7 @@ final class DirectoryService
         int $perPage = self::DEFAULT_LIMIT,
         ?string $search = null,
         ?string $specialtyId = null,
+        ?string $userId = null,
     ): array {
         $perPage = min(max($perPage, 1), self::MAX_LIMIT);
 
@@ -60,6 +61,7 @@ final class DirectoryService
             ->whereNotNull('dp.license_number')->whereRaw("btrim(dp.license_number) <> ''")
             ->whereNotNull('dp.university')->whereRaw("btrim(dp.university) <> ''")
             ->whereNotNull('dp.bio')->whereRaw("btrim(dp.bio) <> ''")
+            ->when($userId, fn ($q) => $q->where('u.id', $userId))
             ->when($specialtyId, fn ($q) => $q->where('dp.specialty_id', $specialtyId))
             ->when($search, function ($q) use ($search) {
                 $term = '%' . mb_strtolower($search) . '%';

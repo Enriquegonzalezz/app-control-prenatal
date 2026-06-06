@@ -22,6 +22,7 @@ final class DirectoryController extends Controller
             perPage: (int) $request->input('per_page', DirectoryService::DEFAULT_LIMIT),
             search: $request->input('search'),
             specialtyId: $request->input('specialty_id'),
+            userId: $request->input('user_id'),
         );
 
         return response()->json([

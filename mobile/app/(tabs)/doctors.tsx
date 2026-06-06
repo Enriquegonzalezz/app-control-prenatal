@@ -146,7 +146,18 @@ function DoctorProfileSheet({
       const res = await chatApi.startConversation(token, doctor.user_id);
       const name = res.data.other_party?.name ?? doctor.full_name;
       onClose();
-      router.push({ pathname: '/chat/[id]', params: { id: res.data.relationship_id, name } });
+      router.push({
+        pathname: '/chat/[id]',
+        params: {
+          id: res.data.relationship_id,
+          name,
+          doctorProfileId: doctor.doctor_profile_id,
+          doctorUserId: doctor.user_id,
+          specialtyName: doctor.specialty?.name ?? '',
+          clinicName: doctor.clinic?.name ?? '',
+          consultationFee: String(doctor.consultation_fee ?? ''),
+        },
+      });
     } catch {
       setChatError('No se pudo iniciar la conversación. Intenta de nuevo.');
     } finally {

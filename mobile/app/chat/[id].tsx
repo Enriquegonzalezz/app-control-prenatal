@@ -11,7 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { chatApi, ChatMessage } from '@/lib/api';
+import { chatApi, directoryApi, ChatMessage } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
 import { useChatRealtime } from '@/hooks/useChatRealtime';
@@ -115,12 +115,24 @@ export default function ChatRoomScreen() {
   const theme = useEffectiveTheme();
   const isDark = theme === 'dark';
   const insets = useSafeAreaInsets();
-  const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
+  const { id, name, doctorProfileId, doctorUserId, specialtyName, clinicName, consultationFee } =
+    useLocalSearchParams<{
+      id: string;
+      name: string;
+      doctorProfileId?: string;
+      doctorUserId?: string;
+      specialtyName?: string;
+      clinicName?: string;
+      consultationFee?: string;
+    }>();
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.user?.id);
+  const userRole = useAuthStore((s) => s.user?.role);
+  const isPatient = userRole === 'patient';
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchingDoctor, setFetchingDoctor] = useState(false);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList>(null);
@@ -190,6 +202,44 @@ export default function ChatRoomScreen() {
     }
   };
 
+  const handleBookAppointment = async () => {
+    if (!isPatient) return;
+    if (doctorProfileId) {
+      router.push({
+        pathname: '/book-appointment',
+        params: {
+          doctorProfileId,
+          doctorUserId: doctorUserId ?? '',
+          doctorName: name ?? '',
+          specialtyName: specialtyName ?? '',
+          clinicName: clinicName ?? '',
+          consultationFee: consultationFee ?? '',
+        },
+      });
+      return;
+    }
+    if (!doctorUserId) return;
+    setFetchingDoctor(true);
+    try {
+      const res = await directoryApi.getByUserId(doctorUserId);
+      const doctor = res.data?.doctors?.[0];
+      if (doctor) {
+        router.push({
+          pathname: '/book-appointment',
+          params: {
+            doctorProfileId: doctor.doctor_profile_id,
+            doctorUserId: doctor.user_id,
+            doctorName: doctor.full_name,
+            specialtyName: doctor.specialty?.name ?? '',
+            clinicName: doctor.clinic?.name ?? '',
+            consultationFee: String(doctor.consultation_fee ?? ''),
+          },
+        });
+      }
+    } catch { /* silent */ }
+    finally { setFetchingDoctor(false); }
+  };
+
   const bg        = isDark ? '#141414' : '#EFEFEF';
   const headerBg  = isDark ? '#1E1E1E' : '#FFFFFF';
   const inputText = isDark ? '#F9FAFB' : '#111827';
@@ -223,17 +273,34 @@ export default function ChatRoomScreen() {
         >
           <Ionicons name="arrow-back" size={20} color={isDark ? '#F9FAFB' : '#111827'} />
         </Pressable>
-        <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#E8467C15', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: '#E8467C' }}>
-            {(name ?? 'U').charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 15, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }} numberOfLines={1}>
-            {name ?? 'Conversación'}
-          </Text>
-          <Text style={{ fontSize: 11, color: statusColor }}>{statusLabel}</Text>
-        </View>
+        <Pressable
+          onPress={isPatient && (doctorProfileId || doctorUserId) ? handleBookAppointment : undefined}
+          disabled={fetchingDoctor}
+          style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+          accessibilityRole={isPatient && (doctorProfileId || doctorUserId) ? 'button' : undefined}
+          accessibilityLabel={isPatient && (doctorProfileId || doctorUserId) ? `Ver perfil de ${name}` : undefined}
+        >
+          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#E8467C15', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#E8467C' }}>
+              {(name ?? 'U').charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }} numberOfLines={1}>
+                {name ?? 'Conversación'}
+              </Text>
+              {isPatient && (doctorProfileId || doctorUserId) && (
+                <Ionicons
+                  name={fetchingDoctor ? 'time-outline' : 'calendar-outline'}
+                  size={13}
+                  color="#E8467C"
+                />
+              )}
+            </View>
+            <Text style={{ fontSize: 11, color: statusColor }}>{statusLabel}</Text>
+          </View>
+        </Pressable>
       </View>
 
       {/* Mensajes — flex: 1 para ocupar todo el espacio disponible */}
