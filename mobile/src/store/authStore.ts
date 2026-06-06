@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import { authApi } from '@/lib/api';
+import { authApi, fcmTokenApi } from '@/lib/api';
+import { getLastDeviceToken } from '@/lib/push';
 
 // Use localStorage for web, AsyncStorage for native
 const storage = Platform.OS === 'web' 
@@ -61,6 +62,12 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         const { token } = get();
         if (token) {
+          // Desregistrar el token push de este dispositivo (best-effort, antes de limpiar).
+          try {
+            await fcmTokenApi.unregister(token, getLastDeviceToken() ?? undefined);
+          } catch {
+            /* ignore */
+          }
           try {
             await authApi.logout(token);
           } catch (error) {

@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SystemUI from 'expo-system-ui';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -19,6 +20,9 @@ export default function RootLayout() {
   const segments = useSegments();
   const router = useRouter();
   const [appReady, setAppReady] = useState(false);
+
+  // Registro de push (FCM) + navegación al tocar notificaciones.
+  usePushNotifications();
 
   useEffect(() => {
     const initAuth = async () => {

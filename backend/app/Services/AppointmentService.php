@@ -172,7 +172,10 @@ final class AppointmentService
             throw new RuntimeException('Solo citas confirmadas pueden reagendarse.');
         }
 
-        return DB::transaction(function () use ($appointment, $actor, $newSlotId): Appointment {
+        // Snapshot de la fecha original antes de mutarla (para el mensaje del push).
+        $previousScheduledAt = $appointment->scheduled_at;
+
+        $fresh = DB::transaction(function () use ($appointment, $actor, $newSlotId): Appointment {
             $newSlot = Slot::query()->whereKey($newSlotId)->lockForUpdate()->first();
 
             if (!$newSlot) {
@@ -214,6 +217,11 @@ final class AppointmentService
 
             return $appointment->fresh(['doctor', 'patient', 'clinic', 'branch', 'slot']);
         });
+
+        // Notificar al paciente sobre el reagendamiento (fuera de la tx, best-effort).
+        $this->push->notifyAppointmentRescheduled($fresh, $previousScheduledAt);
+
+        return $fresh;
     }
 
     /**

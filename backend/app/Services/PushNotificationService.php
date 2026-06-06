@@ -110,6 +110,37 @@ final class PushNotificationService
     }
 
     /**
+     * Notifica al paciente que el médico reagendó su cita.
+     */
+    public function notifyAppointmentRescheduled(Appointment $appointment, mixed $previousScheduledAt = null): void
+    {
+        $patient = $appointment->patient ?? User::find($appointment->patient_id);
+        if (!$patient) {
+            return;
+        }
+
+        $tokens = $this->activeTokens($patient);
+        if ($tokens === []) {
+            return;
+        }
+
+        $newWhen = $this->formatDate($appointment->scheduled_at);
+        $body    = $previousScheduledAt
+            ? 'Tu cita del ' . $this->formatDate($previousScheduledAt) . " fue reagendada para el {$newWhen}."
+            : "Tu cita fue reagendada para el {$newWhen}.";
+
+        SendPushNotificationJob::dispatch(
+            $tokens,
+            '🔄 Cita reagendada',
+            $body,
+            [
+                'type'           => 'appointment_rescheduled',
+                'appointment_id' => $appointment->id,
+            ],
+        );
+    }
+
+    /**
      * Notifica al paciente que su cita fue marcada como completada.
      */
     public function notifyAppointmentCompleted(Appointment $appointment): void

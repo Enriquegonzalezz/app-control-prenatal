@@ -67,6 +67,26 @@ Las pacientes acceden al directorio de especialistas verificados.
 - Fase 2 (opcional, pre-producción): canales **privados** con JWT firmado por Supabase
   emitido desde Laravel + RLS sobre `realtime.messages` para autorización real.
 
+**Notificaciones push FCM (Δ-9, junio 2026):**
+- Transporte: Laravel → Edge Function `send-push-notification` (FCM v1 HTTP API,
+  desplegada y activa) → token nativo del dispositivo. Las credenciales viven como
+  Supabase Secret `FIREBASE_CREDENTIALS_JSON` (service account), nunca en el .env de Laravel.
+- Backend (ya existía): `FcmService` (llama la edge function), `SendPushNotificationJob`
+  (encolado), `PushNotificationService` (un método por evento). `AppointmentService` notifica
+  en book/confirm/cancel/complete/no-show **y reschedule** (Δ-9 agregó
+  `notifyAppointmentRescheduled` + libera el slot anterior). `User::fcmTokens()` ya filtra
+  `is_active`. Eventos `data.type`: `appointment_booked|confirmed|cancelled|completed|no_show|rescheduled`.
+- **Cola:** `queue:work` corre en `docker-entrypoint.sh` (junto a `schedule:work`). Necesario
+  porque `QUEUE_CONNECTION=database`; los jobs (push, OTP) no se procesan sin worker.
+- Mobile (Δ-9 nuevo): `expo-notifications` + `expo-device`. `src/lib/push.ts` usa
+  `getDevicePushTokenAsync()` (en Android = token FCM), canal `appointments` (coincide con
+  el `channel_id` de la edge function). Hook `src/hooks/usePushNotifications.ts` registra el
+  token vía `POST /user/fcm-token` al autenticarse y navega a `/appointments` al tocar la
+  notificación; se monta en `app/_layout.tsx`. `authStore.logout()` hace `DELETE` del token.
+- **Requiere build de desarrollo/preview (NO Expo Go)** + `mobile/google-services.json`
+  (app Android `com.controlprenatal.app`). iOS necesitaría APNs key + Firebase iOS app
+  (pendiente; implementación actual es Android-first).
+
 ## Principios Arquitectónicos Clave
 1. **Multi-especialidad desde el día 1:** Ningún campo hace referencia
    hardcoded a "ginecobstetricia". Todo usa `specialty_id` + JSONB.
@@ -190,3 +210,6 @@ Nunca modificar una migración ya ejecutada. Crear siempre una nueva.
 - ❌ `clinic_doctors` NO tiene columna `id` (PK compuesta clinic_id+doctor_id); `clinics.is_active` default es `false` (setear true al sembrar)
 - ❌ Suscribir el chat a `postgres_changes` de Supabase ni enviar la llave de cifrado al cliente — usar el patrón Broadcast del backend (Δ-8)
 - ❌ Que el broadcast de Realtime rompa el guardado del mensaje — siempre best-effort (try/catch), el dato ya está en BD
+- ❌ Poner las credenciales Firebase en el .env de Laravel — viven como Supabase Secret `FIREBASE_CREDENTIALS_JSON` (Δ-9)
+- ❌ Esperar que el push funcione en Expo Go — requiere build de desarrollo/preview + `google-services.json` (Δ-9)
+- ❌ Usar `getExpoPushTokenAsync()` para el push — el backend usa FCM v1, se necesita `getDevicePushTokenAsync()` (token FCM nativo) (Δ-9)

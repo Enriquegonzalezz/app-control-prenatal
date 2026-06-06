@@ -20,7 +20,8 @@
         "backgroundColor": "#E8467C"
       },
       "package": "com.controlprenatal.app",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -43,7 +44,13 @@
           }
         }
       ],
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#E8467C"
+        }
+      ]
     ],
     "extra": {
       "router": {},

@@ -502,6 +502,27 @@ export const chatApi = {
   },
 };
 
+export type FcmDeviceType = 'android' | 'ios' | 'web' | 'unknown';
+
+export const fcmTokenApi = {
+  /** Registra/actualiza el token push del dispositivo actual. */
+  async register(token: string, fcmToken: string, deviceType: FcmDeviceType) {
+    return request<{ status: string; data: null }>('/user/fcm-token', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ token: fcmToken, device_type: deviceType }),
+    });
+  },
+  /** Desregistra el token (o todos los del usuario si se omite). Llamar al cerrar sesión. */
+  async unregister(token: string, fcmToken?: string) {
+    return request<{ status: string; data: null }>('/user/fcm-token', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(fcmToken ? { token: fcmToken } : {}),
+    });
+  },
+};
+
 export const directoryApi = {
   async listDoctors(params?: { search?: string; specialty_id?: string; per_page?: number; page?: number }) {
     const query = new URLSearchParams();
