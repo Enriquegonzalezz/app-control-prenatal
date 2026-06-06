@@ -815,7 +815,10 @@ export default function DoctorScheduleScreen() {
                   backgroundColor: selAutoExtend ? '#E8467C' : (isDark ? '#3A3A3A' : '#D1D5DB'),
                   alignItems: selAutoExtend ? 'flex-end' : 'flex-start', justifyContent: 'center',
                 }}>
-                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' }} />
+                  <View style={{ 
+                    width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff',
+                    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 2,
+                  }} />
                 </View>
               </Pressable>
 
