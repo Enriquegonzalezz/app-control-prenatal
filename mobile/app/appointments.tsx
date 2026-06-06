@@ -286,18 +286,17 @@ function AppointmentCard({
               <Pressable
                 key="reschedule"
                 onPress={() => onReschedule(appt)}
-                style={({ pressed }) => ({
+                style={{
                   flex: 1,
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  backgroundColor: isDark ? '#3A1424' : '#FCE7F3',
+                  backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
                   borderRadius: 12, paddingVertical: 11, paddingHorizontal: 8,
-                  borderWidth: 1, borderColor: isDark ? '#E8467C55' : '#F9A8D4',
-                  opacity: pressed ? 0.8 : 1,
-                })}
+                  borderWidth: 1, borderColor: isDark ? '#2D2D2D' : '#E5E7EB',
+                }}
                 accessibilityRole="button" accessibilityLabel="Reagendar cita"
               >
                 <Ionicons name="calendar-outline" size={15} color="#E8467C" />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#E8467C' }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#F9FAFB' : '#111827' }}>
                   Reagendar
                 </Text>
               </Pressable>
@@ -900,14 +899,28 @@ export default function AppointmentsScreen() {
                   disabled={completing !== null}
                   style={({ pressed }) => ({
                     backgroundColor: completing !== null ? '#9CA3AF' : '#10B981',
-                    borderRadius: 20, paddingVertical: 16, alignItems: 'center',
-                    opacity: pressed ? 0.88 : 1,
+                    borderRadius: 16,
+                    paddingVertical: 16,
+                    paddingHorizontal: 20,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 2,
+                    borderColor: completing !== null ? '#9CA3AF' : '#0A9567',
+                    opacity: completing !== null ? 0.5 : (pressed ? 0.85 : 1),
+                    shadowColor: completing !== null ? 'transparent' : '#10B981',
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: completing !== null ? 0 : 0.35,
+                    shadowRadius: 12,
+                    elevation: completing !== null ? 0 : 6,
                     marginBottom: 10,
                   })}
                 >
-                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
-                    {completing !== null ? 'Completando...' : 'Confirmar consulta completada'}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: completing !== null ? '#9CA3AF' : '#10B981', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 20 }}>
+                    <Ionicons name={completing !== null ? 'hourglass-outline' : 'checkmark-circle'} size={20} color="#fff" />
+                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>
+                      {completing !== null ? 'Completando...' : 'Confirmar consulta completada'}
+                    </Text>
+                  </View>
                 </Pressable>
                 <Pressable
                   onPress={() => { setCompleteTarget(null); setCompleteNotes(''); setCompleteError(null); }}
@@ -1123,25 +1136,36 @@ La cita quedará marcada como no asistida.{'\n'}Esta acción no se puede deshace
                   disabled={rescheduling}
                   style={({ pressed }) => ({
                     backgroundColor: rescheduling ? '#9CA3AF' : '#E8467C',
-                    borderRadius: 22, paddingVertical: 18,
-                    alignItems: 'center', justifyContent: 'center',
-                    opacity: pressed ? 0.88 : 1,
+                    borderRadius: 16,
+                    paddingVertical: 16,
+                    paddingHorizontal: 20,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 2,
+                    borderColor: rescheduling ? '#9CA3AF' : '#C73E6B',
+                    opacity: rescheduling ? 0.5 : (pressed ? 0.85 : 1),
                     shadowColor: rescheduling ? 'transparent' : '#E8467C',
-                    shadowOffset: { width: 0, height: 8 },
-                    shadowOpacity: rescheduling ? 0 : 0.4,
-                    shadowRadius: 20, elevation: rescheduling ? 0 : 12,
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: rescheduling ? 0 : 0.35,
+                    shadowRadius: 12,
+                    elevation: rescheduling ? 0 : 6,
                   })}
                   accessibilityRole="button"
                   accessibilityLabel="Confirmar reagendamiento"
                 >
-                  <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 }}>
-                    {rescheduling ? 'Reagendando...' : 'Confirmar Reagendamiento'}
-                  </Text>
-                  {!rescheduling && (
-                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 2 }}>
-                      {formatTimeSlot(selectedRescheduleSlot.starts_at)} – {formatTimeSlot(selectedRescheduleSlot.ends_at)}
-                    </Text>
-                  )}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: rescheduling ? '#9CA3AF' : '#E8467C', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 20 }}>
+                    <Ionicons name={rescheduling ? 'hourglass-outline' : 'calendar'} size={20} color="#fff" />
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+                        {rescheduling ? 'Reagendando...' : 'Confirmar Reagendamiento'}
+                      </Text>
+                      {!rescheduling && (
+                        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 2 }}>
+                          {formatTimeSlot(selectedRescheduleSlot.starts_at)} – {formatTimeSlot(selectedRescheduleSlot.ends_at)}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
                 </Pressable>
 
                 <Pressable

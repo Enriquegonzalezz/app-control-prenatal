@@ -511,40 +511,42 @@ export default function BookAppointmentScreen() {
             </View>
           )}
 
-          {/* Confirm button with gradient effect */}
+          {/* Confirm button */}
           <Pressable
             onPress={handleBook}
             disabled={booking || bookingResult?.success === true}
             style={({ pressed }) => ({
               backgroundColor: booking || bookingResult?.success === true ? '#9CA3AF' : '#E8467C',
-              borderRadius: 22,
-              paddingVertical: 18,
-              paddingHorizontal: 24,
-              alignItems: 'center', justifyContent: 'center',
-              flexDirection: 'row',
-              gap: 10,
-              opacity: pressed ? 0.88 : 1,
+              borderRadius: 16,
+              paddingVertical: 16,
+              paddingHorizontal: 20,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 2,
+              borderColor: booking || bookingResult?.success === true ? '#9CA3AF' : '#C73E6B',
+              opacity: booking || bookingResult?.success === true ? 0.5 : (pressed ? 0.85 : 1),
               shadowColor: (booking || bookingResult?.success === true) ? 'transparent' : '#E8467C',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: (booking || bookingResult?.success === true) ? 0 : 0.4,
-              shadowRadius: 20,
-              elevation: (booking || bookingResult?.success === true) ? 0 : 12,
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: (booking || bookingResult?.success === true) ? 0 : 0.35,
+              shadowRadius: 12,
+              elevation: (booking || bookingResult?.success === true) ? 0 : 6,
             })}
             accessibilityRole="button"
             accessibilityLabel="Confirmar reserva de cita"
           >
-            {/* Text content */}
-            <View style={{ alignItems: 'center' }}>
-              <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.3 }}>
-                {booking ? 'Reservando...' : 'Confirmar Cita'}
-              </Text>
-              {!booking && (
-                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 2 }}>
-                  {doctorName} · {specialtyName}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: booking || bookingResult?.success === true ? '#9CA3AF' : '#E8467C', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 20 }}>
+              <Ionicons name={booking ? 'hourglass-outline' : 'calendar'} size={20} color="#fff" />
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.3 }}>
+                  {booking ? 'Reservando...' : 'Confirmar Cita'}
                 </Text>
-              )}
+                {!booking && (
+                  <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 2 }}>
+                    {doctorName} · {specialtyName}
+                  </Text>
+                )}
+              </View>
             </View>
-            
           </Pressable>
         </View>
       )}
