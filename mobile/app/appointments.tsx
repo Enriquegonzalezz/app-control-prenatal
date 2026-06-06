@@ -2,12 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   Text,
   TextInput,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -791,84 +795,88 @@ export default function AppointmentsScreen() {
         animationType="slide"
         onRequestClose={() => { setCompleteTarget(null); setCompleteNotes(''); setCompleteError(null); }}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
-          <View style={{
-            backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
-            borderTopLeftRadius: 24, borderTopRightRadius: 24,
-            padding: 24, paddingBottom: 36,
-          }}>
-            <View style={{ alignItems: 'center', marginBottom: 16 }}>
-              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? '#3D3D3D' : '#D1D5DB' }} />
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F0FDF4', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                <Ionicons name="checkmark-circle" size={22} color="#10B981" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }}>Marcar como completada</Text>
-                <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
-                  {completeTarget?.patient?.name ?? 'Paciente'}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
+              <View style={{
+                backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
+                borderTopLeftRadius: 24, borderTopRightRadius: 24,
+                padding: 24, paddingBottom: 36,
+              }}>
+                <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                  <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? '#3D3D3D' : '#D1D5DB' }} />
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F0FDF4', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                    <Ionicons name="checkmark-circle" size={22} color="#10B981" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? '#F9FAFB' : '#111827' }}>Marcar como completada</Text>
+                    <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
+                      {completeTarget?.patient?.name ?? 'Paciente'}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={{ fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 12, lineHeight: 18 }}>
+                  Esto permitirá al paciente compartir su experiencia de esta consulta.
                 </Text>
+
+                {/* Optional notes */}
+                <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#D1D5DB' : '#374151', marginBottom: 6 }}>
+                  Notas clínicas (opcional)
+                </Text>
+                <TextInput
+                  multiline
+                  numberOfLines={4}
+                  placeholder="Diagnóstico, indicaciones, seguimiento..."
+                  placeholderTextColor={isDark ? '#4B5563' : '#9CA3AF'}
+                  value={completeNotes}
+                  onChangeText={setCompleteNotes}
+                  style={{
+                    backgroundColor: isDark ? '#252525' : '#F9FAFB',
+                    borderRadius: 12, borderWidth: 1,
+                    borderColor: isDark ? '#333' : '#E5E7EB',
+                    padding: 12, fontSize: 13, color: isDark ? '#F9FAFB' : '#111827',
+                    minHeight: 90, textAlignVertical: 'top', marginBottom: 12,
+                  }}
+                />
+
+                {completeError && (
+                  <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 10, padding: 10, marginBottom: 12 }}>
+                    <Text style={{ fontSize: 12, color: '#EF4444' }}>{completeError}</Text>
+                  </View>
+                )}
+
+                <Pressable
+                  onPress={handleCompleteConfirm}
+                  disabled={completing !== null}
+                  style={({ pressed }) => ({
+                    backgroundColor: completing !== null ? '#9CA3AF' : '#10B981',
+                    borderRadius: 20, paddingVertical: 16, alignItems: 'center',
+                    opacity: pressed ? 0.88 : 1,
+                    marginBottom: 10,
+                  })}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
+                    {completing !== null ? 'Completando...' : 'Confirmar consulta completada'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => { setCompleteTarget(null); setCompleteNotes(''); setCompleteError(null); }}
+                  style={({ pressed }) => ({
+                    borderRadius: 20, paddingVertical: 14, alignItems: 'center',
+                    borderWidth: 1, borderColor: isDark ? '#3A3A3A' : '#E5E7EB',
+                    backgroundColor: isDark ? '#252525' : '#F9FAFB',
+                    opacity: pressed ? 0.75 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#9CA3AF' : '#6B7280' }}>Cancelar</Text>
+                </Pressable>
               </View>
             </View>
-
-            <Text style={{ fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280', marginBottom: 12, lineHeight: 18 }}>
-              Esto permitirá al paciente compartir su experiencia de esta consulta.
-            </Text>
-
-            {/* Optional notes */}
-            <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#D1D5DB' : '#374151', marginBottom: 6 }}>
-              Notas clínicas (opcional)
-            </Text>
-            <TextInput
-              multiline
-              numberOfLines={4}
-              placeholder="Diagnóstico, indicaciones, seguimiento..."
-              placeholderTextColor={isDark ? '#4B5563' : '#9CA3AF'}
-              value={completeNotes}
-              onChangeText={setCompleteNotes}
-              style={{
-                backgroundColor: isDark ? '#252525' : '#F9FAFB',
-                borderRadius: 12, borderWidth: 1,
-                borderColor: isDark ? '#333' : '#E5E7EB',
-                padding: 12, fontSize: 13, color: isDark ? '#F9FAFB' : '#111827',
-                minHeight: 90, textAlignVertical: 'top', marginBottom: 12,
-              }}
-            />
-
-            {completeError && (
-              <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 10, padding: 10, marginBottom: 12 }}>
-                <Text style={{ fontSize: 12, color: '#EF4444' }}>{completeError}</Text>
-              </View>
-            )}
-
-            <Pressable
-              onPress={handleCompleteConfirm}
-              disabled={completing !== null}
-              style={({ pressed }) => ({
-                backgroundColor: completing !== null ? '#9CA3AF' : '#10B981',
-                borderRadius: 20, paddingVertical: 16, alignItems: 'center',
-                opacity: pressed ? 0.88 : 1,
-                marginBottom: 10,
-              })}
-            >
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
-                {completing !== null ? 'Completando...' : 'Confirmar consulta completada'}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => { setCompleteTarget(null); setCompleteNotes(''); setCompleteError(null); }}
-              style={({ pressed }) => ({
-                borderRadius: 20, paddingVertical: 14, alignItems: 'center',
-                borderWidth: 1, borderColor: isDark ? '#3A3A3A' : '#E5E7EB',
-                backgroundColor: isDark ? '#252525' : '#F9FAFB',
-                opacity: pressed ? 0.75 : 1,
-              })}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#9CA3AF' : '#6B7280' }}>Cancelar</Text>
-            </Pressable>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Modal No Asistió ── */}
