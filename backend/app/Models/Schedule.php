@@ -26,6 +26,7 @@ final class Schedule extends Model
         'end_time',
         'slot_duration_minutes',
         'is_active',
+        'auto_extend',
     ];
 
     protected function casts(): array
@@ -34,6 +35,7 @@ final class Schedule extends Model
             'day_of_week'           => DayOfWeek::class,
             'slot_duration_minutes' => 'integer',
             'is_active'             => 'boolean',
+            'auto_extend'           => 'boolean',
         ];
     }
 

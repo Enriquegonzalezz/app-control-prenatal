@@ -19,4 +19,7 @@ fi
 
 php-fpm -D
 
+# Scheduler de Laravel (agenda indefinida: comando slots:extend, ver routes/console.php)
+php artisan schedule:work >> /var/www/storage/logs/scheduler.log 2>&1 &
+
 exec nginx

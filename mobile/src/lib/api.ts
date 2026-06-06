@@ -624,12 +624,12 @@ export const scheduleApi = {
     });
   },
   async create(token: string, payload: {
-    branch_id?: string | null;
-    office_id?: string | null;
+    branch_id: string;
     day_of_week: string;
     start_time: string;
     end_time: string;
     slot_duration_minutes?: number;
+    auto_extend?: boolean;
   }) {
     return request<{ status: string; data: Schedule }>('/doctor/schedules', {
       method: 'POST',
@@ -678,6 +678,32 @@ export interface DiscoverableClinic {
   email: string | null;
   branch_count: number;
 }
+
+// ── Catálogo de clínicas verificadas (para el dropdown de creación de horarios) ──
+
+export interface CatalogBranch {
+  id: string;
+  name: string;
+  address: string | null;
+  phone: string | null;
+}
+
+export interface CatalogClinic {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  branches: CatalogBranch[];
+}
+
+export const clinicCatalogApi = {
+  async list(token: string, search?: string) {
+    const qs = search ? `?search=${encodeURIComponent(search)}` : '';
+    return request<{ status: string; data: CatalogClinic[] }>(
+      `/doctor/clinics/catalog${qs}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+  },
+};
 
 export const clinicDiscoveryApi = {
   async search(

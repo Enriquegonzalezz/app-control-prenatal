@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { scheduleApi, officeApi, clinicDiscoveryApi, Schedule, DoctorClinicInfo, DoctorOffice, Slot, DiscoverableClinic } from '@/lib/api';
+import { scheduleApi, clinicCatalogApi, clinicDiscoveryApi, Schedule, CatalogClinic, Slot, DiscoverableClinic } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
 
@@ -152,31 +152,23 @@ export default function DoctorScheduleScreen() {
   const border    = isDark ? '#272727' : '#F1F5F9';
 
   // Data
-  const [clinics, setClinics] = useState<DoctorClinicInfo[]>([]);
-  const [offices, setOffices] = useState<DoctorOffice[]>([]);
+  const [catalog, setCatalog] = useState<CatalogClinic[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Schedule form
   const [showForm, setShowForm] = useState(false);
-  const [selLocKind, setSelLocKind] = useState<'branch' | 'office' | null>(null);
-  const [selLocId, setSelLocId]   = useState<string>('');
+  const [selClinicId, setSelClinicId] = useState<string>('');
+  const [selBranchId, setSelBranchId] = useState<string>('');
+  const [clinicPickerOpen, setClinicPickerOpen] = useState(false);
+  const [clinicSearch, setClinicSearch] = useState('');
   const [selDay, setSelDay]       = useState('monday');
   const [selStart, setSelStart]   = useState('08:00');
   const [selEnd, setSelEnd]       = useState('12:00');
   const [selDuration, setSelDuration] = useState(30);
+  const [selAutoExtend, setSelAutoExtend] = useState(true);
   const [creating, setCreating]   = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  // Add-office sub-form
-  const [showAddOffice, setShowAddOffice] = useState(false);
-  const [newOfficeName, setNewOfficeName] = useState('');
-  const [newOfficeType, setNewOfficeType] = useState<'office' | 'home'>('office');
-  const [newOfficeAddress, setNewOfficeAddress] = useState('');
-  const [newOfficeCity, setNewOfficeCity]   = useState('');
-  const [savingOffice, setSavingOffice]     = useState(false);
-  const [officeError, setOfficeError]       = useState<string | null>(null);
-  const [officeSaved, setOfficeSaved]       = useState(false);
 
   // Inline feedback
   const [loadError, setLoadError]           = useState<string | null>(null);
@@ -213,37 +205,16 @@ export default function DoctorScheduleScreen() {
     if (!token) return;
     setLoading(true);
     try {
-      const [clinicRes, schedRes] = await Promise.all([
-        scheduleApi.clinicInfo(token),
+      const [catalogRes, schedRes] = await Promise.all([
+        clinicCatalogApi.list(token),
         scheduleApi.list(token),
       ]);
-      const cl = Array.isArray(clinicRes.data) ? clinicRes.data : [];
-      setClinics(cl);
+      // Solo clínicas que tengan al menos una sede activa son seleccionables.
+      const cl = Array.isArray(catalogRes.data)
+        ? catalogRes.data.filter((c) => c.branches.length > 0)
+        : [];
+      setCatalog(cl);
       setSchedules(Array.isArray(schedRes.data) ? schedRes.data : []);
-
-      // Cargar consultorios propios por separado: si falla no bloquea lo demás
-      let of: DoctorOffice[] = [];
-      try {
-        const officeRes = await officeApi.list(token);
-        of = Array.isArray(officeRes.data) ? officeRes.data : [];
-      } catch {
-        // Endpoint aún no disponible o sin consultorios — no crítico
-      }
-      setOffices(of);
-
-      // Auto-select primera ubicación disponible
-      setSelLocKind((prev) => {
-        if (prev) return prev;
-        if (cl.length > 0) return 'branch';
-        if (of.length > 0) return 'office';
-        return null;
-      });
-      setSelLocId((prev) => {
-        if (prev) return prev;
-        if (cl.length > 0) return cl[0].branch_id ?? '';
-        if (of.length > 0) return of[0].id;
-        return '';
-      });
     } catch {
       setLoadError('No se pudieron cargar los datos. Verifica tu conexión.');
     } finally {
@@ -307,7 +278,7 @@ export default function DoctorScheduleScreen() {
   const toggleForm = (val: boolean) => {
     setShowForm(val);
     setFormError(null);
-    setShowAddOffice(false);
+    setClinicPickerOpen(false);
     Animated.spring(formAnim, {
       toValue: val ? 1 : 0,
       tension: 80, friction: 10,
@@ -315,44 +286,12 @@ export default function DoctorScheduleScreen() {
     }).start();
   };
 
-  const handleAddOffice = async () => {
-    if (!token) return;
-    if (!newOfficeName.trim()) {
-      setOfficeError('Escribe un nombre para la ubicación.');
-      return;
-    }
-    setOfficeError(null);
-    setSavingOffice(true);
-    try {
-      const res = await officeApi.create(token, {
-        name:    newOfficeName.trim(),
-        type:    newOfficeType,
-        address: newOfficeAddress.trim() || undefined,
-        city:    newOfficeCity.trim() || undefined,
-        country: 'Venezuela',
-      });
-      const created = res.data;
-      setOffices((prev) => [...prev, created]);
-      setSelLocKind('office');
-      setSelLocId(created.id);
-      setNewOfficeName('');
-      setNewOfficeAddress('');
-      setNewOfficeCity('');
-      setOfficeSaved(true);
-      setTimeout(() => { setOfficeSaved(false); setShowAddOffice(false); }, 1500);
-    } catch (err: any) {
-      setOfficeError(err?.message ?? 'No se pudo guardar. Revisa tu conexión.');
-    } finally {
-      setSavingOffice(false);
-    }
-  };
-
   const handleCreate = async () => {
     setFormError(null);
     if (!token) return;
 
-    if (!selLocId || !selLocKind) {
-      setFormError('Selecciona o crea una ubicación de atención antes de continuar.');
+    if (!selBranchId) {
+      setFormError('Selecciona la clínica y la sede donde atenderás antes de continuar.');
       return;
     }
     if (selStart >= selEnd) {
@@ -362,14 +301,23 @@ export default function DoctorScheduleScreen() {
 
     setCreating(true);
     try {
-      await scheduleApi.create(token, {
-        branch_id: selLocKind === 'branch' ? selLocId : null,
-        office_id: selLocKind === 'office' ? selLocId : null,
+      const created = await scheduleApi.create(token, {
+        branch_id:             selBranchId,
         day_of_week:           selDay,
         start_time:            selStart,
         end_time:              selEnd,
         slot_duration_minutes: selDuration,
+        auto_extend:           selAutoExtend,
       });
+      // Generación inmediata: si es indefinido, llena ~12 semanas ahora (el job
+      // nocturno lo mantendrá rodando); si no, genera las próximas 4 semanas.
+      try {
+        const from  = startOfWeekPlusN(0);
+        const weeks = selAutoExtend ? 12 : 4;
+        await scheduleApi.generateSlots(token, created.data.id, from, addWeeksTo(from, weeks));
+      } catch {
+        // No bloqueante: el médico puede generar manualmente desde la lista.
+      }
       toggleForm(false);
       await load();
     } catch (err: any) {
@@ -416,27 +364,19 @@ export default function DoctorScheduleScreen() {
     }
   };
 
-  // Ubicaciones unificadas: clínicas + consultorios propios
-  const allLocations: { kind: 'branch' | 'office'; id: string; label: string; sublabel?: string; icon: string; color: string }[] = [
-    ...clinics
-      .filter((c) => !!c.branch_id)
-      .map((c) => ({
-        kind: 'branch' as const,
-        id:    c.branch_id,
-        label: c.clinic_name,
-        sublabel: c.branch_name || undefined,
-        icon:  'business',
-        color: '#3B82F6',
-      })),
-    ...offices.map((o) => ({
-      kind:     'office' as const,
-      id:       o.id,
-      label:    o.name,
-      sublabel: o.type === 'home' ? 'Domicilio' : (o.city || 'Consultorio propio'),
-      icon:     o.type === 'home' ? 'home' : 'medical',
-      color:    o.type === 'home' ? '#10B981' : '#8B5CF6',
-    })),
-  ];
+  // Clínica y sede seleccionadas, derivadas del catálogo de clínicas verificadas.
+  const selectedClinic = catalog.find((c) => c.id === selClinicId) ?? null;
+  const filteredCatalog = clinicSearch.trim()
+    ? catalog.filter((c) => c.name.toLowerCase().includes(clinicSearch.trim().toLowerCase()))
+    : catalog;
+
+  const pickClinic = (clinic: CatalogClinic) => {
+    setSelClinicId(clinic.id);
+    // Auto-selecciona la sede si solo hay una; si hay varias, deja que elija.
+    setSelBranchId(clinic.branches.length === 1 ? clinic.branches[0].id : '');
+    setClinicPickerOpen(false);
+    setClinicSearch('');
+  };
 
   const slotEstimate = estimateSlots(selStart, selEnd, selDuration);
 
@@ -618,153 +558,126 @@ export default function DoctorScheduleScreen() {
             )}
             <View style={{ padding: 20, gap: 20 }}>
 
-              {/* ── Selector de ubicación unificado ── */}
+              {/* ── Selector de clínica verificada + sede ── */}
               <View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Ionicons name="location" size={14} color="#E8467C" />
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: subColor, letterSpacing: 0.8, textTransform: 'uppercase' }}>
-                      Lugar de atención
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={() => setShowAddOffice((v) => !v)}
-                    style={({ pressed }) => ({
-                      flexDirection: 'row', alignItems: 'center', gap: 4,
-                      backgroundColor: isDark ? '#252525' : '#F3F4F6',
-                      paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16,
-                      opacity: pressed ? 0.7 : 1,
-                    })}
-                  >
-                    <Ionicons name={showAddOffice ? 'close' : 'add'} size={13} color={subColor} />
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: subColor }}>
-                      {showAddOffice ? 'Cancelar' : 'Agregar ubicación'}
-                    </Text>
-                  </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                  <Ionicons name="business" size={14} color="#E8467C" />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: subColor, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                    Clínica de atención
+                  </Text>
                 </View>
 
-                {/* Sub-form: agregar consultorio / domicilio */}
-                {showAddOffice && (
-                  <View style={{ backgroundColor: isDark ? '#252525' : '#F8FAFC', borderRadius: 16, padding: 14, marginBottom: 12, gap: 10, borderWidth: 1, borderColor: isDark ? '#333' : '#E2E8F0' }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: textColor }}>Nueva ubicación propia</Text>
-
-                    {/* Tipo */}
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      {([{ value: 'office', label: 'Consultorio', icon: 'medical' }, { value: 'home', label: 'Domicilio', icon: 'home' }] as const).map((opt) => {
-                        const sel = newOfficeType === opt.value;
-                        return (
-                          <Pressable
-                            key={opt.value}
-                            onPress={() => setNewOfficeType(opt.value)}
-                            style={({ pressed }) => ({
-                              flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                              paddingVertical: 10, borderRadius: 12,
-                              backgroundColor: sel ? (opt.value === 'home' ? '#10B981' : '#8B5CF6') : (isDark ? '#1E1E1E' : '#F3F4F6'),
-                              borderWidth: 1.5, borderColor: sel ? (opt.value === 'home' ? '#10B981' : '#8B5CF6') : (isDark ? '#333' : '#E5E7EB'),
-                              opacity: pressed ? 0.75 : 1,
-                            })}
-                          >
-                            <Ionicons name={opt.icon as any} size={14} color={sel ? '#fff' : subColor} />
-                            <Text style={{ fontSize: 13, fontWeight: sel ? '700' : '500', color: sel ? '#fff' : subColor }}>{opt.label}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-
-                    {/* Nombre */}
-                    <TextInput
-                      placeholder={newOfficeType === 'home' ? 'Ej: Mi casa — La Trinidad' : 'Ej: Consultorio Dra. García'}
-                      placeholderTextColor={isDark ? '#555' : '#9CA3AF'}
-                      value={newOfficeName}
-                      onChangeText={setNewOfficeName}
-                      style={{ backgroundColor: isDark ? '#1E1E1E' : '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: textColor, borderWidth: 1, borderColor: isDark ? '#333' : '#E5E7EB' }}
-                    />
-
-                    {/* Dirección */}
-                    <TextInput
-                      placeholder="Dirección (opcional)"
-                      placeholderTextColor={isDark ? '#555' : '#9CA3AF'}
-                      value={newOfficeAddress}
-                      onChangeText={setNewOfficeAddress}
-                      style={{ backgroundColor: isDark ? '#1E1E1E' : '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: textColor, borderWidth: 1, borderColor: isDark ? '#333' : '#E5E7EB' }}
-                    />
-
-                    {/* Ciudad */}
-                    <TextInput
-                      placeholder="Ciudad (ej: Caracas)"
-                      placeholderTextColor={isDark ? '#555' : '#9CA3AF'}
-                      value={newOfficeCity}
-                      onChangeText={setNewOfficeCity}
-                      style={{ backgroundColor: isDark ? '#1E1E1E' : '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: textColor, borderWidth: 1, borderColor: isDark ? '#333' : '#E5E7EB' }}
-                    />
-
-                    {/* Error/éxito inline */}
-                    {officeError && (
-                      <View style={{ backgroundColor: isDark ? '#2D0A0A' : '#FEF2F2', borderRadius: 8, padding: 8, flexDirection: 'row', gap: 6, marginTop: 2 }}>
-                        <Ionicons name="alert-circle" size={14} color="#EF4444" />
-                        <Text style={{ flex: 1, fontSize: 11, color: isDark ? '#FCA5A5' : '#991B1B', lineHeight: 15 }}>{officeError}</Text>
-                      </View>
-                    )}
-                    {officeSaved && (
-                      <View style={{ backgroundColor: isDark ? '#0D2E1F' : '#F0FDF4', borderRadius: 8, padding: 8, flexDirection: 'row', gap: 6, marginTop: 2 }}>
-                        <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                        <Text style={{ flex: 1, fontSize: 11, color: isDark ? '#6EE7B7' : '#065F46', lineHeight: 15 }}>Ubicación guardada y seleccionada</Text>
-                      </View>
-                    )}
-
-                    <Pressable
-                      onPress={handleAddOffice}
-                      disabled={savingOffice}
-                      style={({ pressed }) => ({
-                        backgroundColor: savingOffice ? '#9CA3AF' : '#8B5CF6',
-                        borderRadius: 12, paddingVertical: 11,
-                        alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6,
-                        opacity: pressed ? 0.8 : 1,
-                      })}
-                    >
-                      <Ionicons name="checkmark" size={15} color="#fff" />
-                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
-                        {savingOffice ? 'Guardando...' : 'Guardar ubicación'}
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
-
-                {/* Lista de ubicaciones */}
-                {allLocations.length === 0 && !showAddOffice && (
+                {catalog.length === 0 ? (
                   <View style={{ backgroundColor: isDark ? '#2D1A0E' : '#FFFBEB', borderRadius: 12, padding: 12, flexDirection: 'row', gap: 8, borderWidth: 1, borderColor: isDark ? '#4D2A0E' : '#FDE68A' }}>
                     <Ionicons name="information-circle" size={16} color="#F59E0B" />
                     <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#FCD34D' : '#92400E', lineHeight: 16 }}>
-                      Agrega una ubicación propia (consultorio o domicilio) o pide al administrador de una clínica que te asigne.
+                      No hay clínicas disponibles por ahora. Intenta nuevamente más tarde.
                     </Text>
                   </View>
-                )}
-
-                {allLocations.map((loc) => {
-                  const isSelected = selLocKind === loc.kind && selLocId === loc.id;
-                  return (
+                ) : (
+                  <>
+                    {/* Botón que abre el dropdown de clínicas */}
                     <Pressable
-                      key={`${loc.kind}-${loc.id}`}
-                      onPress={() => { setSelLocKind(loc.kind); setSelLocId(loc.id); }}
+                      onPress={() => setClinicPickerOpen((v) => !v)}
                       style={({ pressed }) => ({
                         flexDirection: 'row', alignItems: 'center', gap: 12,
-                        backgroundColor: isSelected ? `${loc.color}15` : (isDark ? '#252525' : '#F8FAFC'),
-                        borderRadius: 14, padding: 12, marginBottom: 6,
-                        borderWidth: 1.5, borderColor: isSelected ? loc.color : (isDark ? '#333' : '#E5E7EB'),
-                        opacity: pressed ? 0.75 : 1,
+                        backgroundColor: isDark ? '#252525' : '#F8FAFC',
+                        borderRadius: 14, padding: 14,
+                        borderWidth: 1.5, borderColor: selectedClinic ? '#E8467C' : (isDark ? '#333' : '#E5E7EB'),
+                        opacity: pressed ? 0.8 : 1,
                       })}
                     >
-                      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: `${loc.color}20`, alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name={loc.icon as any} size={16} color={loc.color} />
+                      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#3B82F620', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="business" size={16} color="#3B82F6" />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: textColor }}>{loc.label}</Text>
-                        {loc.sublabel && <Text style={{ fontSize: 11, color: subColor, marginTop: 1 }}>{loc.sublabel}</Text>}
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: selectedClinic ? textColor : subColor }} numberOfLines={1}>
+                          {selectedClinic ? selectedClinic.name : 'Selecciona una clínica'}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: subColor, marginTop: 1 }}>
+                          {catalog.length} clínica{catalog.length !== 1 ? 's' : ''} verificada{catalog.length !== 1 ? 's' : ''}
+                        </Text>
                       </View>
-                      {isSelected && <Ionicons name="checkmark-circle" size={20} color={loc.color} />}
+                      <Ionicons name={clinicPickerOpen ? 'chevron-up' : 'chevron-down'} size={18} color={subColor} />
                     </Pressable>
-                  );
-                })}
+
+                    {/* Dropdown con buscador */}
+                    {clinicPickerOpen && (
+                      <View style={{ marginTop: 8, backgroundColor: isDark ? '#1E1E1E' : '#fff', borderRadius: 14, borderWidth: 1, borderColor: isDark ? '#333' : '#E5E7EB', overflow: 'hidden' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: isDark ? '#333' : '#F1F5F9' }}>
+                          <Ionicons name="search" size={15} color={subColor} />
+                          <TextInput
+                            placeholder="Buscar clínica..."
+                            placeholderTextColor={subColor}
+                            value={clinicSearch}
+                            onChangeText={setClinicSearch}
+                            style={{ flex: 1, fontSize: 13, color: textColor }}
+                          />
+                        </View>
+                        <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                          {filteredCatalog.map((clinic) => {
+                            const isSel = clinic.id === selClinicId;
+                            return (
+                              <Pressable
+                                key={clinic.id}
+                                onPress={() => pickClinic(clinic)}
+                                style={({ pressed }) => ({
+                                  flexDirection: 'row', alignItems: 'center', gap: 10,
+                                  paddingHorizontal: 12, paddingVertical: 11,
+                                  backgroundColor: isSel ? '#E8467C12' : (pressed ? (isDark ? '#252525' : '#F8FAFC') : 'transparent'),
+                                })}
+                              >
+                                <Ionicons name="business-outline" size={15} color={isSel ? '#E8467C' : subColor} />
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ fontSize: 13, fontWeight: isSel ? '700' : '500', color: textColor }} numberOfLines={1}>{clinic.name}</Text>
+                                  <Text style={{ fontSize: 10, color: subColor, marginTop: 1 }}>
+                                    {clinic.branches.length} sede{clinic.branches.length !== 1 ? 's' : ''}
+                                  </Text>
+                                </View>
+                                {isSel && <Ionicons name="checkmark-circle" size={18} color="#E8467C" />}
+                              </Pressable>
+                            );
+                          })}
+                          {filteredCatalog.length === 0 && (
+                            <Text style={{ fontSize: 12, color: subColor, textAlign: 'center', paddingVertical: 20 }}>Sin resultados</Text>
+                          )}
+                        </ScrollView>
+                      </View>
+                    )}
+
+                    {/* Selector de sede de la clínica elegida */}
+                    {selectedClinic && selectedClinic.branches.length > 0 && (
+                      <View style={{ marginTop: 12 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: subColor, letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 8 }}>
+                          Sede
+                        </Text>
+                        {selectedClinic.branches.map((b) => {
+                          const isSel = b.id === selBranchId;
+                          return (
+                            <Pressable
+                              key={b.id}
+                              onPress={() => setSelBranchId(b.id)}
+                              style={({ pressed }) => ({
+                                flexDirection: 'row', alignItems: 'center', gap: 10,
+                                backgroundColor: isSel ? '#10B98115' : (isDark ? '#252525' : '#F8FAFC'),
+                                borderRadius: 12, padding: 12, marginBottom: 6,
+                                borderWidth: 1.5, borderColor: isSel ? '#10B981' : (isDark ? '#333' : '#E5E7EB'),
+                                opacity: pressed ? 0.8 : 1,
+                              })}
+                            >
+                              <Ionicons name="location" size={15} color={isSel ? '#10B981' : subColor} />
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 13, fontWeight: '600', color: textColor }} numberOfLines={1}>{b.name}</Text>
+                                {b.address && <Text style={{ fontSize: 11, color: subColor, marginTop: 1 }} numberOfLines={1}>{b.address}</Text>}
+                              </View>
+                              {isSel && <Ionicons name="checkmark-circle" size={18} color="#10B981" />}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </>
+                )}
               </View>
 
               {/* Día */}
@@ -853,6 +766,37 @@ export default function DoctorScheduleScreen() {
                 </View>
                 <PillRow options={DURATIONS} value={selDuration} onChange={setSelDuration} isDark={isDark} />
               </View>
+
+              {/* Agenda indefinida (auto-extensión) */}
+              <Pressable
+                onPress={() => setSelAutoExtend((v) => !v)}
+                style={({ pressed }) => ({
+                  flexDirection: 'row', alignItems: 'center', gap: 12,
+                  backgroundColor: selAutoExtend ? '#E8467C12' : (isDark ? '#252525' : '#F8FAFC'),
+                  borderRadius: 14, padding: 14,
+                  borderWidth: 1.5, borderColor: selAutoExtend ? '#E8467C' : (isDark ? '#333' : '#E5E7EB'),
+                  opacity: pressed ? 0.85 : 1,
+                })}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: selAutoExtend }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="infinite" size={18} color="#E8467C" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: textColor }}>Agenda indefinida</Text>
+                  <Text style={{ fontSize: 11, color: subColor, marginTop: 1, lineHeight: 15 }}>
+                    Mantiene tus cupos generados automáticamente cada semana, sin tener que regenerarlos.
+                  </Text>
+                </View>
+                <View style={{
+                  width: 44, height: 26, borderRadius: 13, padding: 3,
+                  backgroundColor: selAutoExtend ? '#E8467C' : (isDark ? '#3A3A3A' : '#D1D5DB'),
+                  alignItems: selAutoExtend ? 'flex-end' : 'flex-start', justifyContent: 'center',
+                }}>
+                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' }} />
+                </View>
+              </Pressable>
 
               {/* Preview resumen */}
               {selStart < selEnd && (
@@ -946,15 +890,20 @@ export default function DoctorScheduleScreen() {
             </View>
             <PillRow
               options={[
-                { value: 2, label: '2 semanas' },
-                { value: 4, label: '4 semanas' },
-                { value: 6, label: '6 semanas' },
-                { value: 8, label: '8 semanas' },
+                { value: 4,  label: '4 semanas' },
+                { value: 8,  label: '8 semanas' },
+                { value: 12, label: '3 meses' },
+                { value: 24, label: '6 meses' },
+                { value: 52, label: '1 año' },
               ]}
               value={genWeeks}
               onChange={setGenWeeks}
               isDark={isDark}
             />
+            <Text style={{ fontSize: 11, color: subColor, marginTop: 8, lineHeight: 15 }}>
+              Para una agenda sin fin, activa “Agenda indefinida” al crear el horario: los cupos se
+              extienden solos cada semana.
+            </Text>
           </View>
         )}
 
@@ -1112,7 +1061,8 @@ export default function DoctorScheduleScreen() {
             <View style={{ backgroundColor: isDark ? '#1A2535' : '#EFF6FF', borderRadius: 14, padding: 12, flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 14, borderWidth: 1, borderColor: isDark ? '#1E3A5F' : '#BFDBFE' }}>
               <Ionicons name="information-circle" size={16} color="#3B82F6" style={{ marginTop: 1 }} />
               <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#93C5FD' : '#1D4ED8', lineHeight: 17 }}>
-                Para atender en una clínica, comunícate con su administrador. Solo las clínicas pueden vincularte a su red.
+                Estas son las clínicas verificadas donde puedes atender. Al crear un horario eliges la
+                clínica y la sede; quedas vinculado automáticamente a ella.
               </Text>
             </View>
 

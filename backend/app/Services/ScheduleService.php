@@ -41,19 +41,80 @@ final class ScheduleService
     }
 
     /**
-     * @param  array{branch_id?:string|null, office_id?:string|null, day_of_week:string, start_time:string, end_time:string, slot_duration_minutes?:int}  $data
+     * Horizonte (en semanas) hasta el que el job de auto-extensión mantiene
+     * generados los slots de los horarios marcados como auto_extend.
+     */
+    public const ROLLING_HORIZON_WEEKS = 12;
+
+    /**
+     * Crea un horario en una sede de clínica verificada. La sede (branch_id) es
+     * obligatoria: ya no se permiten consultorios propios libres. Al crear el
+     * horario, el médico queda auto-vinculado a la clínica de esa sede.
+     *
+     * @param  array{branch_id:string, day_of_week:string, start_time:string, end_time:string, slot_duration_minutes?:int, auto_extend?:bool}  $data
      */
     public function create(DoctorProfile $doctor, array $data): Schedule
     {
-        return Schedule::create([
-            'doctor_id'             => $doctor->id,
-            'branch_id'             => $data['branch_id'] ?? null,
-            'office_id'             => $data['office_id'] ?? null,
-            'day_of_week'           => $data['day_of_week'],
-            'start_time'            => $data['start_time'],
-            'end_time'              => $data['end_time'],
-            'slot_duration_minutes' => $data['slot_duration_minutes'] ?? 30,
-            'is_active'             => true,
+        return DB::transaction(function () use ($doctor, $data): Schedule {
+            $this->ensureClinicLink($doctor, $data['branch_id']);
+
+            return Schedule::create([
+                'doctor_id'             => $doctor->id,
+                'branch_id'             => $data['branch_id'],
+                'office_id'             => null,
+                'day_of_week'           => $data['day_of_week'],
+                'start_time'            => $data['start_time'],
+                'end_time'              => $data['end_time'],
+                'slot_duration_minutes' => $data['slot_duration_minutes'] ?? 30,
+                'is_active'             => true,
+                'auto_extend'           => $data['auto_extend'] ?? false,
+            ]);
+        });
+    }
+
+    /**
+     * Vincula (idempotente) al médico con la clínica dueña de la sede indicada.
+     * clinic_doctors.doctor_id referencia users.id (no doctor_profiles.id).
+     */
+    private function ensureClinicLink(DoctorProfile $doctor, string $branchId): void
+    {
+        $branch = DB::table('clinic_branches')
+            ->where('id', $branchId)
+            ->first(['id', 'clinic_id']);
+
+        if (! $branch) {
+            return;
+        }
+
+        $userId = $doctor->user_id;
+        $now    = now();
+
+        $exists = DB::table('clinic_doctors')
+            ->where('clinic_id', $branch->clinic_id)
+            ->where('doctor_id', $userId)
+            ->exists();
+
+        if ($exists) {
+            DB::table('clinic_doctors')
+                ->where('clinic_id', $branch->clinic_id)
+                ->where('doctor_id', $userId)
+                ->update([
+                    'branch_id'  => $branch->id,
+                    'is_active'  => true,
+                    'updated_at' => $now,
+                ]);
+
+            return;
+        }
+
+        DB::table('clinic_doctors')->insert([
+            'clinic_id'  => $branch->clinic_id,
+            'doctor_id'  => $userId,
+            'branch_id'  => $branch->id,
+            'is_active'  => true,
+            'joined_at'  => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
         ]);
     }
 
@@ -129,6 +190,34 @@ final class ScheduleService
         $this->refreshNextAvailableSlot($schedule->doctor);
 
         return count($rows);
+    }
+
+    /**
+     * Mantiene "rodando" la agenda de los horarios marcados como indefinidos
+     * (auto_extend = true): genera slots desde hoy hasta hoy + ROLLING_HORIZON_WEEKS.
+     * Pensado para ejecutarse a diario desde el scheduler. Idempotente (upsert).
+     *
+     * @return array{schedules: int, slots: int}
+     */
+    public function extendAutoSchedules(): array
+    {
+        $from  = CarbonImmutable::now();
+        $until = $from->addWeeks(self::ROLLING_HORIZON_WEEKS);
+
+        $schedules = Schedule::query()
+            ->where('is_active', true)
+            ->where('auto_extend', true)
+            ->get();
+
+        $totalSlots = 0;
+        foreach ($schedules as $schedule) {
+            $totalSlots += $this->generateSlots($schedule, $from, $until);
+        }
+
+        return [
+            'schedules' => $schedules->count(),
+            'slots'     => $totalSlots,
+        ];
     }
 
     /**

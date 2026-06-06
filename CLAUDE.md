@@ -29,6 +29,20 @@ la tabla maestra `verified_doctors`.
 
 Las pacientes acceden al directorio de especialistas verificados.
 
+**Slots y agenda (Δ-7, junio 2026):**
+- Los horarios/slots **solo pueden crearse en una sede de clínica verificada**
+  (`branch_id` obligatorio). Se **eliminó** el flujo de "consultorios propios"
+  libres (`doctor_offices`) para crear agenda: nada de clínicas escritas a mano.
+- El médico elige la clínica desde un **dropdown del catálogo** (`GET /doctor/clinics/catalog`,
+  todas las clínicas activas con sus sedes) y la sede. Al crear el horario queda
+  **auto-vinculado** a esa clínica (`clinic_doctors`) — ya no hace falta vincularse aparte.
+- **Agenda indefinida:** `schedules.auto_extend = true` → el comando `slots:extend`
+  (scheduler diario 03:00, `schedule:work` en el entrypoint) mantiene los slots
+  generados `ScheduleService::ROLLING_HORIZON_WEEKS` (12) semanas por delante.
+- **Visibilidad en directorio:** un médico aparece/es agendable solo si está
+  `is_verified = true` **y** vinculado a ≥1 clínica activa (aplica en
+  `DirectoryService::listAllDoctors` y en el RPC `get_nearby_doctors`).
+
 ## Principios Arquitectónicos Clave
 1. **Multi-especialidad desde el día 1:** Ningún campo hace referencia
    hardcoded a "ginecobstetricia". Todo usa `specialty_id` + JSONB.
@@ -37,15 +51,14 @@ Las pacientes acceden al directorio de especialistas verificados.
    no numérico. Nunca crear tabla `ratings`.
 4. **Dark/Light mode:** Cada componente RN debe tener clases `dark:`.
 
-## Estado Actual del Proyecto
-- ✅ Sprint 0 completado (Supabase configurado: PostGIS, ENUMs, specialties)
-- 🔄 Sprint 1 en curso: Auth diferenciada + Modelo Clínica + Verificación OTP (Δ-5 ✅)
-
 ## Migraciones ya ejecutadas en Supabase
 - s0_enable_extensions (PostGIS 3.3, pgcrypto 1.3, uuid-ossp)
 - s0_create_specialties (6 especialidades, Ginecobstetricia activa)
 - s0_create_enums (user_role, theme_preference, appointment_status, etc.)
 - s1_5_create_verification_codes (tabla doctor_verification_codes + ENUM verification_status) — **Δ-5**
+- s2_fix_appointments_branch_nullable (appointments.branch_id nullable)
+- s3_add_auto_extend_to_schedules (schedules.auto_extend bool — agenda indefinida) — **Δ-7**
+- s4_seed_curated_clinics_venezuela (30 clínicas reales con sede + ubicación GPS; desactiva catálogo previo) — **Δ-7**
 
 ## Estructura de Carpetas
 
@@ -147,3 +160,6 @@ Nunca modificar una migración ya ejecutada. Crear siempre una nueva.
 - ❌ Enviar el OTP al email de registro del usuario — siempre al email/teléfono de `verified_doctors` (Δ-5)
 - ❌ Guardar el código OTP en plaintext — siempre hash bcrypt en `doctor_verification_codes` (Δ-5)
 - ❌ Usar `clinic_doctors.doctor_id` como FK a `doctor_profiles.id` — la FK apunta a `users.id` (corregido Δ-6)
+- ❌ Permitir crear horarios/slots con consultorio propio o clínica escrita a mano — `branch_id` (sede de clínica verificada) es obligatorio (Δ-7)
+- ❌ Mostrar en el directorio a un médico sin vínculo a clínica activa, aunque esté verificado (Δ-7)
+- ❌ `clinic_doctors` NO tiene columna `id` (PK compuesta clinic_id+doctor_id); `clinics.is_active` default es `false` (setear true al sembrar)

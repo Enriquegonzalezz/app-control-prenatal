@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Directory\DirectoryController;
+use App\Http\Controllers\Doctor\ClinicCatalogController;
 use App\Http\Controllers\Doctor\ClinicDiscoveryController;
 use App\Http\Controllers\Doctor\DoctorClinicLinkController;
 use App\Http\Controllers\Doctor\DoctorOfficeController;
@@ -146,6 +147,9 @@ Route::prefix('v1')->group(function (): void {
                 Route::delete('/slots/{slot}',        [SlotController::class, 'destroy'])->name('doctor.slots.destroy');
 
                 Route::get('/clinics/discover', [ClinicDiscoveryController::class, 'index'])->name('doctor.clinics.discover');
+
+                // Catálogo completo de clínicas verificadas (con sedes) para el dropdown de horarios
+                Route::get('/clinics/catalog', [ClinicCatalogController::class, 'index'])->name('doctor.clinics.catalog');
 
                 // Vinculación auto-iniciada del médico a una clínica
                 Route::get('/clinics',                  [DoctorClinicLinkController::class, 'index'])->name('doctor.clinics.index');

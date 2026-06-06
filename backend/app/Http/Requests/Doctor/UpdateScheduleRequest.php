@@ -44,6 +44,7 @@ final class UpdateScheduleRequest extends FormRequest
             'end_time'              => ['sometimes', 'date_format:H:i', 'after:start_time'],
             'slot_duration_minutes' => ['sometimes', 'integer', 'min:5', 'max:240'],
             'is_active'             => ['sometimes', 'boolean'],
+            'auto_extend'           => ['sometimes', 'boolean'],
         ];
     }
 }

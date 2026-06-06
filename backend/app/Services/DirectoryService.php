@@ -35,10 +35,22 @@ final class DirectoryService
     ): array {
         $perPage = min(max($perPage, 1), self::MAX_LIMIT);
 
+        // Un médico solo aparece en el directorio si:
+        //  1. Su cuenta está activa.
+        //  2. Pasó la verificación OTP (dp.is_verified).
+        //  3. Está vinculado al menos a una clínica activa (clinic_doctors).
+        // El INNER JOIN al subquery DISTINCT ON garantiza (3) sin duplicar médicos
+        // vinculados a varias clínicas: toma el primer vínculo activo a clínica activa.
+        $activeLink = '(SELECT DISTINCT ON (cd.doctor_id) cd.doctor_id, cd.clinic_id, cd.branch_id '
+            . 'FROM clinic_doctors cd '
+            . 'JOIN clinics cc ON cc.id = cd.clinic_id AND cc.is_active = true '
+            . 'WHERE cd.is_active = true '
+            . 'ORDER BY cd.doctor_id, cd.joined_at ASC NULLS LAST) as cd';
+
         $query = DB::table('doctor_profiles as dp')
             ->join('users as u', 'u.id', '=', 'dp.user_id')
             ->join('specialties as sp', 'sp.id', '=', 'dp.specialty_id')
-            ->leftJoin('clinic_doctors as cd', fn ($j) => $j->on('cd.doctor_id', '=', 'u.id')->where('cd.is_active', true))
+            ->join(DB::raw($activeLink), 'cd.doctor_id', '=', 'u.id')
             ->leftJoin('clinics as c', 'c.id', '=', 'cd.clinic_id')
             ->leftJoin('clinic_branches as cb', 'cb.id', '=', 'cd.branch_id')
             ->where('u.is_active', true)
