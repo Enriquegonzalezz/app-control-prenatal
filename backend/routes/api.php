@@ -118,6 +118,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::middleware('doctor')->prefix('doctor')->group(function (): void {
             Route::get('/profile',     [ProfileController::class, 'doctorProfile'])->name('doctor.profile');
+            Route::patch('/profile',   [ProfileController::class, 'updateDoctorProfile'])->name('doctor.profile.update');
             Route::get('/clinic-info', [ProfileController::class, 'doctorClinicInfo'])->name('doctor.clinic-info');
 
             // Verificación OTP — disponible para médicos aún no verificados (Δ-5)

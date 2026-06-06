@@ -705,6 +705,50 @@ export const clinicCatalogApi = {
   },
 };
 
+// ── Perfil profesional del médico ──────────────────────────────────────────────
+
+export interface DoctorProfileData {
+  id: string;
+  specialty: { id: string; name: string; slug: string } | null;
+  license_number: string | null;
+  university: string | null;
+  years_experience: number | null;
+  consultation_fee: number | string | null;
+  bio: string | null;
+  is_verified: boolean;
+  is_available: boolean;
+  is_profile_complete: boolean;
+  missing_fields: string[];
+}
+
+export const doctorProfileApi = {
+  async get(token: string) {
+    return request<{
+      status: string;
+      data: { id: string; name: string; email: string; doctor_profile: DoctorProfileData | null };
+    }>('/doctor/profile', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+  async update(token: string, payload: {
+    license_number: string;
+    university: string;
+    years_experience: number;
+    consultation_fee: number;
+    bio: string;
+  }) {
+    return request<{
+      status: string;
+      message: string;
+      data: { id: string; name: string; doctor_profile: DoctorProfileData };
+    }>('/doctor/profile', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
 export const clinicDiscoveryApi = {
   async search(
     token: string,

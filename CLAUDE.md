@@ -40,8 +40,13 @@ Las pacientes acceden al directorio de especialistas verificados.
   (scheduler diario 03:00, `schedule:work` en el entrypoint) mantiene los slots
   generados `ScheduleService::ROLLING_HORIZON_WEEKS` (12) semanas por delante.
 - **Visibilidad en directorio:** un médico aparece/es agendable solo si está
-  `is_verified = true` **y** vinculado a ≥1 clínica activa (aplica en
-  `DirectoryService::listAllDoctors` y en el RPC `get_nearby_doctors`).
+  `is_verified = true`, vinculado a ≥1 clínica activa **y** con el **perfil
+  profesional completo** (license_number, university, consultation_fee > 0, bio).
+  Aplica en `DirectoryService::listAllDoctors` y en el RPC `get_nearby_doctors`.
+  El médico edita estos campos en `PATCH /doctor/profile` (pantalla
+  `mobile/app/doctor-profile-edit.tsx`); `DoctorProfile::isProfileComplete()` /
+  `missingProfileFields()` son la fuente de verdad y se exponen en
+  `DoctorProfileResource` (`is_profile_complete`, `missing_fields`).
 
 ## Principios Arquitectónicos Clave
 1. **Multi-especialidad desde el día 1:** Ningún campo hace referencia
@@ -59,6 +64,7 @@ Las pacientes acceden al directorio de especialistas verificados.
 - s2_fix_appointments_branch_nullable (appointments.branch_id nullable)
 - s3_add_auto_extend_to_schedules (schedules.auto_extend bool — agenda indefinida) — **Δ-7**
 - s4_seed_curated_clinics_venezuela (30 clínicas reales con sede + ubicación GPS; desactiva catálogo previo) — **Δ-7**
+- s5_nearby_doctors_require_complete_profile (RPC get_nearby_doctors exige perfil profesional completo) — **Δ-7**
 
 ## Estructura de Carpetas
 

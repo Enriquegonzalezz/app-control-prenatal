@@ -55,6 +55,11 @@ final class DirectoryService
             ->leftJoin('clinic_branches as cb', 'cb.id', '=', 'cd.branch_id')
             ->where('u.is_active', true)
             ->where('dp.is_verified', true)
+            // Perfil profesional completo: sin estos datos el médico no es visible.
+            ->whereNotNull('dp.consultation_fee')->where('dp.consultation_fee', '>', 0)
+            ->whereNotNull('dp.license_number')->whereRaw("btrim(dp.license_number) <> ''")
+            ->whereNotNull('dp.university')->whereRaw("btrim(dp.university) <> ''")
+            ->whereNotNull('dp.bio')->whereRaw("btrim(dp.bio) <> ''")
             ->when($specialtyId, fn ($q) => $q->where('dp.specialty_id', $specialtyId))
             ->when($search, function ($q) use ($search) {
                 $term = '%' . mb_strtolower($search) . '%';

@@ -1,14 +1,33 @@
+import { useCallback, useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { doctorProfileApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
 
 export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const logout = useAuthStore((s) => s.logout);
   const { mode, setMode } = useThemeStore();
+
+  // Completitud del perfil profesional (solo médicos) — controla visibilidad ante pacientes
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
+
+  const loadProfileStatus = useCallback(async () => {
+    if (!token || user?.role !== 'doctor') return;
+    try {
+      const res = await doctorProfileApi.get(token);
+      setProfileComplete(res.data?.doctor_profile?.is_profile_complete ?? false);
+    } catch {
+      // silencioso: no bloquea el perfil
+    }
+  }, [token, user?.role]);
+
+  // Refresca al volver de la pantalla de edición
+  useFocusEffect(useCallback(() => { loadProfileStatus(); }, [loadProfileStatus]));
 
   const cycleTheme = () => {
     const next = mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light';
@@ -27,6 +46,33 @@ export default function ProfileScreen() {
             Gestiona tu cuenta y preferencias
           </Text>
         </View>
+
+        {/* Aviso: perfil profesional incompleto (solo médicos) */}
+        {user?.role === 'doctor' && profileComplete === false && (
+          <View className="px-6 mb-5">
+            <Pressable
+              onPress={() => router.push('/doctor-profile-edit')}
+              className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-2xl p-4 active:opacity-80"
+              accessibilityRole="button"
+              accessibilityLabel="Completar perfil profesional"
+            >
+              <View className="flex-row items-center">
+                <View className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-800/40 items-center justify-center mr-3">
+                  <Ionicons name="alert-circle" size={22} color="#F59E0B" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-bold text-amber-800 dark:text-amber-300">
+                    Completa tu perfil profesional
+                  </Text>
+                  <Text className="text-xs text-amber-700 dark:text-amber-400 mt-0.5 leading-4">
+                    Aún no eres visible para las pacientes. Agrega tus datos para poder recibir citas.
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#F59E0B" />
+              </View>
+            </Pressable>
+          </View>
+        )}
 
         {/* User Info Card */}
         <View className="px-6 mb-6">
@@ -60,6 +106,36 @@ export default function ProfileScreen() {
             <Text className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-4">
               Mi Práctica
             </Text>
+
+            {/* Perfil profesional */}
+            <Pressable
+              onPress={() => router.push('/doctor-profile-edit')}
+              className="bg-card-light dark:bg-card-dark rounded-xl p-4 mb-3 active:opacity-70"
+              accessibilityRole="button"
+              accessibilityLabel="Editar perfil profesional"
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center flex-1">
+                  <View className="w-10 h-10 rounded-xl bg-pink-50 dark:bg-pink-900/20 items-center justify-center mr-3">
+                    <Ionicons name="person-circle-outline" size={20} color="#E8467C" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Perfil Profesional</Text>
+                    <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Experiencia, precio y descripción</Text>
+                  </View>
+                </View>
+                {profileComplete === true ? (
+                  <View className="bg-green-100 dark:bg-green-900/30 px-2.5 py-1 rounded-full mr-1">
+                    <Text className="text-[11px] font-bold text-green-700 dark:text-green-400">Completo</Text>
+                  </View>
+                ) : profileComplete === false ? (
+                  <View className="bg-amber-100 dark:bg-amber-900/30 px-2.5 py-1 rounded-full mr-1">
+                    <Text className="text-[11px] font-bold text-amber-700 dark:text-amber-400">Incompleto</Text>
+                  </View>
+                ) : null}
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              </View>
+            </Pressable>
 
             <Pressable
               onPress={() => router.push('/appointments')}

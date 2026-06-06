@@ -80,4 +80,40 @@ final class DoctorProfile extends Model
     {
         return $this->hasMany(Slot::class, 'doctor_id');
     }
+
+    /**
+     * Campos del perfil profesional obligatorios para que el médico sea
+     * visible/agendable por las pacientes (además de estar verificado y
+     * vinculado a una clínica activa). La especialidad ya es obligatoria
+     * desde el registro. `years_experience` admite 0 (recién graduado).
+     */
+    public function isProfileComplete(): bool
+    {
+        return $this->missingProfileFields() === [];
+    }
+
+    /**
+     * Lista de campos que aún faltan por completar.
+     *
+     * @return list<string>
+     */
+    public function missingProfileFields(): array
+    {
+        $missing = [];
+
+        if (blank($this->license_number)) {
+            $missing[] = 'license_number';
+        }
+        if (blank($this->university)) {
+            $missing[] = 'university';
+        }
+        if ($this->consultation_fee === null || (float) $this->consultation_fee <= 0) {
+            $missing[] = 'consultation_fee';
+        }
+        if (blank($this->bio)) {
+            $missing[] = 'bio';
+        }
+
+        return $missing;
+    }
 }

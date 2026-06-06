@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Doctor\UpdateDoctorProfileRequest;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\Response;
 
 final class ProfileController extends Controller
 {
@@ -34,6 +36,34 @@ final class ProfileController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => UserResource::make($user),
+        ]);
+    }
+
+    /**
+     * Actualiza el perfil profesional del médico (datos visibles para pacientes).
+     * Completar estos campos es requisito para aparecer en el directorio.
+     */
+    public function updateDoctorProfile(UpdateDoctorProfileRequest $request): JsonResponse
+    {
+        $user    = $request->user();
+        $profile = $user->doctorProfile;
+
+        if (! $profile) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Perfil de médico no encontrado.',
+                'data'    => null,
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $profile->update($request->validated());
+
+        $user->load('doctorProfile.specialty');
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Perfil profesional actualizado correctamente.',
+            'data'    => UserResource::make($user),
         ]);
     }
 

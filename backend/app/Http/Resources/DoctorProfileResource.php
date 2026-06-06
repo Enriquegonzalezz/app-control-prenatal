@@ -21,6 +21,8 @@ final class DoctorProfileResource extends JsonResource
             'bio' => $this->bio,
             'is_verified' => $this->is_verified,
             'is_available' => $this->is_available,
+            'is_profile_complete' => $this->resource->isProfileComplete(),
+            'missing_fields' => $this->resource->missingProfileFields(),
             'experience_count' => $this->experience_count,
             'next_available_slot' => $this->next_available_slot?->toIso8601String(),
             'created_at' => $this->created_at->toIso8601String(),
