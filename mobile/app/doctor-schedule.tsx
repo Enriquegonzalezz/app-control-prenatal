@@ -127,7 +127,7 @@ function PillRow<T extends string | number>({
           >
             <Text style={{
               fontSize: 13, fontWeight: sel ? '700' : '500',
-              color: sel ? '#fff' : (isDark ? '#D1D5DB' : '#374151'),
+              color: sel ? (isDark ? '#fff' : '#E8467C') : (isDark ? '#D1D5DB' : '#374151'),
             }}>
               {opt.label}
             </Text>
@@ -425,8 +425,8 @@ export default function DoctorScheduleScreen() {
           accessibilityRole="button"
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name={showForm ? 'close' : 'add'} size={16} color={showForm ? subColor : '#fff'} />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: showForm ? subColor : '#fff' }}>
+            <Ionicons name={showForm ? 'close' : 'add'} size={16} color={showForm ? '#E8467C' : '#000'} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: showForm ? '#E8467C' : '#000' }}>
               {showForm ? 'Cancelar' : 'Agregar'}
             </Text>
           </View>
@@ -735,7 +735,7 @@ export default function DoctorScheduleScreen() {
                             opacity: pressed ? 0.75 : 1,
                           })}
                         >
-                          <Text style={{ fontSize: 14, fontWeight: sel ? '700' : '500', textAlign: 'center', color: sel ? '#fff' : (isDark ? '#D1D5DB' : '#334155') }}>
+                          <Text style={{ fontSize: 14, fontWeight: sel ? '700' : '500', textAlign: 'center', color: sel ? (isDark ? '#fff' : '#E8467C') : (isDark ? '#D1D5DB' : '#334155') }}>
                             {t}
                           </Text>
                         </Pressable>
@@ -766,7 +766,7 @@ export default function DoctorScheduleScreen() {
                             opacity: pressed ? 0.75 : 1,
                           })}
                         >
-                          <Text style={{ fontSize: 14, fontWeight: sel ? '700' : '500', textAlign: 'center', color: sel ? '#fff' : (isDark ? '#D1D5DB' : '#334155') }}>
+                          <Text style={{ fontSize: 14, fontWeight: sel ? '700' : '500', textAlign: 'center', color: sel ? (isDark ? '#fff' : '#E8467C') : (isDark ? '#D1D5DB' : '#334155') }}>
                             {t}
                           </Text>
                         </Pressable>
@@ -1084,9 +1084,9 @@ export default function DoctorScheduleScreen() {
                       <Ionicons
                         name={isGen ? 'hourglass-outline' : 'flash'}
                         size={16}
-                        color={isGen ? subColor : '#fff'}
+                        color={isGen ? (isDark ? subColor : '#E8467C') : '#fff'}
                       />
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: isGen ? subColor : '#fff' }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: isGen ? (isDark ? subColor : '#E8467C') : '#fff' }}>
                         {isGen ? 'Generando...' : `Generar cupos (${genWeeks} semanas)`}
                       </Text>
                     </View>
@@ -1241,7 +1241,7 @@ export default function DoctorScheduleScreen() {
                         opacity: pressed ? 0.75 : 1,
                       })}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: sel ? '700' : '500', color: sel ? '#fff' : (isDark ? '#D1D5DB' : '#374151') }}>
+                      <Text style={{ fontSize: 12, fontWeight: sel ? '700' : '500', color: sel ? (isDark ? '#fff' : '#E8467C') : (isDark ? '#D1D5DB' : '#374151') }}>
                         {label}
                       </Text>
                     </Pressable>

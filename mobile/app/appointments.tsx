@@ -813,11 +813,12 @@ export default function AppointmentsScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
-              <View style={{
-                backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
-                borderTopLeftRadius: 24, borderTopRightRadius: 24,
-                padding: 24, paddingBottom: 36,
-              }}>
+              <SafeAreaView edges={['bottom']}>
+                <View style={{
+                  backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
+                  borderTopLeftRadius: 24, borderTopRightRadius: 24,
+                  padding: 24,
+                }}>
                 <View style={{ alignItems: 'center', marginBottom: 16 }}>
                   <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? '#3D3D3D' : '#D1D5DB' }} />
                 </View>
@@ -934,6 +935,7 @@ export default function AppointmentsScreen() {
                   <Text style={{ fontSize: 14, fontWeight: '700', color: isDark ? '#9CA3AF' : '#6B7280' }}>Cancelar</Text>
                 </Pressable>
               </View>
+              </SafeAreaView>
             </View>
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
