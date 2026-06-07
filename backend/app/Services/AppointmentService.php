@@ -47,15 +47,15 @@ final class AppointmentService
                 ->first();
 
             if (!$slot) {
-                throw new RuntimeException('El slot solicitado no existe.');
+                throw new RuntimeException('La cita solicitada no existe.');
             }
 
             if ($slot->status !== SlotStatus::AVAILABLE) {
-                throw new RuntimeException('El slot ya no está disponible.');
+                throw new RuntimeException('La cita ya no está disponible.');
             }
 
             if ($slot->starts_at->isPast()) {
-                throw new RuntimeException('No se puede agendar un slot en el pasado.');
+                throw new RuntimeException('No se puede agendar una cita en el pasado.');
             }
 
             // clinic_id del slot deriva de su branch
@@ -179,18 +179,18 @@ final class AppointmentService
             $newSlot = Slot::query()->whereKey($newSlotId)->lockForUpdate()->first();
 
             if (!$newSlot) {
-                throw new RuntimeException('El nuevo slot no existe.');
+                throw new RuntimeException('La nueva cita no existe.');
             }
             if ($newSlot->status !== SlotStatus::AVAILABLE) {
-                throw new RuntimeException('El nuevo slot no está disponible.');
+                throw new RuntimeException('La nueva cita no está disponible.');
             }
             if ($newSlot->starts_at->isPast()) {
-                throw new RuntimeException('El nuevo slot está en el pasado.');
+                throw new RuntimeException('La nueva cita está en el pasado.');
             }
 
             $doctorProfile = $actor->doctorProfile;
             if (!$doctorProfile || $newSlot->doctor_id !== $doctorProfile->id) {
-                throw new RuntimeException('El slot debe pertenecer al mismo médico.');
+                throw new RuntimeException('La cita debe pertenecer al mismo médico.');
             }
 
             // Liberar slot anterior
