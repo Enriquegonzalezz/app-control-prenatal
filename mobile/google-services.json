@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "54004850221",
+    "project_id": "app-control-prenatal",
+    "storage_bucket": "app-control-prenatal.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:54004850221:android:dcb5059085366008df62a4",
+        "android_client_info": {
+          "package_name": "com.controlprenatal.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJXFxJrjqQrp8OprYov0C7kNI0o5leK6Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -217,3 +217,4 @@ Nunca modificar una migración ya ejecutada. Crear siempre una nueva.
 - ❌ Usar `getExpoPushTokenAsync()` para el push — el backend usa FCM v1, se necesita `getDevicePushTokenAsync()` (token FCM nativo) (Δ-9)
 - ❌ Generar slots en UTC — la hora del médico es hora local de Caracas (`ScheduleService::CLINIC_TIMEZONE` = `America/Caracas`); en UTC los cupos quedan corridos −4h y los de hoy desaparecen del filtro `starts_at >= now()` (Δ-10)
 - ❌ Usar la palabra "slot" en la UI para médicos — en la interfaz un cupo se llama **"cupo"** (bloque agendable) y el horario semanal recurrente se llama **"horario"** (Δ-10)
+- ❌ Hard-delete de documentos del historial — es **soft-delete** (`medical_records.deleted_at` + `deleted_by`, trait SoftDeletes); el archivo en Storage se conserva. Solo quien lo subió (`uploader_id`) puede borrarlo (Δ-11)

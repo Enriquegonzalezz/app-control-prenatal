@@ -20,8 +20,7 @@
         "backgroundColor": "#E8467C"
       },
       "package": "com.controlprenatal.app",
-      "softwareKeyboardLayoutMode": "resize",
-      "googleServicesFile": "./google-services.json"
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -55,8 +54,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b685b777-e12d-41f5-86ae-6d82b1c6101d"
+        "projectId": "d6a19892-f662-457e-86cc-8a7d9d0c1a2e"
       }
-    }
+    },
+    "owner": "samuelmolina"
   }
 }

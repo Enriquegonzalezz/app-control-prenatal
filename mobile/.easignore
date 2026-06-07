@@ -1,0 +1,17 @@
+# No subir carpetas de desarrollo/build local
+node_modules/
+.expo/
+android/
+ios/
+dist/
+web-build/
+__tests__/
+*.log
+
+# No subir archivos de secretos ni llaves
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.env

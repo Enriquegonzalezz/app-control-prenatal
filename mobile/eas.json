@@ -12,7 +12,10 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_USE_FAST_RESOLVER": "1"
+        "EXPO_USE_FAST_RESOLVER": "1",
+        "EXPO_PUBLIC_API_URL": "https://app-control-prenatal-production.up.railway.app/api/v1",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://sdcvmigvumhtorhzobjj.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkY3ZtaWd2dW1odG9yaHpvYmpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzODczMjksImV4cCI6MjA4Nzk2MzMyOX0.LVXyunht9S8-NXM55ZtIjJZzmd44A4V1x-lL8LAXE9I"
       },
       "node": "22.14.0"
     },
@@ -21,9 +24,18 @@
         "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "EXPO_USE_FAST_RESOLVER": "1"
+        "EXPO_USE_FAST_RESOLVER": "1",
+        "EXPO_PUBLIC_API_URL": "https://app-control-prenatal-production.up.railway.app/api/v1",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://sdcvmigvumhtorhzobjj.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkY3ZtaWd2dW1odG9yaHpvYmpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzODczMjksImV4cCI6MjA4Nzk2MzMyOX0.LVXyunht9S8-NXM55ZtIjJZzmd44A4V1x-lL8LAXE9I"
       }
     },
-    "production": {}
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://app-control-prenatal-production.up.railway.app/api/v1",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://sdcvmigvumhtorhzobjj.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkY3ZtaWd2dW1odG9yaHpvYmpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzODczMjksImV4cCI6MjA4Nzk2MzMyOX0.LVXyunht9S8-NXM55ZtIjJZzmd44A4V1x-lL8LAXE9I"
+      }
+    }
   }
 }
