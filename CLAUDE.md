@@ -103,11 +103,14 @@ Las pacientes acceden al directorio de especialistas verificados.
 - **Bug secundario:** `ExperienceService::doctorBadges()` usaba `having('count',…)`/`orderByDesc('count')`
   sobre el alias de `withCount`; Postgres falla con `column "count" does not exist`. Ahora se
   filtra/ordena en PHP (`->get([...])->filter(...)->sortByDesc('count')->values()`).
-- **Dónde se ven:** las experiencias de un médico se muestran **solo** en el bottom-sheet de
-  detalle del directorio (`mobile/app/(tabs)/doctors.tsx`): badges agregados ("Lo que destacan",
-  `GET /experience-badges`) + testimonios narrativos ("Lo que dicen las pacientes",
-  `GET /experiences?doctor_id=`). El médico **no** tiene aún pantalla propia para ver las
-  experiencias que recibe (mejora futura sugerida).
+- **Dónde se ven:** (1) las pacientes las ven en el bottom-sheet de detalle del directorio
+  (`mobile/app/(tabs)/doctors.tsx`): badges agregados ("Lo que destacan", `GET /experience-badges`)
+  + testimonios narrativos ("Lo que dicen las pacientes", `GET /experiences?doctor_id=`).
+  (2) El médico ve **todas** las experiencias que ha recibido en `mobile/app/doctor-experiences.tsx`
+  (ruta `/doctor-experiences`, enlazada desde la sección "Mi Práctica" del perfil): tarjeta resumen
+  con total, badges "Lo que más destacan", y lista de tarjetas (nombre con privacidad aplicada,
+  fecha relativa, cuerpo expandible, tags) con pull-to-refresh. Reusa `experienceApi.listForDoctor(user.id, 100)`
+  + `experienceApi.badges(user.id)` (sin endpoints nuevos; la privacidad la aplica el backend).
 - **UI (`mobile/app/write-experience.tsx`):** toda la pantalla usa el **rosado de marca**
   `brandColors.primary` (#E8467C), no púrpura. Las píldoras de "¿Qué destacas?" se rellenan de
   rosado al seleccionarse; las cards de "¿Cómo aparecerá tu nombre?" usan flex inline

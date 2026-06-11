@@ -138,6 +138,27 @@ export default function ProfileScreen() {
               </View>
             </Pressable>
 
+            {/* Experiencias recibidas */}
+            <Pressable
+              onPress={() => router.push('/doctor-experiences')}
+              style={{ backgroundColor: isDark ? '#1C1C1C' : '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="Ver experiencias recibidas de pacientes"
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center flex-1">
+                  <View className="w-10 h-10 rounded-xl bg-pink-50 dark:bg-pink-900/20 items-center justify-center mr-3">
+                    <Ionicons name="ribbon-outline" size={20} color="#E8467C" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F9FAFB' : '#0F172A' }}>Experiencias de Pacientes</Text>
+                    <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#64748B', marginTop: 2 }}>Lo que opinan quienes te visitaron</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              </View>
+            </Pressable>
+
             <Pressable
               onPress={() => router.push('/appointments')}
               style={{ backgroundColor: isDark ? '#1C1C1C' : '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 12 }}
