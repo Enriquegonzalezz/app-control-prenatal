@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Animated,
   Pressable,
   ScrollView,
@@ -46,12 +45,11 @@ function TagPill({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        paddingHorizontal: 14, paddingVertical: 9,
-        borderRadius: 20, borderWidth: 1.5,
+        paddingHorizontal: 15, paddingVertical: 10,
+        borderRadius: 22, borderWidth: 1.5,
         backgroundColor: selected ? PINK.primary : (isDark ? '#1E1E1E' : '#FFFFFF'),
         borderColor: selected ? PINK.primary : (isDark ? '#3A3A3A' : '#E5E7EB'),
         opacity: pressed ? 0.75 : 1,
-        margin: 4,
       })}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -231,7 +229,7 @@ export default function WriteExperienceScreen() {
         <Text style={{ fontSize: 12, fontWeight: '700', color: subColor, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>
           ¿Qué destacas? (opcional)
         </Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginLeft: -4, marginBottom: 24 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
           {tags.map((tag) => (
             <TagPill
               key={tag.id}
@@ -295,32 +293,32 @@ export default function WriteExperienceScreen() {
           </View>
         )}
 
-        {/* Submit — mismo estilo que el botón "Guardar perfil" */}
+        {/* Submit — mismo patrón que el botón "Confirmar Cita" (doble fondo rosado) */}
         <Pressable
           onPress={handleSubmit}
-          disabled={submitting || tooShort}
+          disabled={submitting}
           style={({ pressed }) => ({
-            backgroundColor: PINK.primary,
+            backgroundColor: submitting ? '#9CA3AF' : '#E8467C',
             borderRadius: 16,
+            paddingVertical: 16,
+            paddingHorizontal: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
             borderWidth: 2,
-            borderColor: PINK.primaryDark,
-            opacity: submitting || tooShort ? 0.5 : (pressed ? 0.85 : 1),
-            shadowColor: PINK.primary,
+            borderColor: submitting ? '#9CA3AF' : '#C73E6B',
+            opacity: submitting ? 0.5 : (pressed ? 0.85 : 1),
+            shadowColor: submitting ? 'transparent' : '#E8467C',
             shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: submitting || tooShort ? 0 : 0.35,
+            shadowOpacity: submitting ? 0 : 0.35,
             shadowRadius: 12,
-            elevation: submitting || tooShort ? 0 : 6,
+            elevation: submitting ? 0 : 6,
           })}
           accessibilityRole="button"
           accessibilityLabel="Publicar experiencia"
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, paddingHorizontal: 20 }}>
-            {submitting ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Ionicons name="paper-plane" size={20} color="#fff" />
-            )}
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: submitting ? '#9CA3AF' : '#E8467C', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 20 }}>
+            <Ionicons name={submitting ? 'hourglass-outline' : 'paper-plane'} size={20} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.3 }}>
               {submitting ? 'Publicando...' : 'Publicar experiencia'}
             </Text>
           </View>
