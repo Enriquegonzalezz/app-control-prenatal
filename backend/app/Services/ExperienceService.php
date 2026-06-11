@@ -142,14 +142,19 @@ final class ExperienceService
      */
     public function doctorBadges(string $doctorId): Collection
     {
-        return \App\Models\ExperienceTag::withCount([
-            'experiences as count' => fn ($q) => $q
-                ->where('doctor_id', $doctorId)
-                ->where('status', ExperienceStatus::PUBLISHED->value),
-        ])
-        ->having('count', '>', 0)
-        ->orderByDesc('count')
-        ->get(['id', 'name', 'icon', 'count']);
+        // El conteo viene de una subconsulta correlacionada (withCount); Postgres
+        // no permite referenciar ese alias en HAVING/ORDER BY, así que filtramos y
+        // ordenamos en PHP. El catálogo de tags es pequeño (~10), costo despreciable.
+        return \App\Models\ExperienceTag::query()
+            ->withCount([
+                'experiences as count' => fn ($q) => $q
+                    ->where('doctor_id', $doctorId)
+                    ->where('status', ExperienceStatus::PUBLISHED->value),
+            ])
+            ->get(['id', 'name', 'icon'])
+            ->filter(fn ($tag) => $tag->count > 0)
+            ->sortByDesc('count')
+            ->values();
     }
 
     // ── privados ──────────────────────────────────────────────

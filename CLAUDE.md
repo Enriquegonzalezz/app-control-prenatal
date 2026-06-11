@@ -86,6 +86,33 @@ Las pacientes acceden al directorio de especialistas verificados.
 - **Requiere build de desarrollo/preview (NO Expo Go)** + `mobile/google-services.json`
   (app Android `com.controlprenatal.app`). iOS necesitaría APNs key + Firebase iOS app
   (pendiente; implementación actual es Android-first).
+- **Icono de notificación (Δ-12):** Android renderiza el icono de la barra de estado como
+  una **silueta blanca sobre transparente**; si no se define un icono dedicado, FCM cae al
+  launcher icon a color y Android lo enmascara como un cuadro blanco ("sin logo"). Fix: el
+  plugin `expo-notifications` en `app.json` declara `"icon": "./assets/notification-icon.png"`
+  (silueta blanca de embarazada, fondo transparente) + `"color": "#E8467C"`. La Edge Function
+  NO setea `android.notification.icon`, así que usa el default del manifest que genera el plugin.
+  Cambiar el icono **requiere un nuevo build nativo** (no basta OTA).
+
+**Experiencias / feedback narrativo (Δ-12, junio 2026):**
+- **Bug raíz corregido:** publicar una experiencia fallaba con
+  `violates foreign key constraint experiences_patient_id_fkey`. Las FK
+  `experiences.patient_id`/`doctor_id` apuntaban a `auth.users` (Supabase Auth), pero la app
+  usa **Sanctum con `public.users`**. Migración `fix_experiences_user_fkeys_to_public_users`
+  las recrea → `public.users(id) ON DELETE CASCADE` (mismo fix que `messages` en su día).
+- **Bug secundario:** `ExperienceService::doctorBadges()` usaba `having('count',…)`/`orderByDesc('count')`
+  sobre el alias de `withCount`; Postgres falla con `column "count" does not exist`. Ahora se
+  filtra/ordena en PHP (`->get([...])->filter(...)->sortByDesc('count')->values()`).
+- **Dónde se ven:** las experiencias de un médico se muestran **solo** en el bottom-sheet de
+  detalle del directorio (`mobile/app/(tabs)/doctors.tsx`): badges agregados ("Lo que destacan",
+  `GET /experience-badges`) + testimonios narrativos ("Lo que dicen las pacientes",
+  `GET /experiences?doctor_id=`). El médico **no** tiene aún pantalla propia para ver las
+  experiencias que recibe (mejora futura sugerida).
+- **UI (`mobile/app/write-experience.tsx`):** toda la pantalla usa el **rosado de marca**
+  `brandColors.primary` (#E8467C), no púrpura. Las píldoras de "¿Qué destacas?" se rellenan de
+  rosado al seleccionarse; las cards de "¿Cómo aparecerá tu nombre?" usan flex inline
+  `[icono] nombre · ejemplo`; el botón "Publicar experiencia" replica el estilo del botón
+  "Guardar perfil" (rosado, borde 2px `#C73E6B`, icono + texto en fila, spinner al enviar).
 
 ## Principios Arquitectónicos Clave
 1. **Multi-especialidad desde el día 1:** Ningún campo hace referencia
@@ -106,6 +133,7 @@ Las pacientes acceden al directorio de especialistas verificados.
 - s5_nearby_doctors_require_complete_profile (RPC get_nearby_doctors exige perfil profesional completo) — **Δ-7**
 - s6_seed_additional_clinics_venezuela (29 clínicas adicionales con sede + GPS)
 - s6_add_soft_delete_to_medical_records (medical_records.deleted_at + deleted_by; soft-delete) — **Δ-11**
+- fix_experiences_user_fkeys_to_public_users (experiences.patient_id/doctor_id apuntaban a `auth.users`; recreadas → `public.users`. Era el bug que impedía publicar experiencias) — **Δ-12**
 
 ## Estructura de Carpetas
 
@@ -218,3 +246,7 @@ Nunca modificar una migración ya ejecutada. Crear siempre una nueva.
 - ❌ Generar slots en UTC — la hora del médico es hora local de Caracas (`ScheduleService::CLINIC_TIMEZONE` = `America/Caracas`); en UTC los cupos quedan corridos −4h y los de hoy desaparecen del filtro `starts_at >= now()` (Δ-10)
 - ❌ Usar la palabra "slot" en la UI para médicos — en la interfaz un cupo se llama **"cupo"** (bloque agendable) y el horario semanal recurrente se llama **"horario"** (Δ-10)
 - ❌ Hard-delete de documentos del historial — es **soft-delete** (`medical_records.deleted_at` + `deleted_by`, trait SoftDeletes); el archivo en Storage se conserva. Solo quien lo subió (`uploader_id`) puede borrarlo (Δ-11)
+- ❌ Crear FK de tablas de la app hacia `auth.users` — la app usa Sanctum con `public.users`; **toda** FK de usuario apunta a `public.users(id)` (ya corregido en `messages` y `experiences`, Δ-12)
+- ❌ En consultas con `withCount('rel as count')`, referenciar el alias `count` en `having()`/`orderBy()` — Postgres lanza `column "count" does not exist`; filtrar/ordenar en PHP sobre la colección (Δ-12)
+- ❌ Usar púrpura (#A855F7) en la pantalla de experiencias ni en los badges/testimonios del directorio — el acento es el **rosado de marca** `brandColors.primary` (#E8467C) (Δ-12)
+- ❌ Dejar el plugin `expo-notifications` sin `icon` — sin silueta blanca dedicada Android muestra un cuadro blanco en vez del logo; usar `./assets/notification-icon.png` (Δ-12)

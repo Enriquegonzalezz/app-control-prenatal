@@ -44,9 +44,11 @@
         }
       ],
       "expo-router",
+      "expo-font",
       [
         "expo-notifications",
         {
+          "icon": "./assets/notification-icon.png",
           "color": "#E8467C"
         }
       ]

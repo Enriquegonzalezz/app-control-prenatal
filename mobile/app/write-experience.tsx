@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Pressable,
   ScrollView,
@@ -13,6 +14,19 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { experienceApi, ExperienceTag } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useEffectiveTheme } from '@/store/themeStore';
+import { brandColors } from '@/theme/colors';
+
+// Paleta rosada de marca (coherente con el botón "Guardar perfil" y el resto de la app).
+const PINK = {
+  primary:     brandColors.primary, // #E8467C
+  primaryDark: '#C73E6B',           // borde del botón primario (igual que guardar perfil)
+  tintLight:   '#FDF2F8',           // fondo suave (modo claro)
+  tintDark:    '#2A0E1A',           // fondo suave (modo oscuro)
+  borderLight: '#FBCFE8',           // borde suave (modo claro)
+  borderDark:  '#E8467C40',         // borde suave (modo oscuro)
+  textLight:   '#BE185D',           // texto sobre tinte (modo claro)
+  textDark:    '#F9A8D4',           // texto sobre tinte (modo oscuro)
+};
 
 type Privacy = 'full_name' | 'partial' | 'anonymous';
 
@@ -34,8 +48,8 @@ function TagPill({
       style={({ pressed }) => ({
         paddingHorizontal: 14, paddingVertical: 9,
         borderRadius: 20, borderWidth: 1.5,
-        backgroundColor: selected ? '#A855F7' : (isDark ? '#1E1E1E' : '#FFFFFF'),
-        borderColor: selected ? '#A855F7' : (isDark ? '#3A3A3A' : '#E5E7EB'),
+        backgroundColor: selected ? PINK.primary : (isDark ? '#1E1E1E' : '#FFFFFF'),
+        borderColor: selected ? PINK.primary : (isDark ? '#3A3A3A' : '#E5E7EB'),
         opacity: pressed ? 0.75 : 1,
         margin: 4,
       })}
@@ -130,8 +144,8 @@ export default function WriteExperienceScreen() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={['top', 'bottom']}>
         <Animated.View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, opacity: successOpacity, transform: [{ scale: successScale }] }}>
-          <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-            <Ionicons name="checkmark-circle" size={50} color="#A855F7" />
+          <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: PINK.tintLight, alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+            <Ionicons name="checkmark-circle" size={50} color={PINK.primary} />
           </View>
           <Text style={{ fontSize: 22, fontWeight: '800', color: textColor, textAlign: 'center', marginBottom: 10 }}>
             ¡Gracias por compartir!
@@ -142,9 +156,9 @@ export default function WriteExperienceScreen() {
           <Pressable
             onPress={() => router.back()}
             style={({ pressed }) => ({
-              backgroundColor: '#A855F7', borderRadius: 22, paddingVertical: 16, paddingHorizontal: 40,
+              backgroundColor: PINK.primary, borderRadius: 22, paddingVertical: 16, paddingHorizontal: 40,
               opacity: pressed ? 0.85 : 1,
-              shadowColor: '#A855F7', shadowOffset: { width: 0, height: 8 },
+              shadowColor: PINK.primary, shadowOffset: { width: 0, height: 8 },
               shadowOpacity: 0.4, shadowRadius: 18, elevation: 10,
             })}
           >
@@ -170,8 +184,8 @@ export default function WriteExperienceScreen() {
           <Text style={{ fontSize: 20, fontWeight: '800', color: textColor }}>Mi experiencia</Text>
           <Text style={{ fontSize: 12, color: '#9CA3AF' }}>Con {params.doctor_name}</Text>
         </View>
-        <View style={{ backgroundColor: '#F3E8FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
-          <Ionicons name="star-half" size={16} color="#A855F7" />
+        <View style={{ backgroundColor: PINK.tintLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+          <Ionicons name="star-half" size={16} color={PINK.primary} />
         </View>
       </View>
 
@@ -181,8 +195,8 @@ export default function WriteExperienceScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48 }}
       >
         {/* Intro card */}
-        <View style={{ backgroundColor: isDark ? '#1A0A24' : '#FAF5FF', borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: isDark ? '#A855F730' : '#E9D5FF' }}>
-          <Text style={{ fontSize: 13, color: isDark ? '#D8B4FE' : '#7E22CE', lineHeight: 19 }}>
+        <View style={{ backgroundColor: isDark ? PINK.tintDark : PINK.tintLight, borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: isDark ? PINK.borderDark : PINK.borderLight }}>
+          <Text style={{ fontSize: 13, color: isDark ? PINK.textDark : PINK.textLight, lineHeight: 19 }}>
             Tu opinión ayuda a otras pacientes a elegir al especialista adecuado. No usamos estrellas — aquí lo que importa es tu experiencia real.
           </Text>
         </View>
@@ -242,26 +256,27 @@ export default function WriteExperienceScreen() {
                 onPress={() => setPrivacy(opt.key)}
                 style={({ pressed }) => ({
                   flexDirection: 'row', alignItems: 'center', gap: 12,
-                  backgroundColor: isSelected ? (isDark ? '#2D1A3D' : '#FAF5FF') : cardBg,
+                  backgroundColor: isSelected ? (isDark ? PINK.tintDark : PINK.tintLight) : cardBg,
                   borderRadius: 14, padding: 14, borderWidth: 1.5,
-                  borderColor: isSelected ? '#A855F7' : borderColor,
+                  borderColor: isSelected ? PINK.primary : borderColor,
                   opacity: pressed ? 0.8 : 1,
                 })}
               >
                 <View style={{
                   width: 36, height: 36, borderRadius: 18,
-                  backgroundColor: isSelected ? '#A855F7' : (isDark ? '#252525' : '#F3F4F6'),
+                  backgroundColor: isSelected ? PINK.primary : (isDark ? '#252525' : '#F3F4F6'),
                   alignItems: 'center', justifyContent: 'center',
                 }}>
                   <Ionicons name={opt.icon as any} size={16} color={isSelected ? '#fff' : subColor} />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: isSelected ? '#A855F7' : textColor }}>
+                {/* Nombre + ejemplo en flex: envuelve con gracia si no cabe en una línea */}
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: isSelected ? PINK.primary : textColor }}>
                     {opt.label}
                   </Text>
-                  <Text style={{ fontSize: 12, color: subColor, marginTop: 1 }}>{opt.desc}</Text>
+                  <Text style={{ fontSize: 12, color: subColor }}>{opt.desc}</Text>
                 </View>
-                {isSelected && <Ionicons name="checkmark-circle" size={20} color="#A855F7" />}
+                {isSelected && <Ionicons name="checkmark-circle" size={20} color={PINK.primary} />}
               </Pressable>
             );
           })}
@@ -280,31 +295,35 @@ export default function WriteExperienceScreen() {
           </View>
         )}
 
-        {/* Submit */}
+        {/* Submit — mismo estilo que el botón "Guardar perfil" */}
         <Pressable
           onPress={handleSubmit}
           disabled={submitting || tooShort}
           style={({ pressed }) => ({
-            backgroundColor: submitting || tooShort ? '#9CA3AF' : '#A855F7',
-            borderRadius: 22, paddingVertical: 18,
-            alignItems: 'center', justifyContent: 'center',
-            opacity: pressed ? 0.88 : 1,
-            shadowColor: tooShort ? 'transparent' : '#A855F7',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: tooShort ? 0 : 0.4,
-            shadowRadius: 20, elevation: tooShort ? 0 : 10,
+            backgroundColor: PINK.primary,
+            borderRadius: 16,
+            borderWidth: 2,
+            borderColor: PINK.primaryDark,
+            opacity: submitting || tooShort ? 0.5 : (pressed ? 0.85 : 1),
+            shadowColor: PINK.primary,
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: submitting || tooShort ? 0 : 0.35,
+            shadowRadius: 12,
+            elevation: submitting || tooShort ? 0 : 6,
           })}
           accessibilityRole="button"
           accessibilityLabel="Publicar experiencia"
         >
-          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>
-            {submitting ? 'Publicando...' : 'Publicar experiencia'}
-          </Text>
-          {!submitting && !tooShort && (
-            <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 2 }}>
-              {selectedTagIds.length > 0 ? `${selectedTagIds.length} etiqueta${selectedTagIds.length > 1 ? 's' : ''} seleccionada${selectedTagIds.length > 1 ? 's' : ''}` : 'Sin etiquetas'}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, paddingHorizontal: 20 }}>
+            {submitting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Ionicons name="paper-plane" size={20} color="#fff" />
+            )}
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+              {submitting ? 'Publicando...' : 'Publicar experiencia'}
             </Text>
-          )}
+          </View>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

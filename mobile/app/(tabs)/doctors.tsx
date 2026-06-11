@@ -319,13 +319,13 @@ function DoctorProfileSheet({
                         key={badge.id}
                         style={{
                           flexDirection: 'row', alignItems: 'center', gap: 5,
-                          backgroundColor: isDark ? '#1A0A24' : '#FAF5FF',
+                          backgroundColor: isDark ? '#2A0E1A' : '#FDF2F8',
                           borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
-                          borderWidth: 1, borderColor: isDark ? '#A855F730' : '#E9D5FF',
+                          borderWidth: 1, borderColor: isDark ? '#E8467C40' : '#FBCFE8',
                         }}
                       >
-                        <Ionicons name="pricetag-outline" size={11} color="#A855F7" />
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#D8B4FE' : '#7E22CE' }}>
+                        <Ionicons name="pricetag-outline" size={11} color="#E8467C" />
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#F9A8D4' : '#BE185D' }}>
                           {badge.name} ({badge.count})
                         </Text>
                       </View>
@@ -355,10 +355,10 @@ function DoctorProfileSheet({
                           }}
                         >
                           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#A855F720', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
-                              <Ionicons name="person-outline" size={13} color="#A855F7" />
+                            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#E8467C20', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                              <Ionicons name="person-outline" size={13} color="#E8467C" />
                             </View>
-                            <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#D8B4FE' : '#7E22CE', flex: 1 }}>
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#F9A8D4' : '#BE185D', flex: 1 }}>
                               {t.patient?.name ?? 'Paciente anónimo'}
                             </Text>
                             {t.body.length > 120 && (
